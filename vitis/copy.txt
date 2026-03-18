@@ -1,0 +1,1 @@
+FPGA Temperature = assertion "Balloc succeeded" failed: file "/usr/src/debug/libmblebspm-newlib/4.1.0-r0/newlib-4.1.0/newlib/libc/stdlib/mprec.c", line 778

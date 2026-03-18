@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="ASCII"?>
+<sdkproject:SdkProject xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:sdkproject="http://www.xilinx.com/sdkproject" name="EXTREAM_fw" location="/home/fpga0/work/EXTxR2/vitis/EXTREAM_fw" platform="/home/fpga0/work/EXTxR2/vitis/EXTREAM_R_platform/export/EXTREAM_R_platform/EXTREAM_R_platform.xpfm" platformUID="xilinx:kc705::0.0(custom)" systemProject="EXTREAM_fw_system" sysConfig="EXTREAM_R_platform" runtime="cpp" cpu="domain_0" cpuInstance="microblaze_0" os="standalone" mssSignature="85e29a6cf647b905d514e024b4b0275e">
+  <configuration name="Debug" id="xilinx.gnu.mb.exe.debug.1343735235" dirty="true">
+    <configBuildOptions xsi:type="sdkproject:SdkOptions"/>
+    <lastBuildOptions xsi:type="sdkproject:SdkOptions"/>
+  </configuration>
+  <configuration name="Release" id="xilinx.gnu.mb.exe.release.1931694284">
+    <configBuildOptions xsi:type="sdkproject:SdkOptions"/>
+    <lastBuildOptions xsi:type="sdkproject:SdkOptions"/>
+  </configuration>
+  <template appTemplateName="empty_application"/>
+</sdkproject:SdkProject>

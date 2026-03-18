@@ -1,0 +1,46 @@
+Release Notes GigE Vision 2 NBaseT reference design for KC705
+- Selectable GEV1.2/GEV2 mode
+- Vivado 2020.2
+- Testpattern generator
+- Extended chunk support
+- Optional physical eeprom and authentication support
+
+2.2.0
+Port from 1G GEV reference design
+
+2.3.0
+Updated libgige with GEV 2.2 support
+added set_data_rate function
+
+2.4.0
+Updated for latest IP cores
+
+2.5.0
+Updated framebuffer core (2.1.1), xgige core (1.9.1), xgmac (1.4.1) multilib (v5.1.1)
+Parameter for timestamp in gige_send_message
+Updates for latest validation suite
+
+2.6.0
+Updated framebuffer core (2.1.2), xgige core (2.0.2), xgmac (1.5.0) multilib (v5.1.5)
+Added new generic testpattern generator
+Added support for extended chunk mode
+Updated to Vivado 2020.2 and Vitis
+
+2.6.1
+Updated framebuffer core (2.1.4), xgige core (2.2.0), xgmac (2.0.0) multilib (v5.2.5)
+
+2.6.2
+Updated framebuffer core (2.2.0), xgige core (2.2.1), xgmac (2.0.1) multilib (v5.2.9)
+replaced videotpg sources with unencrypted IP core (v1.0.1)
+
+2.6.3
+Updated framebuffer core (2.2.2), xgige core (2.2.4), xgmac (2.0.2) multilib (v5.2.12), videotpg (v1.0.3), Bootloader (v1.25)
+Fixed timestamp shift
+
+2.7.0
+Updated to Vivado 2022.2
+Updated cores libgige (5.4.0), framebuffer (2.2.5), xgige (2.3.3), gmac (2.3.3), xg2g (1.2.0), xgmac (2.0.2), videotpg (1.0.3)
+Direct entity instantiation in gvrd.vhd
+Updated block diagram: 
+ - Replaced AXI Data Width converter and AXI Crossbar to AXI SmartConnect
+ - Replaced AXI Interconnect to AXI SmartConnect

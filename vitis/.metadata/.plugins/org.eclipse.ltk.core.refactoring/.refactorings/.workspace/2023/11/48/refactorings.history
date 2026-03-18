@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Delete 9 resources" deleteContents="false" description="Delete 9 resources" element1="/EXTR/src/flash.c.bak" element2="/EXTR/src/flash.h.bak" element3="/EXTR/src/gige.h.bak" element4="/EXTR/src/int.c.bak" element5="/EXTR/src/m88x33xx.c.bak" element6="/EXTR/src/main.c.bak" element7="/EXTR/src/phy.h.bak" element8="/EXTR/src/user.c.bak" element9="/EXTR/src/user.h.bak" flags="7" id="org.eclipse.ltk.core.refactoring.delete.resources" resources="9" stamp="1701054906555"/>
+</session>

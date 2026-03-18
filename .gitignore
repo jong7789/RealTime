@@ -1,0 +1,84 @@
+# ============================================================
+# Vivado 생성 파일 (합성/구현 결과물 - 재생성 가능)
+# ============================================================
+EXTxR2.cache/
+EXTxR2.runs/
+EXTxR2.gen/
+EXTxR2.ip_user_files/
+EXTxR2.hw/
+EXTxR2.sim/
+*.jou
+*.log
+*.str
+*.debug
+
+# Vivado 백업/임시 파일
+*.vhd.bak
+*.vhd.bak2
+*.vhd.bak321286432
+*.bak
+*.backup.*
+*.orig
+
+# ============================================================
+# Vitis / SDK 빌드 산출물
+# ============================================================
+vitis/EXTREAM_fw/Debug/
+vitis/EXTREAM_fw/Release/
+vitis/EXTREAM_fw_system/Debug/
+vitis/EXTREAM_fw_system/Release/
+vitis/bootloader/Debug/
+vitis/bootloader/Release/
+vitis/bootloader_system/Debug/
+vitis/bootloader_system/Release/
+vitis/EXTREAM_R_platform/
+vitis/EXTREAM_R_xsa/
+vitis/EXTREAM_R_xsatest/
+vitis/RemoteSystemsTempFiles/
+vitis/xrc.log
+vitis/IDE.log
+vitis/*.jou
+vitis/*.log
+vitis/xsdb_prog.tcl@echo
+
+# Vitis 빌드 바이너리 (재빌드 가능)
+vitis/bin/*.elf
+vitis/bin/*.bit
+vitis/bin/*.bin
+vitis/bin/FPGA1stBin/
+vitis/bin/Debug/
+vitis/bin/Release/
+vitis/fw/
+
+# 릴리즈 ZIP 패키지 (용량 큼, 별도 관리 권장)
+vitis/bin/*.zip
+
+# ============================================================
+# IP 코어 압축 파일 (원본 zip 보존, 압축 해제본 제외)
+# ============================================================
+cores/rxaui_v4_4/
+cores/xaui_v12_3/
+cores/s2i_framebuf_2.2.6_l0_vivado2022.2/
+cores/s2i_libgige_5.4.1m_l1_mb/
+cores/s2i_videotpg_1.0.3_l0_vivado2022.2/
+cores/s2i_xgige_2.3.4_l12_vivado2022.2/
+cores/s2i_xgmac_2.0.2_l12_vivado2022.2/
+cores/SphinxSDK_GEV_2.7.3_Windows_UpdateGigE/
+cores/bootloader_src_v1.25/
+
+# ============================================================
+# SDK 레거시 디렉토리
+# ============================================================
+sdk/
+
+# ============================================================
+# 기타
+# ============================================================
+RemoteSystemsTempFiles/
+IDE.log
+ip_upgrade.log
+*.xsa
+
+# Windows 시스템 파일
+Thumbs.db
+desktop.ini

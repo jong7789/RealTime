@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="ASCII"?>
+<systemproject:SystemProject xmi:version="2.0" xmlns:xmi="http://www.omg.org/XMI" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:sdkproject="http://www.xilinx.com/sdkproject" xmlns:systemproject="http://www.xilinx.com/systemproject" name="EXTREAM_fw_system" platform="/home/fpga0/work/EXTxR2/vitis/EXTREAM_R_platform/export/EXTREAM_R_platform/EXTREAM_R_platform.xpfm" platformUID="xilinx:kc705::0.0(custom)" sysConfig="EXTREAM_R_platform" runtime="cpp" rootFSLocation="" linuxImage="" sysroot="">
+  <configuration name="Debug" id="com.xilinx.sdx.system.managedbuilder.debugConfiguration.409428950">
+    <configBuildOptions xsi:type="systemproject:SystemOptions">
+      <applications name="EXTREAM_fw" domainName="domain_0" domainPrettyName="domain_0" appBuildConfig="Debug"/>
+      <options xsi:type="sdkproject:SdkOptions" generateSdCard="true"/>
+    </configBuildOptions>
+    <lastBuildOptions xsi:type="systemproject:SystemOptions">
+      <applications name="EXTREAM_fw" domainName="domain_0" domainPrettyName="domain_0" appBuildConfig="Debug"/>
+      <options xsi:type="sdkproject:SdkOptions" generateSdCard="true"/>
+    </lastBuildOptions>
+  </configuration>
+  <configuration name="Release" id="com.xilinx.sdx.system.managedbuilder.releaseConfiguration.1758660978">
+    <configBuildOptions xsi:type="systemproject:SystemOptions">
+      <applications name="EXTREAM_fw" domainName="domain_0" domainPrettyName="domain_0" appBuildConfig="Release"/>
+      <options xsi:type="sdkproject:SdkOptions" generateSdCard="true"/>
+    </configBuildOptions>
+    <lastBuildOptions xsi:type="systemproject:SystemOptions">
+      <applications name="EXTREAM_fw" domainName="domain_0" domainPrettyName="domain_0" appBuildConfig="Release"/>
+      <options xsi:type="sdkproject:SdkOptions" generateSdCard="true"/>
+    </lastBuildOptions>
+  </configuration>
+</systemproject:SystemProject>

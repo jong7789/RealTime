@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<section name="Workbench">
+	<item key="devices_info_Local" value="{&quot;cables&quot;:[{&quot;name&quot;:&quot;Platform Cable USB 00000000000000&quot;,&quot;indexContextMap&quot;:{&quot;2&quot;:&quot;jsn-DLC9LP-00000000000000-0364c093-0&quot;}}]}"/>
+	<item key="mmr_test_system-bitFile" value="${project_loc:mmr_test}/_ide/bitstream/EXTREAM_R.bit"/>
+	<item key="mmr_test_system-bmmFile" value="${project_loc:mmr_test}/_ide/bitstream/EXTREAM_R.mmi"/>
+	<item key="mmr_test_system-target" value="Local"/>
+	<item key="mmr_test_system-device" value="Auto Detect"/>
+	<item key="mmr_test_system-partial_bit" value="false"/>
+	<item key="mmr_test_system-skip_rev_check" value="false"/>
+	<item key="programfpga.sdxproject" value="EXTREAM_fw_system"/>
+	<item key="mmr_test_system-microblaze_0-initElf" value="bootloop"/>
+	<item key="EXTREAM_fw_system-bitFile" value="${project_loc:EXTREAM_fw}/_ide/bitstream/EXTREAM_R.bit"/>
+	<item key="EXTREAM_fw_system-bmmFile" value="${project_loc:EXTREAM_fw}/_ide/bitstream/EXTREAM_R.mmi"/>
+	<item key="EXTREAM_fw_system-target" value="Local"/>
+	<item key="EXTREAM_fw_system-device" value="Auto Detect"/>
+	<item key="EXTREAM_fw_system-partial_bit" value="false"/>
+	<item key="EXTREAM_fw_system-skip_rev_check" value="false"/>
+	<item key="EXTREAM_fw_system-microblaze_0-initElf" value="bootloop"/>
+</section>
