@@ -82,3 +82,22 @@ ip_upgrade.log
 # Windows 시스템 파일
 Thumbs.db
 desktop.ini
+
+# ============================================================
+# 대용량 바이너리 / Vivado 체크포인트
+# ============================================================
+# Vivado Design Checkpoint (수십~수백 MB, 재생성 가능)
+*.dcp
+
+# Vivado / Vitis 임시 작업 디렉토리
+.Xil/
+vitis/.Xil/
+.metadata/
+vitis/.metadata/
+
+# 분석 캐시
+.analytics
+vitis/.analytics
+
+# 대용량 ZIP 패키지
+xgvrd-*.zip
