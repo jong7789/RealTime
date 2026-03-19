@@ -254,7 +254,7 @@ begin
 --    sch1_rlen <= ("00000" & ireg_width(11 downto 5)) when sddr_ch1_waddr = 0 else sch1_rlen; -- 512 / 16 bit = 2^5
     sch1_rlen <= ( "0000" & ireg_width(11 downto 4)) when sddr_ch1_waddr = 0 else sch1_rlen; -- 512 / 32 bit = 2^4
     sch2_rlen <= ("00000" & ireg_width(11 downto 5)) when sddr_ch2_waddr = 0 else sch2_rlen; -- 512 / 16 bit = 2^5
-    sch3_rlen <= ("00000" & ireg_width(11 downto 5)) when sddr_ch3_waddr = 0 else sch3_rlen; -- 512 / 16 bit = 2^4
+    sch3_rlen <= ("00000" & ireg_width(11 downto 5)) when sddr_ch3_waddr = 0 else sch3_rlen; -- 512 / 16 bit = 2^5
     sch4_rlen <= ("00000" & ireg_width(11 downto 5)) when sddr_ch4_waddr = 0 else sch4_rlen; -- 512 / 16 bit = 2^5
 end generate GEN_10G_LEN; 
 

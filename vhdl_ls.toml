@@ -1,0 +1,7 @@
+[libraries]
+defaultlib.files = [
+    'EXTxR2.srcs/sources_1/**/*.vhd',
+]
+UNISIM.files = [
+    '/home/Xilinx2022/Vivado/2022.2/data/vhdl/src/unisims/unisim_VCOMP.vhd',
+]
