@@ -860,8 +860,7 @@ begin
 
     end generate;
     
-    EXT4343RD : if(GNR_MODEL = "EXT4343RD") or
-                  (GNR_MODEL = "EXT3643R" ) generate
+    EXT4343RD : if(GNR_MODEL = "EXT4343RD") generate
 
     signal spwr_vgh_en          : std_logic;
     signal spwr_vbias_en        : std_logic;
@@ -875,7 +874,6 @@ begin
         process(imain_clk, imain_rstn)
         begin
             if(imain_rstn = '0') then
-
                 spwr_cnt            <= (others => '0');
                 spwr_vgh_en         <= '0';
                 spwr_vbias_en       <= '0';
@@ -884,7 +882,6 @@ begin
                 spwr_roic_en        <= '0';
                 spwr_roic_avdd_en   <= '0';
                 spwr_done           <= '0';
-                
             elsif(imain_clk'event and imain_clk = '1') then
                 if(sreg_pwr_mode = '1') then
                     spwr_cnt            <= (others => '0');
@@ -921,6 +918,73 @@ begin
         opwr_en(3)      <= spwr_vgl_en;
         opwr_en(4)      <= spwr_roic_en;
         opwr_en(5)      <= spwr_roic_avdd_en;
+    end generate;
+
+    EXT3643R : if (GNR_MODEL = "EXT3643R" ) generate
+
+    signal spwr_vgh_en          : std_logic;
+    signal spwr_vbias_en        : std_logic;
+    signal spwr_vbias_sw        : std_logic;
+    signal spwr_gate_3v3_en     : std_logic;
+    signal spwr_vgl_en          : std_logic;
+    signal spwr_roic_en         : std_logic;
+    signal spwr_roic_avdd_en    : std_logic;
+
+    begin
+
+        process(imain_clk, imain_rstn)
+        begin
+            if(imain_rstn = '0') then
+
+                spwr_cnt            <= (others => '0');
+                spwr_vgh_en         <= '0';
+                spwr_vbias_en       <= '0';
+                spwr_vbias_sw       <= '0';
+                spwr_gate_3v3_en    <= '0';
+                spwr_vgl_en         <= '0';
+                spwr_roic_en        <= '0';
+                spwr_roic_avdd_en   <= '0';
+                spwr_done           <= '0';
+                
+            elsif(imain_clk'event and imain_clk = '1') then
+                if(sreg_pwr_mode = '1') then
+                    spwr_cnt            <= (others => '0');
+                    spwr_vgh_en         <= '0';
+                    spwr_vbias_en       <= '0';
+                    spwr_vbias_sw       <= '0';
+                    spwr_gate_3v3_en    <= '0';
+                    spwr_vgl_en         <= '0';
+                    spwr_roic_en        <= '0'; 
+                    spwr_roic_avdd_en   <= '0';
+                    spwr_done           <= '0';
+                else
+                    if (spwr_cnt = stime_1st - 1) then
+                        spwr_done           <= '1';
+                        spwr_vgh_en         <= '1';
+                        spwr_vbias_en       <= '1';
+                        spwr_vbias_sw       <= '1';
+                        spwr_gate_3v3_en    <= '1';
+                        spwr_vgl_en         <= '1';
+                        spwr_roic_en        <= '1';
+                        spwr_roic_avdd_en   <= '1';
+                    else
+                        if (spwr_cnt = stime_1st - 1) then
+                            NULL;
+                        end if;
+                        spwr_cnt        <= spwr_cnt + '1';
+                        spwr_done       <= '0';
+                    end if;
+                end if;
+            end if;
+        end process;
+
+        opwr_en(0)      <= spwr_vbias_en when serase_en = '0' else '0';
+        opwr_en(1)      <= spwr_vgh_en;
+        opwr_en(2)      <= spwr_gate_3v3_en;
+        opwr_en(3)      <= spwr_vgl_en;
+        opwr_en(4)      <= spwr_roic_en;
+        opwr_en(5)      <= spwr_roic_avdd_en;
+        opwr_en(6)      <= spwr_vbias_sw when serase_en = '0' else '0';
     end generate;
 
     opwr_done       <= spwr_done;

@@ -11,6 +11,12 @@ EXTREAM-R 시리즈 적외선 열화상 카메라용 FPGA 설계 프로젝트.
 - **프로토콜**: 10G GigE Vision (GEV 1.2/2.0)
 - **지원 모델**: EXT1616R, EXT2430R, EXT2832R, EXT4343R 계열, EXT3643R 등 18개 이상 변형
 
+## Reference Documents
+- docs/AFE3256_refernce.md : AFE3256 ROIC 요약 데이터시트
+
+## Feature
+- EXT3643R만 SFP 모듈 사용
+
 ## Build Commands
 
 ### FPGA 비트스트림 빌드 (Vivado)
@@ -115,3 +121,4 @@ MicroBlaze 기반 C 펌웨어 (94개 소스 파일):
 source project.tcl   # 프로젝트 구조 복원
 source bd0.tcl       # CPU 블록다이어그램 생성
 ```
+

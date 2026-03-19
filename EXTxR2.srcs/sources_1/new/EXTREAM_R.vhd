@@ -151,6 +151,17 @@ entity EXTREAM_R is
 --            fmc_reset_n     : out   std_logic;
 --            fmc_mdc         : out   std_logic;
 --            fmc_mdio        : inout std_logic
+
+---- █▀ █▀▀ █▀█
+---- ▄█ █▀░ █▀▀
+--            SFP_SCL     : out   std_logic;
+--            SFP_SDA     : inout std_logic;
+--            SFP_LOS     : in    std_logic;
+--            SFP_DISABLE : in    std_logic;
+--            SFP_TX_P    : out   std_logic;
+--            SFP_TX_N    : out   std_logic;
+--            SFP_RX_P    : in    std_logic;
+--            SFP_RX_N    : in    std_logic
             );
 end EXTREAM_R;
 

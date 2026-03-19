@@ -1977,7 +1977,7 @@ PACKAGE BODY TOP_HEADER is
         elsif(s = "EXT4343RCI_1") then val := 5;
         elsif(s = "EXT4343RCI_2") then val := 5;
         elsif(s = "EXT4343RD"  ) then val := 6;
-        elsif(s = "EXT3643R"   ) then val := 6;
+        elsif(s = "EXT3643R"   ) then val := 7;
         end if;
         return val;
     end PWR_NUM;
