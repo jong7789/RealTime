@@ -1,13 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <section name="Workbench">
 	<section name="org.eclipse.ui.texteditor.FindReplaceDialog">
-		<item key="selection" value="XML_CALIB_MAP"/>
+		<item key="selection" value="REG"/>
 		<item key="wrap" value="true"/>
 		<item key="casesensitive" value="false"/>
 		<item key="wholeword" value="false"/>
 		<item key="incremental" value="false"/>
 		<item key="isRegEx" value="false"/>
 		<list key="findhistory">
+			<item value="REG"/>
 			<item value="XML_CALIB_MAP"/>
 			<item value="func_roic_temp"/>
 			<item value="func_fpga_temp"/>
@@ -22,7 +23,6 @@
 			<item value="pmode"/>
 			<item value="gmode"/>
 			<item value="3256"/>
-			<item value="3245"/>
 		</list>
 		<list key="replacehistory">
 			<item value="execute_cmd_tp_graph"/>

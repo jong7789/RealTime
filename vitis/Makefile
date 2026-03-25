@@ -185,7 +185,8 @@ OC_REMOVE = -R .vectors.reset -R .vectors.sw_exception -R .vectors.interrupt -R 
 # Data to memory options
 #PROC_TAG = CPU_INST/microblaze_0
 #drt
-PROC_TAG = GEV_CPU/cpu_i/microblaze_0 
+#PROC_TAG = GEV_CPU/cpu_i/microblaze_0 
+PROC_TAG = $(shell grep -oP 'InstPath="\K[^"]+' $(HW_MMI))
 
 # Correct command line tools for GNUWin environment
 XILINX_VITIS_DIR := $(subst \,/,$(XILINX_VITIS))

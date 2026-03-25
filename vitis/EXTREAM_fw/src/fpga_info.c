@@ -68,6 +68,7 @@ u32 mEXT4343R_series;
 u32 mEXT1616R_series;
 u32 mEXT2832R_series;
 u32 mEXT2430R_series;
+u32 mEXT3643R_series;
 
 u32 AFE3256_series;
 

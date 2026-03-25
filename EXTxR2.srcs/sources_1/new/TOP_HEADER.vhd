@@ -5,14 +5,18 @@ use IEEE.STD_LOGIC_ARITH.ALL;
 
 package TOP_HEADER is
 
-   constant SIMULATION : string := "OFF";
+    constant SIMULATION : string := "OFF";
 -- constant SIMULATION : string := "ON";
 -- constant GNR_MODEL  : string := "EXT1616R";
- 
---constant FPGA_VER  : std_logic_vector(19 downto 0):= x"1_99_00"; --# 1st image
-constant FPGA_VER  : std_logic_vector(19 downto 0):= x"2_01_11"; --(ti1,adi0_MainVer_subVer)
-constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0317_14";
 
+--constant FPGA_VER  : std_logic_vector(19 downto 0) := x"1_99_00"; --# 1st image
+    constant FPGA_VER  : std_logic_vector(19 downto 0) := x"2_01_11"; --(ti1,adi0_MainVer_subVer)
+constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0323_17";
+
+-- # 2_01_11 26_0323_17 :  $ 2DDR & 4DDR
+-- # 2_01_11 26_0320_11 :  rxaui bufh, sfp bypass
+-- # 2_01_11 26_0320_10 :  --# bufh-> bufg 250320
+-- # 2_01_11 26_0318_18 :  --# SFP+ 10GBASE-R PHY and XGMII MUX
 -- # 2_01_11 26_0317_14 :  $ EXT3643R MODEL ADD
 -- # 2_01_11 26_0312_17 :  --$ 260312 4343rd roic dclk
 -- # 2_01_11 26_0312_15 :  --$ 260312 AFE3256 ADC 128Ch
@@ -60,7 +64,7 @@ constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0317_14";
 -- # 2_01_11 25_1223_15 :  $ EXT4343RD lvds ila
 -- # 2_01_11 25_1223_10 :  $ EXT4343RD Model
 
--- # 2_01_11 25_1013_14 :  ddr refclk error -> no bufg 
+-- # 2_01_11 25_1013_14 :  ddr refclk error -> no bufg
 -- # 2_01_11 25_1001_10 :  impl:congestion_sp..high ==> align OK
 -- # 2_01_11 25_0930_18 :  pwr_ctrl except 4343r4
 -- # 2_01_11 25_0930_13 :  xdc map
@@ -99,13 +103,13 @@ constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0317_14";
 -- # 1_70_10 23_1120_10 : generic model GNR_MODEL reg 4, 8 bug fix
 -- # 1_70_09 23_1117_18 : generic model GNR_MODEL Image is diago
 -- # 1_70_08 23_1116_12 : generic model GNR_MODEL
--- # 1_70_07 23_1102_16 : first pixel fixing more. 
+-- # 1_70_07 23_1102_16 : first pixel fixing more.
 --                          "--# first pixel offset data bug, added uderneath line #231102
--- # 1_70_06 23_1101_15 : first pixel of offset is 0 cause data delay by state-machine 
+-- # 1_70_06 23_1101_15 : first pixel of offset is 0 cause data delay by state-machine
 --                          "--# first pixel offset data bug, added uderneath line #231101
 -- # 1_70_05 23_1101_12 : offset data is 0, axi_if ila ,13 avg ila
--- # 1_70_04 23_1101_10 : offset correction (0,0) data error debug with ILA 
--- # 1_70_03 23_1026_16 : roic_sync timing 
+-- # 1_70_04 23_1101_10 : offset correction (0,0) data error debug with ILA
+-- # 1_70_03 23_1026_16 : roic_sync timing
 -- #                      " if 32 <= sTpSelChangedCnt and
 -- # 1_70_02 23_1026_13 : oroic_sync <=  sroic_sync; --# 231026
 -- #                      " tp_sel with roic_sync ### 210812 ## comments 231025
@@ -113,7 +117,7 @@ constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0317_14";
 -- # 1_70_01 23_1026_10 : 2832 roic_tp_sel abnormal. clean up the related code
 --------- V1.70.xx --------------------------
 -- # 1_69_05 23_1011_16 : 1616 offset err, ila
-  -- # 1_69_04 23_1006_11 : 2430RD not spwr_roic_en_l
+-- # 1_69_04 23_1006_11 : 2430RD not spwr_roic_en_l
 -- #         23_1006_12 : 2430RD gate map
 -- #         23_1006_15 : 2430RD INIT_PWDAC_LEVEL volt 0.5->0.1 = 100V
 -- #         23_1006_16 : 2430RD roic size 1742->3584
@@ -122,7 +126,7 @@ constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0317_14";
 -- #         23_0925_17 : oe by oe state
 -- #                      sgate_oe        <= '0'; --# 230925
 -- #         23_0925_16 : rollback
--- #         23_0925_10 : gate oe defense 
+-- #         23_0925_10 : gate oe defense
 -- #         23_0921_17 : activation TP
 -- # 1_69_01 23_0921_16 : "- sgate_dummy_add" roll back -> do FW
 -- # 1_69_00 23_0921_11 : release ver for binn test
@@ -133,19 +137,19 @@ constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0317_14";
 -- * GATE : NT39565, NT39565D, NT39530, NT61303, RM76U89, HX8698
 -- * ROIC_DUAL : 1 : Normal 2 : Dual ROIC
 
-  -- 1616R   raydium 450 274use                      
-  -- 4343R   => R                                
-  -- 4343RR  => R1 raydium512                    
-  -- 4343RR2 => R2 raydium256 inocare            
-  -- 4343RN  => R3 nova a-si                     
-  -- 4343RC  => RC NT39565D                      
-  -- 4343RCR => RC1 raydium512                   
-  -- 4343RCR => RC2 raydium256 No exist #####    
-  -- 4343RCN => RC3 NT39530 a-si                 
-              
--- fix constant 
- constant DDR3_ADDR_NUM : integer := 14; -- 14:4Gx2 13:2Gx2
- constant DDR3_ADDR_14  : string  := "AA13";
+-- 1616R   raydium 450 274use
+-- 4343R   => R
+-- 4343RR  => R1 raydium512
+-- 4343RR2 => R2 raydium256 inocare
+-- 4343RN  => R3 nova a-si
+-- 4343RC  => RC NT39565D
+-- 4343RCR => RC1 raydium512
+-- 4343RCR => RC2 raydium256 No exist #####
+-- 4343RCN => RC3 NT39530 a-si
+
+-- fix constant
+    constant DDR3_ADDR_NUM : integer := 14; -- 14:4Gx2 13:2Gx2
+    constant DDR3_ADDR_14  : string  := "AA13";
 
 -- ▄█ ▄▀▀▄ ▀█ █░█
 -- ░█ █  █ █▀ █▄█
@@ -164,13 +168,12 @@ constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0317_14";
 -- launch_runs impl_EXT1024R -to_step write_bitstream -jobs 8
 -- file copy -force /home/fpga0/work/EXTxR1FM/EXTREAM_TOP.runs/impl_EXT1024R/EXTREAM_TOP.sysdef /home/fpga0/work/EXTxR1FM/EXTREAM_TOP.sdk/EXTREAM_TOP.hdf
 
-      
 -- ▄█ █▄▄ ▄█ █▄▄
--- ░█ █▄█ ░█ █▄█                                             
+-- ░█ █▄█ ░█ █▄█
 -- ### EXT1616R ### synth-0
 -- constant MODEL         : string  := "EXT1616R"; -- 100u
--- constant ROIC_IC       : string  := "AFE2256";  -- 236x7=1652-4=1648 
--- constant GATE_IC       : string  := "RM76U89";  -- 274x6=1644 dmy(450-(88*2))=274                 
+-- constant ROIC_IC       : string  := "AFE2256";  -- 236x7=1652-4=1648
+-- constant GATE_IC       : string  := "RM76U89";  -- 274x6=1644 dmy(450-(88*2))=274
 -- constant ROIC_MCLK_KHz : integer := 20000;
 -- constant ROIC_DCLK_KHz : integer := 240000;
 -- constant ROIC_DUAL     : integer := 1;
@@ -195,11 +198,11 @@ constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0317_14";
 -- constant GEV_SPEED     : string  := "2p5G";
 -- launch_runs impl_EXT2430R -to_step write_bitstream -jobs 8
 -- file copy -force /home/fpga0/work/EXTxR1FM/EXTREAM_TOP.runs/impl_EXT2430R/EXTREAM_TOP.sysdef /home/fpga0/work/EXTxR1FM/EXTREAM_TOP.sdk/EXTREAM_TOP.hdf
-               
+
 -- ▀█ █▀█ ▀▀█ ▀█
 -- █▀ █▀█ ▀▀█ █▀
 -- █▄ █▄█ ▄▄█ █▄
--- ### EXT2832R ### synth-2 
+-- ### EXT2832R ### synth-2
 -- constant MODEL         : string  := "EXT2832R"; -- 140u
 -- constant ROIC_IC       : string  := "AFE2256";  -- 256x9=2304
 -- constant GATE_IC       : string  := "RM76U89";  -- 512x4=2048
@@ -226,7 +229,7 @@ constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0317_14";
 -- file copy -force /home/fpga0/work/EXTxR1FM/EXTREAM_TOP.runs/impl_EXT2832R_2/EXTREAM_TOP.sysdef /home/fpga0/work/EXTxR1FM/EXTREAM_TOP.sdk/EXTREAM_TOP.hdf
 
 ----------------------------------------------------------------------
-                    
+
 -- █░█ ▀▀█ █░█ ▀▀█ █▀█
 -- █▄█ ▀▀█ █▄█ ▀▀█ █▀▄
 --   █ ▄▄█   █ ▄▄█
@@ -267,7 +270,7 @@ constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0317_14";
 -- file copy -force /home/fpga0/work/EXTxR1FM/EXTREAM_TOP.runs/impl_EXT4343R_2/EXTREAM_TOP.sysdef /home/fpga0/work/EXTxR1FM/EXTREAM_TOP.sdk/EXTREAM_TOP.hdf
 
 -- ### EXT4343R_3 ### synth-6
--- constant MODEL         : string  := "EXT4343R_3"; -- a-si nova 
+-- constant MODEL         : string  := "EXT4343R_3"; -- a-si nova
 -- constant ROIC_IC       : string  := "AFE2256";   -- 256*12=3072
 -- constant GATE_IC       : string  := "NT39530";   -- 256*12=3072
 -- constant ROIC_MCLK_KHz : integer := 12500;
@@ -280,7 +283,7 @@ constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0317_14";
 -- file copy -force /home/fpga0/work/EXTxR1FM/EXTREAM_TOP.runs/impl_EXT4343R_3/EXTREAM_TOP.sysdef /home/fpga0/work/EXTxR1FM/EXTREAM_TOP.sdk/EXTREAM_TOP.hdf
 
 -- ### EXT4343R_4 ### synth-26 --$ dclk ver.
--- constant MODEL         : string  := "EXT4343R_4"; -- innocare raydium 512 
+-- constant MODEL         : string  := "EXT4343R_4"; -- innocare raydium 512
 -- constant ROIC_IC       : string  := "AFE2256";    -- 256*12=3072
 -- constant GATE_IC       : string  := "NT39530";    -- 512*6 =3072
 -- constant ROIC_MCLK_KHz : integer := 12500;
@@ -330,11 +333,10 @@ constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0317_14";
 -- launch_runs impl_EXT4343RC_2 -to_step write_bitstream -jobs 8
 -- file copy -force /home/fpga0/work/EXTxR1FM/EXTREAM_TOP.runs/impl_EXT4343RC_2/EXTREAM_TOP.sysdef /home/fpga0/work/EXTxR1FM/EXTREAM_TOP.sdk/EXTREAM_TOP.hdf
 
-
 -- ### EXT4343RC_3 ### -- 1set in DIC 221017
 -- constant MODEL         : string  := "EXT4343RC_3";
 -- constant ROIC_IC       : string  := "AFE2256";   -- 256*12=3072
--- constant GATE_IC       : string  := "NT39530";   -- 512*6=3072 
+-- constant GATE_IC       : string  := "NT39530";   -- 512*6=3072
 -- constant ROIC_MCLK_KHz : integer := 6250;
 -- constant ROIC_DCLK_KHz : integer := 75000;
 -- constant ROIC_DUAL     : integer := 1;
@@ -343,7 +345,7 @@ constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0317_14";
 -- constant GEV_SPEED     : string  := "2p5G";
 -- launch_runs impl_EXT4343RC_3 -to_step write_bitstream -jobs 8
 -- file copy -force /home/fpga0/work/EXTxR1FM/EXTREAM_TOP.runs/impl_EXT4343RC_3/EXTREAM_TOP.sysdef /home/fpga0/work/EXTxR1FM/EXTREAM_TOP.sdk/EXTREAM_TOP.hdf
-            
+
 -- ▄█ ▄▀▀▄ █▀▀
 --  █ █  █ █▄█
 -- ░█ ▀▄▄▀
@@ -385,7 +387,6 @@ constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0317_14";
 -- constant GEV_SPEED     : string  := "10G";
 -- launch_runs impl_EXT4343RCI_2 -to_step write_bitstream -jobs 8
 -- file copy -force /home/fpga0/work/EXTxR1FM/EXTREAM_TOP.runs/impl_EXT4343RCI_2/EXTREAM_TOP.sysdef /home/fpga0/work/EXTxR1FM/EXTREAM_TOP.sdk/EXTREAM_TOP.hdf
-
 
 -- ### EXT4343RCI_1 ### synth-18
 -- constant MODEL         : string  := "EXT4343RCI_1";
@@ -463,10 +464,10 @@ constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0317_14";
 --   constant GEV_SPEED     : string  := "2p5G";
 -- launch_runs impl_EXT2430RD -to_step write_bitstream -jobs 8
 -- file copy -force /home/fpga0/work/EXTxR1FM/EXTREAM_TOP.runs/impl_EXT2430RD/EXTREAM_TOP.sysdef /home/fpga0/work/EXTxR1FM/EXTREAM_TOP.sdk/EXTREAM_TOP.hdf
-        
+
 ------------------------------------------------------------
-constant LOWV : std_logic_vector(255 downto 0):= (others=> '0');
-constant HIGHV : std_logic_vector(255 downto 0):= (others=> '1');
+    constant LOWV  : std_logic_vector(255 downto 0) := (others => '0');
+    constant HIGHV : std_logic_vector(255 downto 0) := (others => '1');
 
     constant TPC_1418                 : string := "1418"; -- "1616" or "1418"
     function ilaswitch                (s : string) return string;
@@ -521,11 +522,9 @@ constant HIGHV : std_logic_vector(255 downto 0):= (others=> '1');
     constant GEN_VIO_SYNC_COUNTER1    : std_logic := '0'; -- video sync ila on //# 230919
     constant GEN_VIO_SYNC_COUNTER2    : std_logic := '0';
 
-
     constant CSYSCLKHZ              : integer := 100_000_000;
     constant MHz                    : integer := 1000000;
     constant KHz                    : integer := 1000;
-
 
     constant ADDR_OUT_EN            : std_logic_vector(15 downto 0) := x"0000";
     constant ADDR_WIDTH             : std_logic_vector(15 downto 0) := x"0004";
@@ -770,7 +769,7 @@ constant HIGHV : std_logic_vector(255 downto 0):= (others=> '1');
     constant ADDR_TESTPOINT2        : std_logic_vector(15 downto 0) := x"0444";
     constant ADDR_TESTPOINT3        : std_logic_vector(15 downto 0) := x"0448";
     constant ADDR_TESTPOINT4        : std_logic_vector(15 downto 0) := x"044C";
---# 220901 roic str 
+--# 220901 roic str
     constant ADDR_ROIC_STR          : std_logic_vector(15 downto 0) := x"0450";
 --# 221122 freerun cnt
     constant ADDR_FREERUN_CNT       : std_logic_vector(15 downto 0) := x"0454";
@@ -781,26 +780,26 @@ constant HIGHV : std_logic_vector(255 downto 0):= (others=> '1');
     constant ADDR_EDGE_LEFT       : std_logic_vector(15 downto 0) := x"0464";
     constant ADDR_EDGE_RIGHT      : std_logic_vector(15 downto 0) := x"0468";
     constant ADDR_EDGE_BOTTOM     : std_logic_vector(15 downto 0) := x"046C";
-    
+
     constant ADDR_TP_VALUE        : std_logic_vector(15 downto 0) := x"0470";
-    
+
     constant ADDR_BNC_CTRL        : std_logic_vector(15 downto 0) := x"0474"; --# 230721
     constant ADDR_BNC_HIGH        : std_logic_vector(15 downto 0) := x"0478";
 --    constant ADDR_                : std_logic_vector(15 downto 0) := x"047C";
     constant ADDR_OFGA_LIM        : std_logic_vector(15 downto 0) := x"0480"; --# 230725
-    
+
     constant ADDR_EQ_CTRL         : std_logic_vector(15 downto 0) := x"0484"; --# 230817
     constant ADDR_EQ_TOPVAL       : std_logic_vector(15 downto 0) := x"0488"; --# 230817
 --# 221110 fpga reboot
     constant ADDR_FPGA_REBOOT       : std_logic_vector(15 downto 0) := x"1000";
-        
+
     -- ##### REG END #####
     function ROIC_BY_MODEL          (s : string) return string;
     function GATE_BY_MODEL          (s : string) return string;
-    function ROIC_MCLK_BY_MODEL     (s : string) return integer; 
-    function ROIC_DCLK_BY_MODEL     (s : string) return integer; 
+    function ROIC_MCLK_BY_MODEL     (s : string) return integer;
+    function ROIC_DCLK_BY_MODEL     (s : string) return integer;
     function GEV_SPEED_BY_MODEL     (s : string) return string;
-    function ROIC_DUAL_BY_MODEL     (s : string) return integer; 
+    function ROIC_DUAL_BY_MODEL     (s : string) return integer;
 
     function MAX_WIDTH              (s : string) return integer;
     function MAX_HEIGHT             (s : string) return integer;
@@ -849,6 +848,11 @@ constant HIGHV : std_logic_vector(255 downto 0):= (others=> '1');
     function DDR_BIT_R2             (s : string) return integer;
     function DDR_BIT_R3             (s : string) return integer;
     function DDR_BIT_R4             (s : string) return integer;
+    function DDR_BY_MODEL           (s : string) return integer;
+    function DDR_DM                 (s : string) return integer;
+    function DDR_DQS                (s : string) return integer;
+    function DDR_DQ                 (s : string) return integer;
+    function DDR_AXI2               (s : string) return integer;
 
     function ROIC_SYNC_DCLK           (s : string) return integer;
     function ROIC_SYNC_ACLK           (s : string) return integer;
@@ -886,11 +890,12 @@ constant HIGHV : std_logic_vector(255 downto 0):= (others=> '1');
     function SIM_GATE_FLK             (s : string) return integer;
     function SIM_GATE_TRST_PERIOD     (s : string) return integer;
     function SIM_GATE_ERASE           (s : string) return integer;
+    --# 260320 FUNC_SFP replaced: return integer (1=ON, 0=OFF/null array)
+    function FUNC_SFP_NUM             (s : string) return integer;
 
 --    constant GLB_H_FLIP : std_logic := FUNC_H_FLIP(MODEL);
 
 --    type tdata_par                  is array (0 to ROIC_NUM(MODEL)-1) of std_logic_vector(15 downto 0);
-
 
     -- Variable Value
     constant ROIC_PIPELINE          : string := "OFF";
@@ -936,7 +941,7 @@ constant HIGHV : std_logic_vector(255 downto 0):= (others=> '1');
 --  constant SIM_GATE_FLK           : integer := GATE_FLK(s)         / 100;
 --  constant SIM_GATE_TRST_PERIOD   : integer := GATE_TRST_PERIOD(s) / 100;
 --  constant SIM_GATE_ERASE         : integer := GATE_ERASE(s)       / 100;
-    
+
 --    constant INIT_PWDAC_LEVEL    : std_logic_vector(12-1 downto 0) := conv_std_logic_vector(621,12); -- 0.5v
     constant INIT_PWDAC_LEVEL    : std_logic_vector(12-1 downto 0) := conv_std_logic_vector(124,12); -- 0.1v
 --    constant INIT_PWDAC_LEVEL    : std_logic_vector(12-1 downto 0) := conv_std_logic_vector(931,12); -- 0.75v
@@ -959,7 +964,7 @@ constant HIGHV : std_logic_vector(255 downto 0):= (others=> '1');
     constant G10p_DDR_BIT_W3 : integer := 64;
     constant G10p_DDR_BIT_W4 : integer := 64;
 
-    constant G2p5_DDR_BIT_R0 : integer := 16;  -- roic 
+    constant G2p5_DDR_BIT_R0 : integer := 16;  -- roic
     constant G2p5_DDR_BIT_R1 : integer := 128; -- gain
     constant G2p5_DDR_BIT_R2 : integer := 32;  -- avg
     constant G2p5_DDR_BIT_R3 : integer := 32;  -- offset
@@ -972,7 +977,16 @@ constant HIGHV : std_logic_vector(255 downto 0):= (others=> '1');
     constant G10p_DDR_BIT_R3 : integer := 64;
     constant G10p_DDR_BIT_R4 : integer := 64;
 
-
+    constant DDR_DM_2    : integer := 4;
+    constant DDR_DQS_2   : integer := 4;
+    constant DDR_DQ_2    : integer := 32;
+    constant DDR_AXI2_2  : integer := 4;
+    
+    constant DDR_DM_4    : integer := 8;
+    constant DDR_DQS_4   : integer := 8;
+    constant DDR_DQ_4    : integer := 64;
+    constant DDR_AXI2_4  : integer := 6;
+    
     type tstate_grab            is (
                                         s_IDLE,         -- 0
                                         s_DATA,         -- 1
@@ -1042,7 +1056,7 @@ constant HIGHV : std_logic_vector(255 downto 0):= (others=> '1');
         s_WAIT,
         s_CHECK
     );
-        type tstate_dpram_data_align is (
+    type tstate_dpram_data_align is (
         s_IDLE,
         s_READY,
         s_WAIT_ODD,
@@ -1292,11 +1306,21 @@ PACKAGE BODY TOP_HEADER is
         end if;
         return (val);
     end ROIC_DUAL_BY_MODEL;
+    
+    function DDR_BY_MODEL (s : string) return integer is
+        variable val : integer;
+    begin
+        if(s = "EXT4343RD"  ) then val := 4;
+        else                       val := 2;
+        end if;
+        return (val);
+    end DDR_BY_MODEL;
+    
 --##### BY MODEL #####
 --####################
 
 --  constant ROIC_SYNC_DCLK         : integer := ( 100  * ROIC_DCLK_BY_MODEL(GNR_MODEL)) / MHz;     -- 1E-3 / 1E+6 = 1E-9 (ns)
-    function ROIC_SYNC_DCLK (s:string) return integer is 
+    function ROIC_SYNC_DCLK (s:string) return integer is
         variable val:integer;
     begin
         val := ( 100  * ROIC_DCLK_BY_MODEL(s)) / MHz;
@@ -1304,23 +1328,23 @@ PACKAGE BODY TOP_HEADER is
     end;
 
 --  constant ROIC_SYNC_ACLK         : integer := ( 100  * ROIC_MCLK_BY_MODEL(GNR_MODEL)) / MHz;     -- 1E-3 / 1E+6 = 1E-9 (ns)
-    function ROIC_SYNC_ACLK (s:string) return integer is 
+    function ROIC_SYNC_ACLK (s:string) return integer is
         variable val:integer;
     begin
         val := ( 100  * ROIC_MCLK_BY_MODEL(s)) / MHz;
         return (val);
-    end;  
+    end;
 
 --  constant ROIC_DEAD              : integer := ( 100  * ROIC_MCLK_BY_MODEL(GNR_MODEL)) / MHz;     -- 1E-3 / 1E+6 = 1E-9 (ns)
-    function ROIC_DEAD(s:string) return integer is 
+    function ROIC_DEAD(s:string) return integer is
         variable val:integer;
     begin
-        val := ( 100  * ROIC_MCLK_BY_MODEL(s)) / MHz;     -- 1E-3 / 1E+6 = 1E-9 (ns) 
+        val := ( 100  * ROIC_MCLK_BY_MODEL(s)) / MHz;     -- 1E-3 / 1E+6 = 1E-9 (ns)
         return (val);
     end;
 
 --  constant ROIC_FA                : integer := ( 100  * ROIC_MCLK_BY_MODEL(GNR_MODEL)) / MHz;     -- 1E-3 / 1E+6 = 1E-9 (ns)
-    function ROIC_FA(s:string) return integer is 
+    function ROIC_FA(s:string) return integer is
         variable val:integer;
     begin
         val := ( 100  * ROIC_MCLK_BY_MODEL(s)) / MHz;
@@ -1328,7 +1352,7 @@ PACKAGE BODY TOP_HEADER is
     end;
 
 --  constant ROIC_CDS1              : integer := (4000  * ROIC_MCLK_BY_MODEL(GNR_MODEL)) / MHz;     -- 1E-3 / 1E+6 = 1E-9 (ns)
-    function ROIC_CDS1(s:string) return integer is 
+    function ROIC_CDS1(s:string) return integer is
         variable val:integer;
     begin
 --$        val := (4000  * ROIC_MCLK_BY_MODEL(s)) / MHz;
@@ -1337,7 +1361,7 @@ PACKAGE BODY TOP_HEADER is
     end;
 
 --  constant ROIC_CDS2              : integer := (6500  * ROIC_MCLK_BY_MODEL(GNR_MODEL)) / MHz;     -- 1E-3 / 1E+6 = 1E-9 (ns)
-    function ROIC_CDS2(s:string) return integer is 
+    function ROIC_CDS2(s:string) return integer is
         variable val:integer;
     begin
 --$        val := (6500  * ROIC_MCLK_BY_MODEL(s)) / MHz;
@@ -1346,7 +1370,7 @@ PACKAGE BODY TOP_HEADER is
     end;
 
 --  constant ROIC_INTRST            : integer := (1500  * ROIC_MCLK_BY_MODEL(GNR_MODEL)) / MHz;     -- 1E-3 / 1E+6 = 1E-9 (ns)
-    function ROIC_INTRST(s:string) return integer is 
+    function ROIC_INTRST(s:string) return integer is
         variable val:integer;
     begin
 --$        val := (1500  * ROIC_MCLK_BY_MODEL(s)) / MHz;
@@ -1355,7 +1379,7 @@ PACKAGE BODY TOP_HEADER is
     end;
 
 --  constant GATE_OE                : integer := (1700  * ROIC_MCLK_BY_MODEL(GNR_MODEL)) / MHz;     -- 1E-3 / 1E+6 = 1E-9 (ns)
-    function GATE_OE(s:string) return integer is 
+    function GATE_OE(s:string) return integer is
         variable val:integer;
     begin
         val := (1700  * ROIC_MCLK_BY_MODEL(s)) / MHz;
@@ -1363,7 +1387,7 @@ PACKAGE BODY TOP_HEADER is
     end;
 
 --  constant GATE_XON               : integer := ( 340  * ROIC_MCLK_BY_MODEL(GNR_MODEL)) / KHz;     -- 1E-3 / 1E+3 = 1E-6 (us)
-    function GATE_XON (s : string) return integer is 
+    function GATE_XON (s : string) return integer is
         variable val:integer;
     begin
         val := ( 340  * ROIC_MCLK_BY_MODEL(s)) / KHz;
@@ -1371,7 +1395,7 @@ PACKAGE BODY TOP_HEADER is
     end;
 
 --  constant GATE_XON_FLK           : integer := (  50  * ROIC_MCLK_BY_MODEL(GNR_MODEL)) / KHz;     -- 1E-3 / 1E+3 = 1E-6 (us)
-    function GATE_XON_FLK(s:string) return integer is 
+    function GATE_XON_FLK(s:string) return integer is
         variable val:integer;
     begin
         val :=  (  50  * ROIC_MCLK_BY_MODEL(s)) / KHz;
@@ -1379,7 +1403,7 @@ PACKAGE BODY TOP_HEADER is
     end;
 
 --  constant GATE_FLK               : integer := ( 150  * ROIC_MCLK_BY_MODEL(GNR_MODEL)) / KHz;     -- 1E-3 / 1E+3 = 1E-6 (us)
-    function GATE_FLK(s:string) return integer is 
+    function GATE_FLK(s:string) return integer is
         variable val:integer;
     begin
         val :=  ( 150  * ROIC_MCLK_BY_MODEL(s)) / KHz;
@@ -1387,7 +1411,7 @@ PACKAGE BODY TOP_HEADER is
     end;
 
 --  constant GATE_DIO_CPV           : integer := ( 100  * ROIC_MCLK_BY_MODEL(GNR_MODEL)) / MHz;     -- 1E-3 / 1E+6 = 1E-9 (ns)
-    function GATE_DIO_CPV(s:string) return integer is 
+    function GATE_DIO_CPV(s:string) return integer is
         variable val:integer;
     begin
         val :=  ( 100  * ROIC_MCLK_BY_MODEL(s)) / MHz;
@@ -1395,7 +1419,7 @@ PACKAGE BODY TOP_HEADER is
     end;
 
 --  constant GATE_TRST_PERIOD       : integer := (  10  * ROIC_MCLK_BY_MODEL(GNR_MODEL));           -- 1E-3 / 1E+0 = 1E-3 (ms)
-    function GATE_TRST_PERIOD(s:string) return integer is 
+    function GATE_TRST_PERIOD(s:string) return integer is
         variable val:integer;
     begin
         val :=  (  10  * ROIC_MCLK_BY_MODEL(s));
@@ -1403,7 +1427,7 @@ PACKAGE BODY TOP_HEADER is
     end;
 
 --  constant GATE_ERASE             : integer := (   1  * ROIC_MCLK_BY_MODEL(GNR_MODEL));           -- 1E-3 / 1E+0 = 1E-3 (ms)
-    function GATE_ERASE(s:string) return integer is 
+    function GATE_ERASE(s:string) return integer is
         variable val:integer;
     begin
         val :=  (   1  * ROIC_MCLK_BY_MODEL(s));
@@ -1411,7 +1435,7 @@ PACKAGE BODY TOP_HEADER is
     end;
 
 --  constant T_1MS                  : integer := (   1  * ROIC_MCLK_BY_MODEL(GNR_MODEL));           -- 1E-3 / 1E+0 = 1E-3 (ms)
-    function T_1MS(s:string) return integer is 
+    function T_1MS(s:string) return integer is
         variable val:integer;
     begin
         val :=  (   1  * ROIC_MCLK_BY_MODEL(s));
@@ -1419,7 +1443,7 @@ PACKAGE BODY TOP_HEADER is
     end;
 
 --  constant T_1US                  : integer := (   1  * ROIC_MCLK_BY_MODEL(GNR_MODEL)) / KHz;     -- 1E-6 / 1E+0 = 1E-6 (us)
-    function T_1US(s:string) return integer is 
+    function T_1US(s:string) return integer is
         variable val:integer;
     begin
         val :=  (   1  * ROIC_MCLK_BY_MODEL(s)) / KHz;
@@ -1427,7 +1451,7 @@ PACKAGE BODY TOP_HEADER is
     end;
 
 --  constant t_10s                  : integer := (  10  * roic_mclk_by_model(gnr_model)) * khz;     -- 1e-3 * 1e+3 = 1e+0 ( s)
-    function t_10S(s:string) return integer is 
+    function t_10S(s:string) return integer is
         variable val:integer;
     begin
         val :=  (  10  * roic_mclk_by_model(s)) * khz;
@@ -1435,7 +1459,7 @@ PACKAGE BODY TOP_HEADER is
     end;
 
 --  constant NT39530_CPV_PERIOD     : integer := (5000  * ROIC_MCLK_BY_MODEL(s)) / MHz;     -- 1E-3 / 1E+6 = 1E-9 (ns)
-    function NT39530_CPV_PERIOD(s:string) return integer is 
+    function NT39530_CPV_PERIOD(s:string) return integer is
         variable val:integer;
     begin
         val :=  (5000  * ROIC_MCLK_BY_MODEL(s)) / MHz;
@@ -1443,7 +1467,7 @@ PACKAGE BODY TOP_HEADER is
     end;
 
 --  constant NT39565_CPV_PERIOD     : integer := (3600  * ROIC_MCLK_BY_MODEL(s)) / MHz;     -- 1E-3 / 1E+6 = 1E-9 (ns) -- test 210615 mbh
-    function NT39565_CPV_PERIOD(s:string) return integer is 
+    function NT39565_CPV_PERIOD(s:string) return integer is
         variable val:integer;
     begin
         val :=  (3600  * ROIC_MCLK_BY_MODEL(s)) / MHz;
@@ -1451,7 +1475,7 @@ PACKAGE BODY TOP_HEADER is
     end;
 
 --  constant NT61303_CPV_PERIOD     : integer := (2880  * ROIC_MCLK_BY_MODEL(s)) / MHz;     -- 1E-3 / 1E+6 = 1E-9 (ns)
-    function NT61303_CPV_PERIOD(s:string) return integer is 
+    function NT61303_CPV_PERIOD(s:string) return integer is
         variable val:integer;
     begin
         val :=  (2880  * ROIC_MCLK_BY_MODEL(s)) / MHz;
@@ -1459,7 +1483,7 @@ PACKAGE BODY TOP_HEADER is
     end;
 
 --  constant RM76U89_CPV_PERIOD     : integer := (0500  * ROIC_MCLK_BY_MODEL(s)) / MHz;     -- 1E-3 / 1E+6 = 1E-9 (ns)
-    function RM76U89_CPV_PERIOD(s:string) return integer is 
+    function RM76U89_CPV_PERIOD(s:string) return integer is
         variable val:integer;
     begin
         val :=  (0500  * ROIC_MCLK_BY_MODEL(s)) / MHz;
@@ -1467,7 +1491,7 @@ PACKAGE BODY TOP_HEADER is
     end;
 
 --  constant HX8698_CPV_PERIOD      : integer := (2860  * ROIC_MCLK_BY_MODEL(s)) / MHz;     -- 1E-3 / 1E+6 = 1E-9 (ns)
-    function HX8698_CPV_PERIOD(s:string) return integer is 
+    function HX8698_CPV_PERIOD(s:string) return integer is
         variable val:integer;
     begin
         val :=  (2860  * ROIC_MCLK_BY_MODEL(s)) / MHz;
@@ -1475,7 +1499,7 @@ PACKAGE BODY TOP_HEADER is
     end;
 
 --  constant EXT_TRIG_DEBO_PERIOD     : integer := ( 100000   * ROIC_MCLK_BY_MODEL(s)) / MHz;   -- 1E-3 / 1E+6 = 1E-9 (ns)
-    function EXT_TRIG_DEBO_PERIOD(s:string) return integer is 
+    function EXT_TRIG_DEBO_PERIOD(s:string) return integer is
         variable val:integer;
     begin
         val := ( 100000   * ROIC_MCLK_BY_MODEL(s)) / MHz;
@@ -1483,7 +1507,7 @@ PACKAGE BODY TOP_HEADER is
     end;
 
 --  constant EXT_TRIG_DEBO_PERIOD_SIM : integer := (   1000   * ROIC_MCLK_BY_MODEL(s)) / MHz;   -- 1E-3 / 1E+6 = 1E-9 (ns)
-    function EXT_TRIG_DEBO_PERIOD_SIM(s:string) return integer is 
+    function EXT_TRIG_DEBO_PERIOD_SIM(s:string) return integer is
         variable val:integer;
     begin
         val := (   1000   * ROIC_MCLK_BY_MODEL(s)) / MHz;
@@ -1491,7 +1515,7 @@ PACKAGE BODY TOP_HEADER is
     end;
 
 --  constant SIM_GATE_XON           : integer := GATE_XON(s)         / 100;
-    function SIM_GATE_XON(s:string) return integer is 
+    function SIM_GATE_XON(s:string) return integer is
         variable val:integer;
     begin
         val := GATE_XON(s)         / 100;
@@ -1499,7 +1523,7 @@ PACKAGE BODY TOP_HEADER is
     end;
 
 --  constant SIM_GATE_XON_FLK       : integer := GATE_XON_FLK(s)     / 100;
-    function SIM_GATE_XON_FLK(s:string) return integer is 
+    function SIM_GATE_XON_FLK(s:string) return integer is
         variable val:integer;
     begin
         val := GATE_XON_FLK(s)     / 100;
@@ -1507,7 +1531,7 @@ PACKAGE BODY TOP_HEADER is
     end;
 
 --  constant SIM_GATE_FLK           : integer := GATE_FLK(s)         / 100;
-    function SIM_GATE_FLK(s:string) return integer is 
+    function SIM_GATE_FLK(s:string) return integer is
         variable val:integer;
     begin
         val := GATE_FLK(s)         / 100;
@@ -1515,18 +1539,18 @@ PACKAGE BODY TOP_HEADER is
     end;
 
 --  constant SIM_GATE_TRST_PERIOD   : integer := GATE_TRST_PERIOD(s) / 100;
-    function SIM_GATE_TRST_PERIOD(s:string) return integer is 
+    function SIM_GATE_TRST_PERIOD(s:string) return integer is
         variable val:integer;
     begin
-        val := GATE_TRST_PERIOD(s) / 100; 
+        val := GATE_TRST_PERIOD(s) / 100;
         return (val);
     end;
 
 --  constant SIM_GATE_ERASE         : integer := GATE_ERASE(s)       / 100;
-    function SIM_GATE_ERASE(s:string) return integer is 
+    function SIM_GATE_ERASE(s:string) return integer is
         variable val:integer;
     begin
-        val := GATE_ERASE(s)       / 100; 
+        val := GATE_ERASE(s)       / 100;
         return (val);
     end;
 
@@ -1755,7 +1779,7 @@ PACKAGE BODY TOP_HEADER is
     function roic_dclk_num (s : string) return integer is
         variable val    : integer range 0 to 24;
     begin
-           if(s = "EXT4343R"    ) then val := (max_width(s) / roic_ch(s)) * ROIC_DUAL_BY_MODEL(s); 
+           if(s = "EXT4343R"    ) then val := (max_width(s) / roic_ch(s)) * ROIC_DUAL_BY_MODEL(s);
         elsif(s = "EXT4343R_1"  ) then val := 3;
         elsif(s = "EXT4343R_2"  ) then val := 3;
         elsif(s = "EXT4343R_3"  ) then val := 3;
@@ -1889,7 +1913,7 @@ PACKAGE BODY TOP_HEADER is
         if(SIMULATION = "ON") then
             val := 0;
 --          val := 2;
-        else       
+        else
             if   (s = "EXT1024R"   ) then val    := 33; -- (450-384)/2=33 --$ 241119 jyp
             elsif(s = "EXT1616R"   ) then val    := 88; -- (450-274)/2
             elsif(s = "EXT2430R"   ) then val    := 33; -- (450-384)/2
@@ -1951,7 +1975,6 @@ PACKAGE BODY TOP_HEADER is
 --      return val;
 --  end ROIC_AFE_DCLK;
 
-
     function PWR_NUM (s : string) return integer is
         variable val    : integer range 0 to 24;
     begin
@@ -1977,7 +2000,7 @@ PACKAGE BODY TOP_HEADER is
         elsif(s = "EXT4343RCI_1") then val := 5;
         elsif(s = "EXT4343RCI_2") then val := 5;
         elsif(s = "EXT4343RD"  ) then val := 6;
-        elsif(s = "EXT3643R"   ) then val := 6;
+        elsif(s = "EXT3643R"   ) then val := 7;
         end if;
         return val;
     end PWR_NUM;
@@ -2128,181 +2151,216 @@ PACKAGE BODY TOP_HEADER is
         return val;
     end GATE_CPV_PERIOD;
 
-function ilaswitch(s: string) return string is begin
-    if (SIMULATION="ON") then
-        return "OFF";
-    else
-        return "ON";
-    end if;
-end function ilaswitch;
-
-function FUNC_ADC_REV(s: string) return std_logic is
-begin -- 64 pixel channel change in 256
-        if   (s = "EXT1024R"    ) then return  '0'; -- jyp 241010
-        elsif(s = "EXT1616R"    ) then return  '0';
-        elsif(s = "EXT2430R"    ) then return  '1';
-        elsif(s = "EXT2430RI"   ) then return  '1';
-        elsif(s = "EXT2832R"    ) then return  '1';
-        elsif(s = "EXT2832R_2"  ) then return  '1';
-        elsif(s = "EXT4343R"    ) then return  '1';
-        elsif(s = "EXT4343R_1"  ) then return  '1';
-        elsif(s = "EXT4343R_2"  ) then return  '1';
-        elsif(s = "EXT4343R_3"  ) then return  '1';
-        elsif(s = "EXT4343R_4"  ) then return  '1';
-        elsif(s = "EXT4343RC"   ) then return  '1';
-        elsif(s = "EXT4343RC_1" ) then return  '1';
-        elsif(s = "EXT4343RC_2" ) then return  '1';
-        elsif(s = "EXT4343RC_3" ) then return  '1';
-        elsif(s = "EXT810R"     ) then return  '1';
-        elsif(s = "EXT2430RD"   ) then return  '1';
-        elsif(s = "EXT4343RI_2" ) then return  '1';
-        elsif(s = "EXT4343RI_4" ) then return  '1';
-        elsif(s = "EXT4343RCI_1") then return  '1';
-        elsif(s = "EXT4343RCI_2") then return  '1';
-        elsif(s = "EXT4343RD"   ) then return  '0';
-        elsif(s = "EXT3643R"    ) then return  '0';
-        else                           return  '0';
+    function ilaswitch(s : string) return string is begin
+        if (SIMULATION = "ON") then
+            return "OFF";
+        else
+            return "ON";
         end if;
-end function FUNC_ADC_REV;
+    end function ilaswitch;
 
-function FUNC_H_FLIP(s: string) return std_logic is
-begin
-        if   (s = "EXT1024R"    ) then return '0'; -- jyp 241010
-        elsif(s = "EXT1616R"    ) then return '0';
-        elsif(s = "EXT2430R"    ) then return '1';
-        elsif(s = "EXT2430RI"   ) then return '1';
-        elsif(s = "EXT2832R"    ) then return '1';
-        elsif(s = "EXT2832R_2"  ) then return '1';
-        elsif(s = "EXT4343R"    ) then return '0'; --
-        elsif(s = "EXT4343R_1"  ) then return '1';
-        elsif(s = "EXT4343R_2"  ) then return '1';
-        elsif(s = "EXT4343R_3"  ) then return '1';
+    function FUNC_ADC_REV(s: string) return std_logic is
+    begin -- 64 pixel channel change in 256
+            if   (s = "EXT1024R"    ) then return  '0'; -- jyp 241010
+            elsif(s = "EXT1616R"    ) then return  '0';
+            elsif(s = "EXT2430R"    ) then return  '1';
+            elsif(s = "EXT2430RI"   ) then return  '1';
+            elsif(s = "EXT2832R"    ) then return  '1';
+            elsif(s = "EXT2832R_2"  ) then return  '1';
+            elsif(s = "EXT4343R"    ) then return  '1';
+            elsif(s = "EXT4343R_1"  ) then return  '1';
+            elsif(s = "EXT4343R_2"  ) then return  '1';
+            elsif(s = "EXT4343R_3"  ) then return  '1';
+            elsif(s = "EXT4343R_4"  ) then return  '1';
+            elsif(s = "EXT4343RC"   ) then return  '1';
+            elsif(s = "EXT4343RC_1" ) then return  '1';
+            elsif(s = "EXT4343RC_2" ) then return  '1';
+            elsif(s = "EXT4343RC_3" ) then return  '1';
+            elsif(s = "EXT810R"     ) then return  '1';
+            elsif(s = "EXT2430RD"   ) then return  '1';
+            elsif(s = "EXT4343RI_2" ) then return  '1';
+            elsif(s = "EXT4343RI_4" ) then return  '1';
+            elsif(s = "EXT4343RCI_1") then return  '1';
+            elsif(s = "EXT4343RCI_2") then return  '1';
+            elsif(s = "EXT4343RD"   ) then return  '0';
+            elsif(s = "EXT3643R"    ) then return  '0';
+            else                           return  '0';
+            end if;
+    end function FUNC_ADC_REV;
+
+    function FUNC_H_FLIP(s: string) return std_logic is
+    begin
+            if   (s = "EXT1024R"    ) then return '0'; -- jyp 241010
+            elsif(s = "EXT1616R"    ) then return '0';
+            elsif(s = "EXT2430R"    ) then return '1';
+            elsif(s = "EXT2430RI"   ) then return '1';
+            elsif(s = "EXT2832R"    ) then return '1';
+            elsif(s = "EXT2832R_2"  ) then return '1';
+            elsif(s = "EXT4343R"    ) then return '0'; --
+            elsif(s = "EXT4343R_1"  ) then return '1';
+            elsif(s = "EXT4343R_2"  ) then return '1';
+            elsif(s = "EXT4343R_3"  ) then return '1';
+            elsif(s = "EXT4343R_4"  ) then return '1';
+            elsif(s = "EXT4343RC"   ) then return '1';
+            elsif(s = "EXT4343RC_1" ) then return '1';
+            elsif(s = "EXT4343RC_2" ) then return '1';
+            elsif(s = "EXT4343RC_3" ) then return '1';
+            elsif(s = "EXT810R"     ) then return '1';
+            elsif(s = "EXT2430RD"   ) then return '1';
+            elsif(s = "EXT4343RI_2" ) then return '1';
+            elsif(s = "EXT4343RI_4" ) then return '1';
+            elsif(s = "EXT4343RCI_1") then return '1';
+            elsif(s = "EXT4343RCI_2") then return '1';
+            elsif(s = "EXT4343RD"   ) then return '0';
+            elsif(s = "EXT3643R"    ) then return '0';
+            else                           return '0';
+            end if;
+    end function FUNC_H_FLIP;
+
+    function FUNC_MODEL_NAME(s : string) return integer is
+    begin
+        if   (s = "EXT1024R"    ) then return 100;
+        elsif(s = "EXT1616R"    ) then return 160;
+        elsif(s = "EXT2430R"    ) then return 240;
+        elsif(s = "EXT2430RI"   ) then return 241;
+        elsif(s = "EXT2832R"    ) then return 280;
+        elsif(s = "EXT2832R_2"  ) then return 282;
+        elsif(s = "EXT4343R"    ) then return 430;
+        elsif(s = "EXT4343R_1"  ) then return 431;
+        elsif(s = "EXT4343R_2"  ) then return 432;
+        elsif(s = "EXT4343R_3"  ) then return 433;
+        elsif(s = "EXT4343R_4"  ) then return 434;
+        elsif(s = "EXT4343RC"   ) then return 435;
+        elsif(s = "EXT4343RC_1" ) then return 436;
+        elsif(s = "EXT4343RC_2" ) then return 437;
+        elsif(s = "EXT4343RC_3" ) then return 438;
+        elsif(s = "EXT810R"     ) then return 810; -- direct
+        elsif(s = "EXT2430RD"   ) then return 811; -- direct
+        elsif(s = "EXT4343RI_2" ) then return 442;
+        elsif(s = "EXT4343RI_4" ) then return 444;
+        elsif(s = "EXT4343RCI_1") then return 446;
+        elsif(s = "EXT4343RCI_2") then return 447;
+        elsif(s = "EXT4343RD"   ) then return 450;
+        elsif(s = "EXT3643R"    ) then return 360;
+        else                           return 0;
+        end if;
+    end function FUNC_MODEL_NAME;
+
+    function FUNC_BIT_ALIGN(s : string) return std_logic is
+    begin
+        if   (s = "EXT1024R"    ) then return '1';
         elsif(s = "EXT4343R_4"  ) then return '1';
-        elsif(s = "EXT4343RC"   ) then return '1';
-        elsif(s = "EXT4343RC_1" ) then return '1';
-        elsif(s = "EXT4343RC_2" ) then return '1';
-        elsif(s = "EXT4343RC_3" ) then return '1';
-        elsif(s = "EXT810R"     ) then return '1';
-        elsif(s = "EXT2430RD"   ) then return '1';
-        elsif(s = "EXT4343RI_2" ) then return '1';
         elsif(s = "EXT4343RI_4" ) then return '1';
-        elsif(s = "EXT4343RCI_1") then return '1';
-        elsif(s = "EXT4343RCI_2") then return '1';
-        elsif(s = "EXT4343RD"   ) then return '0';
-        elsif(s = "EXT3643R"    ) then return '0';
+        elsif(s = "EXT4343RD"   ) then return '1';
+        elsif(s = "EXT3643R"    ) then return '1';
         else                           return '0';
         end if;
-end function FUNC_H_FLIP;
+    end function FUNC_BIT_ALIGN;
 
-function FUNC_MODEL_NAME(s : string) return integer is
-begin
-    if   (s = "EXT1024R"    ) then return 100;
-    elsif(s = "EXT1616R"    ) then return 160;
-    elsif(s = "EXT2430R"    ) then return 240;
-    elsif(s = "EXT2430RI"   ) then return 241;
-    elsif(s = "EXT2832R"    ) then return 280;
-    elsif(s = "EXT2832R_2"  ) then return 282;
-    elsif(s = "EXT4343R"    ) then return 430;
-    elsif(s = "EXT4343R_1"  ) then return 431;
-    elsif(s = "EXT4343R_2"  ) then return 432;
-    elsif(s = "EXT4343R_3"  ) then return 433;
-    elsif(s = "EXT4343R_4"  ) then return 434;
-    elsif(s = "EXT4343RC"   ) then return 435;
-    elsif(s = "EXT4343RC_1" ) then return 436;
-    elsif(s = "EXT4343RC_2" ) then return 437;
-    elsif(s = "EXT4343RC_3" ) then return 438;
-    elsif(s = "EXT810R"     ) then return 810; -- direct
-    elsif(s = "EXT2430RD"   ) then return 811; -- direct
-    elsif(s = "EXT4343RI_2" ) then return 442;
-    elsif(s = "EXT4343RI_4" ) then return 444;
-    elsif(s = "EXT4343RCI_1") then return 446;
-    elsif(s = "EXT4343RCI_2") then return 447;
-    elsif(s = "EXT4343RD"   ) then return 450;
-    elsif(s = "EXT3643R"    ) then return 360;
-    else                           return 0;
-    end if;
-end function FUNC_MODEL_NAME;
+    --### 10G 4 parallel pixel selection ###
+    function PARA_PIX (s : string) return integer is
+    begin
+        if(GEV_SPEED_BY_MODEL(s) = "10G ") then return 4;
+        else                       return 1;
+        end if;
+    end PARA_PIX;
 
-function FUNC_BIT_ALIGN(s : string) return std_logic is
+    function DDR_BIT_W0 (s : string) return integer is
+    begin
+        if(GEV_SPEED_BY_MODEL(s) = "10G ") then return G10p_DDR_BIT_W0;
+        else                       return G2p5_DDR_BIT_W0;
+        end if;
+    end function DDR_BIT_W0;
+    function DDR_BIT_W1 (s : string) return integer is
+    begin
+        if(GEV_SPEED_BY_MODEL(s) = "10G ") then return G10p_DDR_BIT_W1;
+        else                       return G2p5_DDR_BIT_W1;
+        end if;
+    end function DDR_BIT_W1;
+    function DDR_BIT_W2 (s : string) return integer is
+    begin
+        if(GEV_SPEED_BY_MODEL(s) = "10G ") then return G10p_DDR_BIT_W2;
+        else                       return G2p5_DDR_BIT_W2;
+        end if;
+    end function DDR_BIT_W2;
+    function DDR_BIT_W3 (s : string) return integer is
+    begin
+        if(GEV_SPEED_BY_MODEL(s) = "10G ") then return G10p_DDR_BIT_W3;
+        else                       return G2p5_DDR_BIT_W3;
+        end if;
+    end function DDR_BIT_W3;
+    function DDR_BIT_W4 (s : string) return integer is
+    begin
+        if(GEV_SPEED_BY_MODEL(s) = "10G ") then return G10p_DDR_BIT_W4;
+        else                       return G2p5_DDR_BIT_W4;
+        end if;
+    end function DDR_BIT_W4;
+    function DDR_BIT_R0 (s : string) return integer is
+    begin
+        if(GEV_SPEED_BY_MODEL(s) = "10G ") then return G10p_DDR_BIT_R0;
+        else                       return G2p5_DDR_BIT_R0;
+        end if;
+    end function DDR_BIT_R0;
+    function DDR_BIT_R1 (s : string) return integer is
+    begin
+        if(GEV_SPEED_BY_MODEL(s) = "10G ") then return G10p_DDR_BIT_R1;
+        else                       return G2p5_DDR_BIT_R1;
+        end if;
+    end function DDR_BIT_R1;
+    function DDR_BIT_R2 (s : string) return integer is
+    begin
+        if(GEV_SPEED_BY_MODEL(s) = "10G ") then return G10p_DDR_BIT_R2;
+        else                       return G2p5_DDR_BIT_R2;
+        end if;
+    end function DDR_BIT_R2;
+    function DDR_BIT_R3 (s : string) return integer is
+    begin
+        if(GEV_SPEED_BY_MODEL(s) = "10G ") then return G10p_DDR_BIT_R3;
+        else                       return G2p5_DDR_BIT_R3;
+        end if;
+    end function DDR_BIT_R3;
+    function DDR_BIT_R4 (s : string) return integer is
+    begin
+        if(GEV_SPEED_BY_MODEL(s) = "10G ") then return G10p_DDR_BIT_R4;
+        else                       return G2p5_DDR_BIT_R4;
+        end if;
+    end function DDR_BIT_R4;
+    
+--$ DDR3
+function DDR_DM (s : string) return integer is
 begin
-    if   (s = "EXT1024R"    ) then return '1';
-    elsif(s = "EXT4343R_4"  ) then return '1';
-    elsif(s = "EXT4343RI_4" ) then return '1';
-    elsif(s = "EXT4343RD"   ) then return '1';
-    elsif(s = "EXT3643R"    ) then return '1';
-    else                           return '0';
+    if(DDR_BY_MODEL(s) = 4 ) then return DDR_DM_4;
+    else                          return DDR_DM_2;
     end if;
-end function FUNC_BIT_ALIGN;
+end function DDR_DM;
+function DDR_DQS (s : string) return integer is
+begin
+    if(DDR_BY_MODEL(s) = 4 ) then return DDR_DQS_4;
+    else                          return DDR_DQS_2;
+    end if;
+end function DDR_DQS;
+function DDR_DQ (s : string) return integer is
+begin
+    if(DDR_BY_MODEL(s) = 4 ) then return DDR_DQ_4;
+    else                          return DDR_DQ_2;
+    end if;
+end function DDR_DQ;
+function DDR_AXI2 (s : string) return integer is
+begin
+    if(DDR_BY_MODEL(s) = 4 ) then return DDR_AXI2_4;
+    else                          return DDR_AXI2_2;
+    end if;
+end function DDR_AXI2;
 
---### 10G 4 parallel pixel selection ###
-function PARA_PIX (s : string) return integer is
-begin
-    if(GEV_SPEED_BY_MODEL(s) = "10G ") then return 4;
-    else                       return 1;
-    end if;
-end PARA_PIX;
-
-function DDR_BIT_W0 (s : string) return integer is
-begin
-    if(GEV_SPEED_BY_MODEL(s) = "10G ") then return G10p_DDR_BIT_W0;
-    else                       return G2p5_DDR_BIT_W0;
-    end if;
-end function DDR_BIT_W0;
-function DDR_BIT_W1 (s : string) return integer is
-begin
-    if(GEV_SPEED_BY_MODEL(s) = "10G ") then return G10p_DDR_BIT_W1;
-    else                       return G2p5_DDR_BIT_W1;
-    end if;
-end function DDR_BIT_W1;
-function DDR_BIT_W2 (s : string) return integer is
-begin
-    if(GEV_SPEED_BY_MODEL(s) = "10G ") then return G10p_DDR_BIT_W2;
-    else                       return G2p5_DDR_BIT_W2;
-    end if;
-end function DDR_BIT_W2;
-function DDR_BIT_W3 (s : string) return integer is
-begin
-    if(GEV_SPEED_BY_MODEL(s) = "10G ") then return G10p_DDR_BIT_W3;
-    else                       return G2p5_DDR_BIT_W3;
-    end if;
-end function DDR_BIT_W3;
-function DDR_BIT_W4 (s : string) return integer is
-begin
-    if(GEV_SPEED_BY_MODEL(s) = "10G ") then return G10p_DDR_BIT_W4;
-    else                       return G2p5_DDR_BIT_W4;
-    end if;
-end function DDR_BIT_W4;
-function DDR_BIT_R0 (s : string) return integer is
-begin
-    if(GEV_SPEED_BY_MODEL(s) = "10G ") then return G10p_DDR_BIT_R0;
-    else                       return G2p5_DDR_BIT_R0;
-    end if;
-end function DDR_BIT_R0;
-function DDR_BIT_R1 (s : string) return integer is
-begin
-    if(GEV_SPEED_BY_MODEL(s) = "10G ") then return G10p_DDR_BIT_R1;
-    else                       return G2p5_DDR_BIT_R1;
-    end if;
-end function DDR_BIT_R1;
-function DDR_BIT_R2 (s : string) return integer is
-begin
-    if(GEV_SPEED_BY_MODEL(s) = "10G ") then return G10p_DDR_BIT_R2;
-    else                       return G2p5_DDR_BIT_R2;
-    end if;
-end function DDR_BIT_R2;
-function DDR_BIT_R3 (s : string) return integer is
-begin
-    if(GEV_SPEED_BY_MODEL(s) = "10G ") then return G10p_DDR_BIT_R3;
-    else                       return G2p5_DDR_BIT_R3;
-    end if;
-end function DDR_BIT_R3;
-function DDR_BIT_R4 (s : string) return integer is
-begin
-    if(GEV_SPEED_BY_MODEL(s) = "10G ") then return G10p_DDR_BIT_R4;
-    else                       return G2p5_DDR_BIT_R4;
-    end if;
-end function DDR_BIT_R4;
-
+    --# 260320 SFP port count: 1=SFP used, 0=null array (ports disappear)
+    function FUNC_SFP_NUM (s : string) return integer is
+    begin
+        if    (s = "EXT3643R") then
+            return 1;
+        else
+            return 0;
+        end if;
+    end FUNC_SFP_NUM;
 
 end TOP_HEADER;
 
@@ -2623,7 +2681,7 @@ end TOP_HEADER;
 -- # ver 40.05 220508 : pwdac bug fix, develope
 -- # ver 40.06 220509 : sleep mode reset -> ddr sync gen block.
 -- # ver 40.07 220511 : tft ctrl reg assign, make wait out in tft_ctrl for bcal speed.
--- # ver 40.07 220516 : clean debugger, reduce bram state machine read fifo. 
+-- # ver 40.07 220516 : clean debugger, reduce bram state machine read fifo.
 -- # ver 40.08 220520 : 810 pwdac 0.75v, it is not woiking at "STR 512".
 -- # ver 40.09 220523 : 810 gate start pulse not working, gate_num in header = 1 -> 6
 -- # ver 40.10 220523 : 4pixel 2line uder async problem. ti_data_align clk doamin fixed.
@@ -2635,7 +2693,7 @@ end TOP_HEADER;
 -- # ver 41.02 220609 :  TI_LVDS_RX bit align more time // if(swait_cnt = 512) then -> 2**16
 -- # ver 41.03 220609 :  TI_LVDS_RX if(swait_cnt > 2**16) then // ila
 -- # ver 41.04 220609 :  IDELAYE2 LD, -- 1-bit input: Load IDELAY_VALUE input => REGRST
--- # ver 41.05 220610 :  rollbcak IDEALY REGRST 
+-- # ver 41.05 220610 :  rollbcak IDEALY REGRST
 -- # ver 41.06 220610 :  SAFEZONE_MIN < seye_dif
 -- # ver 41.07 220610 :  sEyestart_done
 -- # ver 41.08 220610 :  roic sync mask while align process
@@ -2647,9 +2705,9 @@ end TOP_HEADER;
 -- # ver 42.04 220725 :  sm code rollbcak
 -- # ver 42.05 220725 :  force abnormal stoggle_protb
 -- # ver 42.06 220725 :  clear ambiguous
--- # ver 42.07-11 220726 :  ila 
--- # ver 42.12 220727 :  ila 
--- # ver 42.13 220727 :  back to align ila 
+-- # ver 42.07-11 220726 :  ila
+-- # ver 42.12 220727 :  ila
+-- # ver 42.13 220727 :  back to align ila
 -- # ver 42.14 220727 :  strength sync, mclk
 -- # ver 42.15 220728 :  back to 41, only drive strength.
 -- # ver 42.16 220728 :  sync falling edge
@@ -2660,17 +2718,17 @@ end TOP_HEADER;
 -- # ver 43.01 220811 :  Blur 8pixel bug fix. /8 => /9
 -- # ver 43.02 220811 :  0.11110687255859375
 --------- V44 ------------------------------
--- # ver 44.01 220831 :  4343rc Nova 
+-- # ver 44.01 220831 :  4343rc Nova
 -- # ver 44.02 220901 :  roic str for clk modefied
 --------- V45 ------------------------------
 -- # ver 45.01 220914 :  flash 2nd boot test   --#################################### multi boot #####################################
 --------- V46 ------------------------------
--- # ver 46.02 221012 :  image 2pixel downroll - lvds_rx debug  
--- # ver 46.03 221012 :  image 2pixel downroll - data align debug   
--- # ver 46.04 221012 :  image 2pixel downroll - data_align state_dpram idle condition.   
--- # ver 46.05 221012 :  image 2pixel downroll - siganl cdc toggle   
+-- # ver 46.02 221012 :  image 2pixel downroll - lvds_rx debug
+-- # ver 46.03 221012 :  image 2pixel downroll - data align debug
+-- # ver 46.04 221012 :  image 2pixel downroll - data_align state_dpram idle condition.
+-- # ver 46.05 221012 :  image 2pixel downroll - siganl cdc toggle
 --------- V47 ------------------------------
--- # ver 47.01 221018 :  4343 project model name redefine.  
+-- # ver 47.01 221018 :  4343 project model name redefine.
 -- # ver 47.02 221102 :  4343R_2 boot ready  top-GateL0R1 1->0
 -- # ver 47.03 221103 :  OSD free frame count added
 
@@ -2682,9 +2740,9 @@ end TOP_HEADER;
 -- # ver 60.04 221108 08: beta prepare
 -- # ver 60.05 221110 09: icap reboot
 -- # ver 60.06 221110 11: ADDR_FPGA_REBOOT x"1000";
--- # ver 60.07 221121 17: SEC static speed up. if (sreg_RstFrCnt = 0) then --# 1 is meaning ready 
--- # ver 60.08 221122 11: free run cnt 100MHz for debug 
--- # ver 60.09 221122 15: frame cnt roollback, oreg_frame_cnt 
+-- # ver 60.07 221121 17: SEC static speed up. if (sreg_RstFrCnt = 0) then --# 1 is meaning ready
+-- # ver 60.08 221122 11: free run cnt 100MHz for debug
+-- # ver 60.09 221122 15: frame cnt roollback, oreg_frame_cnt
 -- # ver 60.10 221202 16: Dic report ACC error at 2832R, acc ila
 
 --------- V61 ------------------------------
@@ -2700,7 +2758,7 @@ end TOP_HEADER;
 -- # ver 00.01 221220 : axi 4pixel 64bit read, 64bit ram added.
 -- # ver 00.02 221220 15: 4343T_2:target, 4343TC_1:test model
 -- # ver 00.03 221222 13: ddr bit width all changed
--- # ver 00.04 221227 10: 4para offset 
+-- # ver 00.04 221227 10: 4para offset
 -- # ver 00.05 221227 18: ddr rength + ila + wen + avg_wen bug
 -- # ver 00.05 221228 08: ila data 16-> 64
 -- # ver 00.05 221228 09: axi_if addr length
@@ -2715,11 +2773,11 @@ end TOP_HEADER;
 -- # ver 00.07 230110 15: row debugging wen->rise edge
 -- # ver 00.07 230110 16: double line, news (16-1 downto 0)
 -- #                  17: row_inc error -> addr inc compare 12bit
--- #                  18: column 0 line error 
--- #           230111 09: news select position changed 
--- #           230111 12: dot exception in line 
--- #           230111 14: dot defect priority 
--- #           230119 09: a-si str 1024 not work debug 
+-- #                  18: column 0 line error
+-- #           230111 09: news select position changed
+-- #           230111 12: dot exception in line
+-- #           230111 14: dot defect priority
+-- #           230119 09: a-si str 1024 not work debug
 --------- V1.62.xx --------------------------
 -- # ver 1.62.02 230126 08 : 2832R_2 compile
 -- # ver 1.62.03 230130 10 : 4 parallel i-point gain
@@ -2739,22 +2797,22 @@ end TOP_HEADER;
 --------- V1.64.xx --------------------------
 -- # 1_64_01 23_0417_17 : xdc timing met.
 -- # 1_64_02 23_0512_14 : roi time analyze for cpv
--- # 1_64_03 23_0512_20 : sdata_sum_2x2_tmp_4d; --# 2d->4d fix error #230512 
--- # 1_64_03 23_0515_10 : roi error, rollback tetst 
--- # 1_64_03 23_0515_11 : roi data timing 0; 
+-- # 1_64_03 23_0512_20 : sdata_sum_2x2_tmp_4d; --# 2d->4d fix error #230512
+-- # 1_64_03 23_0515_10 : roi error, rollback tetst
+-- # 1_64_03 23_0515_11 : roi data timing 0;
 --                        roi_proc.vhd @ sdoutb  <= sdoutbx; --# datat dalay for compile 230515
 -- # 1_64_04 23_0515_12 : frame counter range up
 --                        sync_counter @ --# if over 127, 3 bit shift
 -- # 1_64_04 23_0515_16 : ila_tft_ctrl
--- # 1_64_04 23_0515_17 : rear dummy 
+-- # 1_64_04 23_0515_17 : rear dummy
 --------- V1.66.xx --------------------------
--- # 1_66_00 23_0516_10 : version jump for FW 64->66  
--- # 1_66_00 23_0516_12 : cpv period rollback.  
--- # 1_66_00 23_0516_15 : error finded. cpv 0.05  
+-- # 1_66_00 23_0516_10 : version jump for FW 64->66
+-- # 1_66_00 23_0516_12 : cpv period rollback.
+-- # 1_66_00 23_0516_15 : error finded. cpv 0.05
 -- # 1_66_00 23_0517_11 : release compile
 -- # 1_66_01 23_0531_18 : 2430 EXT_IN pinmap error C9->A8
 -- # 1_66_01 23_0608_20 : OSD frame rate over 127 clac fix.
--- # 1_66_02 23_0619_15 : added 2430UR model 
+-- # 1_66_02 23_0619_15 : added 2430UR model
 -- # 1_66_02 23_0630_10 : top code clean
 -- # 1_66_03 23_0707_17 : sm_tft <+ Trig detection for SEC
 
@@ -2762,8 +2820,8 @@ end TOP_HEADER;
 -- # 1_67_00 23_0707_17 : release to SEC
 -- # 1_67_01 23_0717_13 : ddr write position set
 --                        sddr_ch4_wvcnt <= sch4_wvcnt_3d; --# 230717 at AXI_SUB_IF.vhd
--- # 1_67_02 23_0717_16 : ddr write position set add ch1,2,3 + 10G   
--- # 1_67_02 23_0717_17 : add tp value to ADDR_TP_VALUE    
+-- # 1_67_02 23_0717_16 : ddr write position set add ch1,2,3 + 10G
+-- # 1_67_02 23_0717_17 : add tp value to ADDR_TP_VALUE
 -- # 1_67_03 23_0717_19 : sync blocking tpc -> ddr3 sync gen signal:sframe_end_trig
 -- # 1_67_04 23_0718_15 : Trig Hz 1sec null reset
 -- # 1_67_05 23_0718_19 : TPC gain calc offset unsigned -> signed for minus offset
@@ -2780,7 +2838,7 @@ end TOP_HEADER;
 -- #                 19 : h pixel avg + 3x3
 -- #                 20 : 3x3
 -- # 1_67_09 23_0725_14 : offset gain limitation, 65000
--- #                 15 : offset X 
+-- #                 15 : offset X
 -- # 1_67_09 23_0726_13 : BritCont + margin
 -- #                 14 : min_margin bug fix
 -- #                 15 : 16bit divider
@@ -2800,12 +2858,12 @@ end TOP_HEADER;
 -- #         23_0811_16 : eq ctrl for multi eq 4x4
 
 -- # 1_67_10 23_0816_12 : eq 3x3
--- #                 13 : bug fix 
--- #                 15 : EQ active end 
--- #                 16 : EQ active position 
--- #                 17 : 1/2 margin 
+-- #                 13 : bug fix
+-- #                 15 : EQ active end
+-- #                 16 : EQ active position
+-- #                 17 : 1/2 margin
 -- #                 18 : full bit div
--- # 1_67_10 23_0817_12 : eq high radix 
+-- # 1_67_10 23_0817_12 : eq high radix
 -- #                 13 : eq high radix + ready
 -- #                 15 : 1eq and 9eq
 -- #                 16 : eq reg conn
@@ -2825,5 +2883,5 @@ end TOP_HEADER;
 -- #         23_0920_10 : maked defects edge
 -- #         23_0920_14 : sgate_dummy_add 1->0 // (15) rollback
 -- #         23_0920_15 : gate dummy 33->32
--- #         23_0920_18 : - sgate_dummy_add 
+-- #         23_0920_18 : - sgate_dummy_add
 -- #         23_0920_19 : dummy odd check

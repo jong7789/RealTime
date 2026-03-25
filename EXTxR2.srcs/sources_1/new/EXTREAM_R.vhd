@@ -51,20 +51,19 @@ entity EXTREAM_R is
     port   (
             SYSTEM_CLK_P : in    std_logic;
             SYSTEM_CLK_N : in    std_logic;
-            
+
             ROIC_DCLK_P : in std_logic_vector(ROIC_DCLK_NUM(GNR_MODEL)-1 downto 0);
             ROIC_DCLK_N : in std_logic_vector(ROIC_DCLK_NUM(GNR_MODEL)-1 downto 0);
             ROIC_FCLK_P : in std_logic_vector(ROIC_FCLK_NUM(GNR_MODEL)-1 downto 0);
             ROIC_FCLK_N : in std_logic_vector(ROIC_FCLK_NUM(GNR_MODEL)-1 downto 0);
             ROIC_DOUT_P : in std_logic_vector(ROIC_NUM(GNR_MODEL)-1 downto 0);
             ROIC_DOUT_N : in std_logic_vector(ROIC_NUM(GNR_MODEL)-1 downto 0);
-    
-            
+
             TEMP_SCL   : out   std_logic;
             TEMP_SDA   : inout std_logic;
             EEPROM_SCL : out   std_logic;
             EEPROM_SDA : inout std_logic;
-            
+
             GATE_SHIFT_CLK    : out std_logic;
             GATE_SHIFT_CLK1L  : out std_logic; -- 210127 added
             GATE_SHIFT_CLK2L  : out std_logic;
@@ -82,33 +81,33 @@ entity EXTREAM_R is
             GATE_ALL_OUT_R    : out std_logic;
             GATE_CONFIG       : out std_logic_vector(GATE_CONFIG_NUM(GNR_MODEL)-1 downto 0);
             GATE_VGH_RST      : out std_logic;
-    
+
             STATUS_LED : out   std_logic_vector(1 downto 0);
-            
+
             PWR_EN : out   std_logic_vector(PWR_NUM(GNR_MODEL)-1 downto 0);
 
             EXP_IN  : in  std_logic; -- mbh 210511 1616 v0.3
             EXT_IN  : in  std_logic;
             EXT_OUT : out std_logic;
-         
+
             F_ROIC_MCLK   : out std_logic_vector(ROIC_MCLK_NUM(GNR_MODEL) - 1 downto 0);
             F_ROIC_SYNC   : out std_logic_vector(ROIC_DUAL_BY_MODEL(GNR_MODEL) - 1 downto 0);
             F_ROIC_TP_SEL : out std_logic_vector(ROIC_DUAL_BY_MODEL(GNR_MODEL) - 1 downto 0);
             F_ROIC_SCLK   : out std_logic_vector(ROIC_SCLK_NUM(GNR_MODEL) - 1 downto 0);
             F_ROIC_CS     : out std_logic_vector(ROIC_DUAL_BY_MODEL(GNR_MODEL) - 1 downto 0);
             F_ROIC_SDI    : out std_logic_vector(ROIC_DUAL_BY_MODEL(GNR_MODEL) - 1 downto 0);
-            F_ROIC_SDO    : in  std_logic_vector(ROIC_SDI_NUM(GNR_MODEL)-1 downto 0);   
-            
+            F_ROIC_SDO    : in  std_logic_vector(ROIC_SDI_NUM(GNR_MODEL)-1 downto 0);
+
             F_GPIO1 : inout std_logic;
             F_GPIO2 : inout std_logic;
             F_GPIO3 : inout std_logic;
             F_GPIO4 : inout std_logic;
-            
+
             tb_alignreq  : in  std_logic :='0';
             tb_aligndone : out std_logic;
-            
+
 -- █▀▀ █▀▀ █░█
--- █▄█ ██▄ ▀▄▀            
+-- █▄█ ██▄ ▀▄▀
             -- RS232 UART
 --            uart_rxd        : in    std_logic;
 --            uart_txd        : out   std_logic;
@@ -133,10 +132,14 @@ entity EXTREAM_R is
             ddr3_we_n       : out   std_logic;
             ddr3_ba         : out   std_logic_vector( 2 downto 0);
             ddr3_addr       : out   std_logic_vector(14 downto 0);
-            ddr3_dm         : out   std_logic_vector( 3 downto 0);
-            ddr3_dqs_p      : inout std_logic_vector( 3 downto 0);
-            ddr3_dqs_n      : inout std_logic_vector( 3 downto 0);
-            ddr3_dq         : inout std_logic_vector(31 downto 0);
+--            ddr3_dm         : out   std_logic_vector( 3 downto 0);
+--            ddr3_dqs_p      : inout std_logic_vector( 3 downto 0);
+--            ddr3_dqs_n      : inout std_logic_vector( 3 downto 0);
+--            ddr3_dq         : inout std_logic_vector(31 downto 0);
+            ddr3_dm         : out   std_logic_vector(DDR_DM(GNR_MODEL)  - 1 downto 0);
+            ddr3_dqs_p      : inout std_logic_vector(DDR_DQS(GNR_MODEL) - 1 downto 0);
+            ddr3_dqs_n      : inout std_logic_vector(DDR_DQS(GNR_MODEL) - 1 downto 0);
+            ddr3_dq         : inout std_logic_vector(DDR_DQ(GNR_MODEL)  - 1 downto 0);
             -- XAUI
             PHY_SIP   : out std_logic_vector(1 downto 0);
             PHY_SIN   : out std_logic_vector(1 downto 0);
@@ -144,16 +147,26 @@ entity EXTREAM_R is
             PHY_SON   : in  std_logic_vector(1 downto 0);
             PHY_CLK_P : in  std_logic;
             PHY_CLK_N : in  std_logic;
-            
+
             PHY_RESET_N : out   std_logic;
             PHY_MDC     : out   std_logic;
-            PHY_MDIO    : inout std_logic
+            PHY_MDIO    : inout std_logic;
 --            fmc_reset_n     : out   std_logic;
 --            fmc_mdc         : out   std_logic;
 --            fmc_mdio        : inout std_logic
+-- █▀▀ █▀▀ █▀┐
+-- ▄▄█ █▀  █▀▀
+            --# 260320 SFP ports: null array when FUNC_SFP_NUM=0 (ports disappear for non-SFP models)
+            sfp_ref_clk_p   : in    std_logic_vector(FUNC_SFP_NUM(GNR_MODEL) - 1 downto 0);
+            sfp_ref_clk_n   : in    std_logic_vector(FUNC_SFP_NUM(GNR_MODEL) - 1 downto 0);
+            sfp_tx_p        : out   std_logic_vector(FUNC_SFP_NUM(GNR_MODEL) - 1 downto 0);
+            sfp_tx_n        : out   std_logic_vector(FUNC_SFP_NUM(GNR_MODEL) - 1 downto 0);
+            sfp_rx_p        : in    std_logic_vector(FUNC_SFP_NUM(GNR_MODEL) - 1 downto 0);
+            sfp_rx_n        : in    std_logic_vector(FUNC_SFP_NUM(GNR_MODEL) - 1 downto 0);
+            sfp_tx_dis_n    : out   std_logic_vector(FUNC_SFP_NUM(GNR_MODEL) - 1 downto 0);
+            sfp_los         : in    std_logic_vector(FUNC_SFP_NUM(GNR_MODEL) - 1 downto 0)
             );
 end EXTREAM_R;
-
 
 --------------------------------------------------------------------------------
 --  XGVRD-TOP architecture
@@ -162,11 +175,10 @@ end EXTREAM_R;
 architecture top of EXTREAM_R is
 
     type tdata_par                  is array (0 to ROIC_NUM(GNR_MODEL)-1) of std_logic_vector(15 downto 0);
-    
--- █▀▀ █▀▀ █░█
--- █▄█ ██▄ ▀▄▀        
-    -- Components --------------------------------------------------------------
 
+-- █▀▀ █▀▀ █░█
+-- █▄█ ██▄ ▀▄▀
+    -- Components --------------------------------------------------------------
 
     -- Signals -----------------------------------------------------------------
 
@@ -177,8 +189,6 @@ architecture top of EXTREAM_R is
     signal sys_clk              : std_logic;                         -- System clock
     signal sys_clk_lock         : std_logic;                         -- System clock MMCM locked
     signal sys_rst              : std_logic;                         -- System clock domain reset
-    signal clk_loop_in          : std_logic;                         -- External loopback input clock
-    signal clk_loop_out         : std_logic;                         -- External loopback output clock
 
     -- CPU interrupts
     signal cpu_irq_0            : std_logic;                         -- GigE core interrupt request
@@ -373,6 +383,34 @@ architecture top of EXTREAM_R is
     signal rxaui_status_vector  : std_logic_vector(  7 downto 0);    -- Status vector
     signal rxaui_rst            : std_logic;                         -- RXAUI bridge reset
 
+    -- SFP+ 10GBASE-R interface signals
+    signal sfp_tx_disable       : std_logic;                         -- SFP TX disable
+    signal sfp_signal_detect    : std_logic;                         -- SFP signal detect
+    signal sfp_coreclk          : std_logic;                         -- SFP PHY core clock
+    signal sfp_xgmii_rst        : std_logic;                         -- SFP XGMII reset
+    signal sfp_xgmii_rxd        : std_logic_vector( 63 downto 0);   -- SFP XGMII RX data
+    signal sfp_xgmii_rxc        : std_logic_vector(  7 downto 0);   -- SFP XGMII RX control
+    signal sfp_rst_done         : std_logic;                         -- SFP PHY reset done
+    signal sfp_phy_sel          : std_logic;                         -- PHY select: '1'=SFP, '0'=RXAUI
+
+    signal phy_mdio_out         : std_logic;                        -- PHY output data
+    signal phy_mdio_tri         : std_logic;                        -- PHY tristate buffer control
+    signal phy_mdio_iobuf_o     : std_logic;                        -- IOBUF MDIO output
+
+    -- SFP DRP loopback signals
+    signal sfp_drp_req          : std_logic;
+    signal sfp_drp_den          : std_logic;
+    signal sfp_drp_dwe          : std_logic;
+    signal sfp_drp_daddr        : std_logic_vector( 15 downto 0);
+    signal sfp_drp_di           : std_logic_vector( 15 downto 0);
+    signal sfp_drp_drdy         : std_logic;
+    signal sfp_drp_drpdo        : std_logic_vector( 15 downto 0);
+    -- Separate RXAUI clock/data for MUX
+    signal rxaui_clk156         : std_logic;                         -- RXAUI 156.25MHz clock
+    signal rxaui_clk156_lock    : std_logic;                         -- RXAUI clock locked
+    signal rxaui_xgmii_rxd      : std_logic_vector( 63 downto 0);   -- RXAUI XGMII RX data
+    signal rxaui_xgmii_rxc      : std_logic_vector(  7 downto 0);   -- RXAUI XGMII RX control
+
     -- I2C bus signals
     signal fmc_sda_o            : std_logic;                         -- SDA output
     signal fmc_sda_i            : std_logic;                         -- SDA input
@@ -385,10 +423,8 @@ architecture top of EXTREAM_R is
     signal action_cmd_trig_out  : std_logic_vector(  3 downto 0);    -- ACTION cmd trigger out
     signal action_cmd_tgl       : std_logic_vector(  1 downto 0);    -- ACTION cmd toggle
 
-
-                
 -- █▀▀ ▀▄▀ ▀█▀ █▀█
--- ██▄ █░█ ░█░ █▀▄    
+-- ██▄ █░█ ░█░ █▀▄
 --    signal axi_clk    : std_logic := '0';
     signal sui_clk     : std_logic := '0';
     signal sui_rstn  : std_logic := '0';
@@ -422,7 +458,7 @@ architecture top of EXTREAM_R is
 
     signal stpc_wen   : std_logic;
     signal stpc_waddr : std_logic_vector(11 downto 0);
-    signal stpc_wdata : std_logic_vector(DDR_BIT_W1( (GNR_MODEL))-1 downto 0); 
+    signal stpc_wdata : std_logic_vector(DDR_BIT_W1( (GNR_MODEL))-1 downto 0);
     signal stpc_wvcnt : std_logic_vector(11 downto 0);
 
     signal savg_wen   : std_logic;
@@ -435,7 +471,6 @@ architecture top of EXTREAM_R is
     signal sacc_wdata : std_logic_vector(DDR_BIT_W4( (GNR_MODEL))-1 downto 0);
     signal sacc_wvcnt : std_logic_vector(11 downto 0);
 
-    signal spix_rdata : std_logic_vector(DDR_BIT_R0(GNR_MODEL)-1 downto 0) ;
     signal stpc_rdata : std_logic_vector(DDR_BIT_R1(GNR_MODEL)-1 downto 0) ;
     signal savg_rinfo : std_logic_vector(DDR_BIT_R2(GNR_MODEL)-1 downto 0) ;
     signal sofs_rinfo : std_logic_vector(DDR_BIT_R3(GNR_MODEL)-1 downto 0) ;
@@ -460,13 +495,9 @@ architecture top of EXTREAM_R is
     signal sfb_data  : std_logic_vector(63 downto 0) := (others => '0');
     signal sfb_width : std_logic_vector( 2 downto 0) := (others => '0');
 
-    signal scalib_gain     : std_logic_vector(31 downto 0) := (others => '0');
-    signal scalib_offset : std_logic_vector(31 downto 0) := (others => '0');
-    signal scalib_defect : std_logic_vector(7 downto 0) := (others => '0');
 
     signal chgdet_osd_en : std_logic;
     signal chgdet_osd_da : std_logic_vector(16 - 1 downto 0);
-
 
   -- Register
     signal sreg_pwr_mode       : std_logic := '0';
@@ -512,8 +543,6 @@ architecture top of EXTREAM_R is
     signal sreg_height         : std_logic_vector(11 downto 0) := (others => '0');
     signal sreg_offsetx        : std_logic_vector(11 downto 0) := (others => '0');
     signal sreg_offsety        : std_logic_vector(11 downto 0) := (others => '0');
-    signal sreg_rev_x          : std_logic := '0';
-    signal sreg_rev_y          : std_logic := '0';
     signal sreg_roic_en        : std_logic := '0';
     signal sreg_roic_addr      : std_logic_vector(7 downto 0) := (others => '0');
     signal sreg_roic_wdata     : std_logic_vector(15 downto 0) := (others => '0');
@@ -618,13 +647,13 @@ architecture top of EXTREAM_R is
     signal sreg_fla_ctrl    : std_logic_vector(31 downto 0) := (others => '0');
     signal sreg_fla_addr    : std_logic_vector(31 downto 0) := (others => '0');
     signal sreg_fla_data    : std_logic_vector(31 downto 0) := (others => '0');
-    
+
     signal sreg_flaw_ctrl     : std_logic_vector(31 downto 0) := (others => '0');
     signal sreg_flaw_cmd      : std_logic_vector(31 downto 0) := (others => '0');
     signal sreg_flaw_addr     : std_logic_vector(31 downto 0) := (others => '0');
     signal sreg_flaw_wdata    : std_logic_vector(31 downto 0) := (others => '0');
     signal sreg_flaw_rdata    : std_logic_vector(31 downto 0) := (others => '0');
-     
+
     signal sreg_sync_rcnt     : std_logic_vector(32*30-1 downto 0) := (others => '0');
     signal sreg_sync_ctrl     : std_logic_vector(31 downto 0) := (others => '0');
     signal sreg_sync_rcnt0    : std_logic_vector(31 downto 0) := (others => '0');
@@ -657,7 +686,7 @@ architecture top of EXTREAM_R is
     signal sreg_sync_rdata_bglw7 : std_logic_vector(31 downto 0) := (others => '0');
     signal sreg_sync_rdata_bglw8 : std_logic_vector(31 downto 0) := (others => '0');
     signal sreg_sync_rdata_bglw9 : std_logic_vector(31 downto 0) := (others => '0');
-     
+
     signal sreg_sm_ctrl  : std_logic_vector(31 downto 0) := (others => '0');
     signal sreg_sm_data0 : std_logic_vector(31 downto 0) := (others => '0');
     signal sreg_sm_data1 : std_logic_vector(31 downto 0) := (others => '0');
@@ -670,7 +699,7 @@ architecture top of EXTREAM_R is
 
     signal sreg_bcal_ctrl  : std_logic_vector(31 downto 0) := (others => '0');
     signal sreg_bcal_data  : std_logic_vector(31 downto 0) := (others => '0');
-    
+
     signal sreg_mpc_posoffset  : std_logic_vector(15 downto 0) := (others => '0');
 
     signal sd2m_xray           : std_logic;
@@ -683,34 +712,34 @@ architecture top of EXTREAM_R is
     signal sreg_d2m_drst_num   : std_logic_vector(15 downto 0) := (others => '0');
 
     signal sreg_fw_busy : std_logic := '0';
-    signal sreg_toprst_ctrl : std_logic_vector(15 downto 0) := (others => '0'); 
+    signal sreg_toprst_ctrl : std_logic_vector(15 downto 0) := (others => '0');
 
-    signal sReg_DnrCtrl     : std_logic_vector(15 downto 0) := (others => '0'); 
-    signal sreg_SobelCoeff0 : std_logic_vector(15 downto 0) := (others => '0'); 
-    signal sreg_SobelCoeff1 : std_logic_vector(15 downto 0) := (others => '0'); 
-    signal sreg_SobelCoeff2 : std_logic_vector(15 downto 0) := (others => '0'); 
-    signal sreg_BlurOffset  : std_logic_vector(15 downto 0) := (others => '0'); 
-    signal sReg_AccCtrl     : std_logic_vector(15 downto 0) := (others => '0'); 
-    signal sReg_AccStat     : std_logic_vector(15 downto 0) := (others => '0'); 
+    signal sReg_DnrCtrl     : std_logic_vector(15 downto 0) := (others => '0');
+    signal sreg_SobelCoeff0 : std_logic_vector(15 downto 0) := (others => '0');
+    signal sreg_SobelCoeff1 : std_logic_vector(15 downto 0) := (others => '0');
+    signal sreg_SobelCoeff2 : std_logic_vector(15 downto 0) := (others => '0');
+    signal sreg_BlurOffset  : std_logic_vector(15 downto 0) := (others => '0');
+    signal sReg_AccCtrl     : std_logic_vector(15 downto 0) := (others => '0');
+    signal sReg_AccStat     : std_logic_vector(15 downto 0) := (others => '0');
 
     signal sreg_ExtTrigEn      : std_logic := '0';
-    signal sreg_ExtRst_MODE    : std_logic_vector(7 downto 0) := (others => '0'); 
-    signal sreg_ExtRst_DetTime : std_logic_vector(31 downto 0) := (others => '0'); 
+    signal sreg_ExtRst_MODE    : std_logic_vector(7 downto 0) := (others => '0');
+    signal sreg_ExtRst_DetTime : std_logic_vector(31 downto 0) := (others => '0');
     signal sExtTrig_Srst       : std_logic := '0';
-    signal sreg_trigcnt        : std_logic_vector(16-1 downto 0) := (others => '0'); 
-    signal sreg_osd_ctrl       : std_logic_vector(16-1 downto 0) := (others => '0'); 
-            
+    signal sreg_trigcnt        : std_logic_vector(16-1 downto 0) := (others => '0');
+    signal sreg_osd_ctrl       : std_logic_vector(16-1 downto 0) := (others => '0');
+
     signal sreg_pwdac_cmd       : std_logic_vector(16 - 1 downto 0);
     signal sreg_pwdac_ticktime  : std_logic_vector(32 - 1 downto 0);
     signal sreg_pwdac_tickinc   : std_logic_vector(12 - 1 downto 0);
     signal sreg_pwdac_trig      : std_logic;
     signal sreg_pwdac_currlevel : std_logic_vector(16 - 1 downto 0);
 
-    signal sreg_testpoint1     : std_logic_vector(16 - 1 downto 0); 
-    signal sreg_testpoint2     : std_logic_vector(16 - 1 downto 0); 
-    signal sreg_testpoint3     : std_logic_vector(16 - 1 downto 0); 
-    signal sreg_testpoint4     : std_logic_vector(16 - 1 downto 0); 
-    
+    signal sreg_testpoint1     : std_logic_vector(16 - 1 downto 0);
+    signal sreg_testpoint2     : std_logic_vector(16 - 1 downto 0);
+    signal sreg_testpoint3     : std_logic_vector(16 - 1 downto 0);
+    signal sreg_testpoint4     : std_logic_vector(16 - 1 downto 0);
+
     signal sroic_mclk_div   : std_logic := '0';
     signal sroic_sync_div   : std_logic := '0';
     signal sroic_tp_sel_div : std_logic := '0';
@@ -723,7 +752,6 @@ architecture top of EXTREAM_R is
     signal sext_trig_out : std_logic := '0';
     signal sext_trig_cnt : std_logic_vector(31 downto 0) := (others => '0');
 
-    signal stft_state : std_logic_vector(15 downto 0);
 
   --* tft ctrl state
     signal oostate_tftd : tstate_tft;
@@ -737,7 +765,6 @@ architecture top of EXTREAM_R is
     signal oostate_avg : tstate_avg;
 
     signal stb_alignreq  : std_logic; -- simulation port
-    signal stb_aligndone : std_logic;
 
     signal spi_rtl_0_io0_i : std_logic;
     signal spi_rtl_0_io0_o : std_logic;
@@ -756,13 +783,13 @@ architecture top of EXTREAM_R is
     signal spi_rtl_0_sck_t : std_logic;
     signal spi_rtl_0_ss_i  : std_logic;
     signal spi_rtl_0_ss_o  : std_logic;
-    signal spi_rtl_0_ss_t  : std_logic; 
+    signal spi_rtl_0_ss_t  : std_logic;
 
     constant dummy : std_logic_vector(32-1 downto 0):=(others=> '0');
     signal s_spi_rtl_0_io0_o : std_logic;
     signal s_spi_rtl_0_io0_t : std_logic;
     signal s_spi_rtl_0_io1_o : std_logic;
-    signal s_spi_rtl_0_io1_t : std_logic;  
+    signal s_spi_rtl_0_io1_t : std_logic;
 
     signal rsreg_width      : std_logic_vector(11 downto 0) := (others => '0');
     signal rsreg_height     : std_logic_vector(11 downto 0) := (others => '0');
@@ -777,15 +804,11 @@ architecture top of EXTREAM_R is
     signal trig_num0    : std_logic_vector(16-1 downto 0);
     signal trig_num1    : std_logic_vector(16-1 downto 0);
     signal trig_num_cnt : std_logic_vector(16-1 downto 0);
-    signal sEXT_OUT     : std_logic;  
-    
-    signal sbd_clk_lock_1d : std_logic := '0';
-    signal sbd_clk_lock_2d : std_logic := '0';
-    signal sbd_clk_lock_3d : std_logic := '0';
-    signal sbd_clk_lock    : std_logic_vector(15 downto 0) := (others => '0'); 
+    signal sEXT_OUT     : std_logic;
+
+    signal sbd_clk_lock    : std_logic_vector(15 downto 0) := (others => '0');
     signal sbd_mclk        : std_logic := '0';
     signal sbd_dclk        : std_logic := '0';
-    signal sclock_cnt      : std_logic_vector(10-1 downto 0) := (others=>'0');    
     signal sPWR_EN         : std_logic_vector(PWR_NUM(GNR_MODEL)-1 downto 0);
 
     --# roic str clk ctrl 220901
@@ -805,7 +828,7 @@ architecture top of EXTREAM_R is
     signal sreg_EqTopVal    : std_logic_vector(16-1 downto 0) := (others => '0');
 
     signal sreg_ofga_lim    : std_logic_vector(16-1 downto 0) := (others => '0');
- 
+
     signal ireg_req_align_pm : std_logic;
 
     signal svsync_tft_1d : std_logic;
@@ -861,19 +884,20 @@ architecture top of EXTREAM_R is
     signal ddrBlankCnt    : std_logic_vector(48-1 downto 0) := (others => '0');
     signal ddrBlankCntLat : std_logic_vector(48-1 downto 0) := (others => '0');
     signal ddrBlankCenter : std_logic;
-    
+
     signal ich0_waddr_pm  : std_logic_vector(11 downto 0);
-    
+
     signal sddr_rstn : std_logic := '0';
     signal sddr_rst  : std_logic := '1';
     signal sys_rstn  : std_logic := '0';
     signal ext_rst   : std_logic := '0'; --# not use
-    
+
     signal sref_clk  : std_logic := '0';
     signal sddr_clk  : std_logic := '0';
     signal scalib_done    : std_logic; -- DDR3 Init Calibration Done.
-    
-    signal axi2_awid    : std_logic_vector(3 downto 0);
+
+--$    signal axi2_awid    : std_logic_vector(3 downto 0);
+    signal axi2_awid    : std_logic_vector(DDR_AXI2(GNR_MODEL) - 1 downto 0);
     signal axi2_awaddr  : std_logic_vector(31 downto 0);
     signal axi2_awlen   : std_logic_vector(7 downto 0);
     signal axi2_awsize  : std_logic_vector(2 downto 0);
@@ -886,11 +910,13 @@ architecture top of EXTREAM_R is
     signal axi2_wlast   : std_logic;
     signal axi2_wvalid  : std_logic;
     signal axi2_wready  : std_logic;
-    signal axi2_bid     : std_logic_vector(3 downto 0);
+--$    signal axi2_bid     : std_logic_vector(3 downto 0);
+    signal axi2_bid     : std_logic_vector(DDR_AXI2(GNR_MODEL) - 1 downto 0);
     signal axi2_bresp   : std_logic_vector(1 downto 0);
     signal axi2_bvalid  : std_logic;
     signal axi2_bready  : std_logic;
-    signal axi2_arid    : std_logic_vector(3 downto 0);
+--$    signal axi2_arid    : std_logic_vector(3 downto 0);
+    signal axi2_arid    : std_logic_vector(DDR_AXI2(GNR_MODEL) - 1 downto 0);
     signal axi2_araddr  : std_logic_vector(31 downto 0);
     signal axi2_arlen   : std_logic_vector(7 downto 0);
     signal axi2_arsize  : std_logic_vector(2 downto 0);
@@ -898,7 +924,8 @@ architecture top of EXTREAM_R is
     signal axi2_arlock  : std_logic_vector(0 downto 0);
     signal axi2_arvalid : std_logic;
     signal axi2_arready : std_logic;
-    signal axi2_rid     : std_logic_vector(3 downto 0);
+--$    signal axi2_rid     : std_logic_vector(3 downto 0);
+    signal axi2_rid     : std_logic_vector(DDR_AXI2(GNR_MODEL) - 1 downto 0);
     signal axi2_rdata   : std_logic_vector(511 downto 0);
     signal axi2_rresp   : std_logic_vector(1 downto 0);
     signal axi2_rlast   : std_logic;
@@ -924,11 +951,11 @@ architecture top of EXTREAM_R is
     signal axil_reg_rresp   : STD_LOGIC_VECTOR ( 1 downto 0 );
     signal axil_reg_rvalid  : STD_LOGIC_VECTOR ( 0 to 0 );
     signal axil_reg_rready  : STD_LOGIC_VECTOR ( 0 to 0 );
-    
+
     signal FLASH_CLK      : std_logic;
     signal ge_FLASH_CLK   : std_logic;
     signal ge_FLASH_FCS   : std_logic;
-    signal ge_FLASH_D     : std_logic_vector(1 downto 0); 
+    signal ge_FLASH_D     : std_logic_vector(1 downto 0);
     signal sFLASH_FCS    : std_logic;
 
     signal epc_rddata     : std_logic_vector(31 downto 0); -- Data from peripherals to CPU
@@ -949,11 +976,10 @@ begin
     end generate gen_tbport;
     PWR_EN <= sPWR_EN;
 
-       
 -- █ █▄░█
 -- █ █░▀█
 -- %in
- ireg_req_align_pm <= sreg_req_align or stb_alignreq;
+    ireg_req_align_pm <= sreg_req_align or stb_alignreq;
 
     U0_TI_TFT_TOP : entity work.TI_TFT_TOP
         generic map( GNR_MODEL => GNR_MODEL)
@@ -1029,7 +1055,7 @@ begin
             oreg_ext_exp_time   => sreg_ext_exp_time,
             oreg_ext_frame_time => sreg_ext_frame_time,
 
-            ireg_width   => rsreg_width, -- mbh 210415 
+            ireg_width   => rsreg_width, -- mbh 210415
             ireg_height  => rsreg_height,
             ireg_offsetx => rsreg_offsetx,
             ireg_offsety => rsreg_offsety,
@@ -1053,9 +1079,9 @@ begin
             oreg_grab_done  => sreg_grab_done,
 
             ireg_bcal_ctrl => sreg_bcal_ctrl,
-            oreg_bcal_data => sreg_bcal_data, 
+            oreg_bcal_data => sreg_bcal_data,
 
-            --# d2m port 
+            --# d2m port
             ireg_d2m_en         => sreg_d2m_en,
             ireg_d2m_exp_in     => sreg_d2m_exp_in,
             ireg_d2m_sexp_time  => sreg_d2m_sexp_time,
@@ -1085,7 +1111,7 @@ begin
             ohcnt  => shcnt_tft,
             ovcnt  => svcnt_tft,
             odata  => sdata_tft,
-            
+
             ireg_sync_ctrl   => sreg_sync_ctrl,
             oreg_sync_rcnt0  =>  sreg_sync_rcnt0,
             oreg_sync_rcnt1  =>  sreg_sync_rcnt1,
@@ -1109,11 +1135,11 @@ begin
             ostate_dpram_data_align => oostate_dpram_data_align,
             ostate_dpram_roi        => oostate_dpram_roi
         );
-            
+
 -- █▀▄ █▀▄ █▀█
 -- █▄▀ █▄▀ █▀▄
 -- %ddr
- ich0_waddr_pm <= ("00" & shcnt_tft);
+    ich0_waddr_pm <= ("00" & shcnt_tft);
     U0_DDR3_TOP : entity work.DDR3_TOP
         generic map( GNR_MODEL => GNR_MODEL)
         port map (
@@ -1121,11 +1147,11 @@ begin
             iui_rstn           => sbd_clk_lock(2), -- sui_rstn,
             idata_clk          => sui_clk,
             --# if this use as a sleep, axi protocol makes system down.
-            idata_rstn         => sbd_clk_lock(2), 
+            idata_rstn         => sbd_clk_lock(2),
             --# it only stop sync generation block. 220510mbh
             isyncgen_rstn      => sbd_clk_lock(3),
 
-            ireg_ddr_acc_ch_en => sreg_AccCtrl(1),  
+            ireg_ddr_acc_ch_en => sreg_AccCtrl(1),
             ireg_ddr_ch_en     => sreg_ddr_ch_en,
             ireg_ddr_base_addr => sreg_ddr_base_addr,
             ireg_ddr_ch0_waddr => sreg_ddr_ch0_waddr,
@@ -1220,7 +1246,7 @@ begin
             axi_rvalid  => axi2_rvalid,
             axi_rready  => axi2_rready
         );
-            
+
 -- █▀▀ ▄▀█ █░░
 -- █▄▄ █▀█ █▄▄
 -- %cal
@@ -1249,7 +1275,7 @@ begin
             ireg_mpc_point2    => sreg_mpc_point2,
             ireg_mpc_point3    => sreg_mpc_point3,
             ireg_mpc_posoffset => sreg_mpc_posoffset,
-            
+
             ireg_rdefect_wen   => sreg_rdefect_wen,
             ireg_rdefect_addr  => sreg_rdefect_addr,
             ireg_rdefect_wdata => sreg_rdefect_wdata,
@@ -1291,7 +1317,7 @@ begin
             oavg_waddr => savg_waddr,
             oavg_winfo => savg_winfo,
             oavg_wvcnt => savg_wvcnt,
-            
+
             oacc_wen   => sacc_wen,
             oacc_waddr => sacc_waddr,
             oacc_wdata => sacc_wdata,
@@ -1351,7 +1377,7 @@ begin
             ireg_mpc_point2    => sreg_mpc_point2,
             ireg_mpc_point3    => sreg_mpc_point3,
             ireg_mpc_posoffset => sreg_mpc_posoffset,
-            
+
             ireg_rdefect_wen   => sreg_rdefect_wen,
             ireg_rdefect_addr  => sreg_rdefect_addr,
             ireg_rdefect_wdata => sreg_rdefect_wdata,
@@ -1393,7 +1419,7 @@ begin
             oavg_waddr => savg_waddr,
             oavg_winfo => savg_winfo,
             oavg_wvcnt => savg_wvcnt,
-            
+
             oacc_wen   => sacc_wen,
             oacc_waddr => sacc_waddr,
             oacc_wdata => sacc_wdata,
@@ -1429,7 +1455,7 @@ begin
             odata  => sdata_calib
         );
 end generate G_CAL_10G;
-                 
+
 -- █▀█ █▀█ █▀█ █▀▀
 -- █▀▀ █▀▄ █▄█ █▄▄
 -- %proc
@@ -1550,13 +1576,14 @@ end generate GEN_PROC_10g;
 GEN_IMGOUT_10G: if(GEV_SPEED_BY_MODEL(GNR_MODEL) = "10G ") generate
 begin
 
+    --# 10G framebuffer output mux (async reset: sbd_clk_lock(6))
     process(sui_clk, sbd_clk_lock(6))
     begin
         if(sbd_clk_lock(6) = '0') then
-            sfb_frame        <= '0';
-            sfb_dv           <= '0';
-            sfb_data         <= (others => '0');
-            sfb_width        <= (others => '0');
+            sfb_frame <= '0';
+            sfb_dv    <= '0';
+            sfb_data  <= (others => '0');
+            sfb_width <= (others => '0');
         elsif(sui_clk'event and sui_clk = '1') then
 --          if(sreg_out_en = '1') then
 --              sfb_frame        <= svsync_ddr3;
@@ -1576,24 +1603,24 @@ begin
 --                                  sdata_calib(56-1 downto 48) & sdata_calib(64-1 downto 56) ;
 --              sfb_width        <= "111";
             if(sreg_out_en = '1') then
-                sfb_frame        <= svsync_img_proc;
-                sfb_dv           <= shsync_img_proc;
-                sfb_data         <= sdata_img_proc( 8-1 downto  0) & sdata_img_proc(16-1 downto  8) &
-                                    sdata_img_proc(24-1 downto 16) & sdata_img_proc(32-1 downto 24) &
-                                    sdata_img_proc(40-1 downto 32) & sdata_img_proc(48-1 downto 40) &
-                                    sdata_img_proc(56-1 downto 48) & sdata_img_proc(64-1 downto 56) ;
-                sfb_width        <= "111";
+                sfb_frame <= svsync_img_proc;
+                sfb_dv    <= shsync_img_proc;
+                sfb_data  <= sdata_img_proc( 8-1 downto  0) & sdata_img_proc(16-1 downto  8) &
+                             sdata_img_proc(24-1 downto 16) & sdata_img_proc(32-1 downto 24) &
+                             sdata_img_proc(40-1 downto 32) & sdata_img_proc(48-1 downto 40) &
+                             sdata_img_proc(56-1 downto 48) & sdata_img_proc(64-1 downto 56);
+                sfb_width <= "111";
             else
-                sfb_frame        <= '0';
-                sfb_dv           <= '0';
-                sfb_data         <= (others => '0');
-                sfb_width        <= (others => '0');
+                sfb_frame <= '0';
+                sfb_dv    <= '0';
+                sfb_data  <= (others => '0');
+                sfb_width <= (others => '0');
             end if;
         end if;
     end process;
 
 end generate GEN_IMGOUT_10G;
- 
+
 GEN_IMGOUT_2p5: if(GEV_SPEED_BY_MODEL(GNR_MODEL) = "2p5G") generate
 begin
 
@@ -1621,7 +1648,7 @@ begin
             ofb_width => sfb_width
         );
 end generate GEN_IMGOUT_2p5;
-         
+
 -- █ ▀█ █▀▀
 -- █ █▄ █▄▄
     U0_I2C_CTRL : entity work.I2C_CTRL
@@ -1694,7 +1721,7 @@ end generate GEN_IMGOUT_2p5;
             );
 
     end generate diff_proc1_dclk;
-    
+
     diff_proc1_fclk : for i in 0 to ROIC_FCLK_NUM(GNR_MODEL)-1 generate
         U1_IBUFDS : IBUFDS
             generic map (
@@ -1708,7 +1735,7 @@ end generate GEN_IMGOUT_2p5;
             );
     end generate diff_proc1_fclk;
 
-diff_proc1 : for i in 0 to ROIC_NUM(GNR_MODEL)-1 generate
+    diff_proc1 : for i in 0 to ROIC_NUM(GNR_MODEL)-1 generate
         U2_IBUFDS : IBUFDS
             generic map (
                 diff_term  => TRUE,
@@ -1722,7 +1749,6 @@ diff_proc1 : for i in 0 to ROIC_NUM(GNR_MODEL)-1 generate
 
     end generate diff_proc1;
 
-    
     roic_sig_gen : for i in 0 to ROIC_DUAL_BY_MODEL(GNR_MODEL) - 1 generate
 --        F_ROIC_MCLK(i)     <= sroic_mclk_div;
 --        F_ROIC_SCLK(i)     <= sroic_sck_div;
@@ -1737,10 +1763,10 @@ diff_proc1 : for i in 0 to ROIC_NUM(GNR_MODEL)-1 generate
   ----------------------------------------------------------
     roic_sig_gen_ti_mclk : for i in 0 to ROIC_MCLK_NUM(GNR_MODEL) -1 generate
         F_ROIC_MCLK(i)     <= sroic_mclk_div;
-    end generate roic_sig_gen_ti_mclk; 
+    end generate roic_sig_gen_ti_mclk;
     roic_sig_gen_ti_sclk : for i in 0 to ROIC_SCLK_NUM(GNR_MODEL) -1 generate
         F_ROIC_SCLK(i)     <= sroic_sck_div;
-    end generate roic_sig_gen_ti_sclk; 
+    end generate roic_sig_gen_ti_sclk;
   ----------------------------------------------------------
   -- Gate Port Mapping
   ----------------------------------------------------------
@@ -1809,7 +1835,7 @@ diff_proc1 : for i in 0 to ROIC_NUM(GNR_MODEL)-1 generate
         GATE_CONFIG(7) <= GATE_SHIFT_DIR(1);
         GATE_CONFIG(8) <= GATE_SHIFT_DIR(0);
         GATE_CONFIG(9) <= GATE_SHIFT_DIR(0) when ROIC_DUAL_BY_MODEL(GNR_MODEL) = 1 else not GATE_SHIFT_DIR(0);
-    end generate ver5_gate_sig_mapping;    
+    end generate ver5_gate_sig_mapping;
 
     ver6_gate_sig_mapping : if(GATE_BY_MODEL(GNR_MODEL) = "NT39565D") generate
 
@@ -1818,7 +1844,7 @@ diff_proc1 : for i in 0 to ROIC_NUM(GNR_MODEL)-1 generate
         signal VGL_EN  : std_logic;
         signal N_BIAS_AEN  : std_logic;
         signal PGATE_ON  : std_logic;
-        
+
     begin
 
         GATE_SHIFT_CLK      <= sgate_cpv;        -- CPV
@@ -1830,12 +1856,12 @@ diff_proc1 : for i in 0 to ROIC_NUM(GNR_MODEL)-1 generate
 
         GATE_VGH_RST <= sgate_flk; -- FLK
 
-        F_NBIAS_CTRL <= '0'; -- D25  F_NBIAS_CTRL -- gboard u2.6/7 in1/2 : normal low                    
-        VGH_EN       <= '1'; -- F23  VGH_EN -- gate vgh ldo : 15v    : normal high                       
-        VGL_EN       <= '1'; -- G24  VGL_EN -- gate vgl ldo : -15v   : normal high                       
-        N_BIAS_AEN   <= '1'; -- F24  N_BIAS_AEN -- NC resistor to vbias negative ldo : -5v : normal high 
-        PGATE_ON     <= '1'; -- J23  PGATE_ON -- pulldown gate & vbias & buff ldo : 3.3v   : normal high 
-        
+        F_NBIAS_CTRL <= '0'; -- D25  F_NBIAS_CTRL -- gboard u2.6/7 in1/2 : normal low
+        VGH_EN       <= '1'; -- F23  VGH_EN -- gate vgh ldo : 15v    : normal high
+        VGL_EN       <= '1'; -- G24  VGL_EN -- gate vgl ldo : -15v   : normal high
+        N_BIAS_AEN   <= '1'; -- F24  N_BIAS_AEN -- NC resistor to vbias negative ldo : -5v : normal high
+        PGATE_ON     <= '1'; -- J23  PGATE_ON -- pulldown gate & vbias & buff ldo : 3.3v   : normal high
+
         GATE_CONFIG(0) <= F_NBIAS_CTRL;
 --        GATE_CONFIG(1) <= VGH_EN      ;
 --        GATE_CONFIG(2) <= VGL_EN      ;
@@ -1889,7 +1915,7 @@ diff_proc1 : for i in 0 to ROIC_NUM(GNR_MODEL)-1 generate
 -- .%%..%%..........%%..%%..%%...%%...%%.....%%..%%..%%..%%..%%..%%....%%...
 -- ..%%%%...%%%%%%..%%..%%..%%...%%..%%.......%%%%....%%%%....%%%%....%%....
 -- !rm76....................................................................
-ver3_gate_sig_mapping : if(GATE_BY_MODEL(GNR_MODEL) = "RM76U89 ") generate
+    ver3_gate_sig_mapping : if(GATE_BY_MODEL(GNR_MODEL) = "RM76U89 ") generate
     -- signal GATE_CH_MODE    : std_logic_vector(2 downto 0);
     signal GATE_SHIFT_DIR  : std_logic_vector(1 downto 0);
     signal GateL0R1 : std_logic;
@@ -1914,10 +1940,10 @@ begin
                 '0' when GNR_MODEL = "EXT4343RI_4"  else
                 '1' when GNR_MODEL = "EXT4343RCI_1" else
 --                '1' when GNR_MODEL = "EXT4343RCI_2" else --# gate does not work.
-                '0' when GNR_MODEL = "EXT4343RCI_2" else   --# LR 1-> 0 #241023 
-                '0' when GNR_MODEL = "EXT4343RD"	else
-                '0' when GNR_MODEL = "EXT3643R" 	else
-                '1'; 
+                '0' when GNR_MODEL = "EXT4343RCI_2" else   --# LR 1-> 0 #241023
+                '0' when GNR_MODEL = "EXT4343RD"    else
+                '0' when GNR_MODEL = "EXT3643R"     else
+                '1';
 
     GATE_SHIFT_CLK1L  <= sgate_cpv when GateL0R1='0' else '0'; -- CPV 210127
     GATE_SHIFT_CLK2L  <= sgate_cpv when GateL0R1='0' else '0'; -- CPV
@@ -1932,54 +1958,54 @@ begin
     GATE_ALL_OUT      <= sgate_xon when GateL0R1='0' else '1'; -- XON '0': All gate, '1':normal
     GATE_ALL_OUT_R    <= sgate_xon when GateL0R1='1' else '1'; -- XON
     GATE_SHIFT_DIR    <= "00" when GNR_MODEL = "EXT1024R"    else -- [1]:UD, [0]:FB -- jyp 241010
-                         "00" when GNR_MODEL = "EXT1616R"    else  -- [1]:UD, [0]:FB 
-                         "11" when GNR_MODEL = "EXT2430RI"   else -- [1]:UD, [0]:FB 
-                         "11" when GNR_MODEL = "EXT2430R"    else -- [1]:UD, [0]:FB 
-                         "00" when GNR_MODEL = "EXT2832R"    else -- [1]:UD, [0]:FB 
-                         "11" when GNR_MODEL = "EXT2832R_2"  else -- [1]:UD, [0]:FB 
---                       "00" when GNR_MODEL = "EXT4343R"    else -- [1]:UD, [0]:FB 
-                         "00" when GNR_MODEL = "EXT4343R_1"  else -- [1]:UD, [0]:FB 
-                         "00" when GNR_MODEL = "EXT4343R_2"  else -- [1]:UD, [0]:FB 
-                         "00" when GNR_MODEL = "EXT4343R_4"  else -- [1]:UD, [0]:FB 
---                       "00" when GNR_MODEL = "EXT4343R_3"  else -- [1]:UD, [0]:FB 
---                       "00" when GNR_MODEL = "EXT4343RC"   else -- [1]:UD, [0]:FB 
-                         "00" when GNR_MODEL = "EXT4343RC_1" else -- [1]:UD, [0]:FB 
-                         "00" when GNR_MODEL = "EXT4343RC_2" else -- [1]:UD, [0]:FB 
---                       "00" when GNR_MODEL = "EXT4343RC_3" else -- [1]:UD, [0]:FB 
-                         "00" when GNR_MODEL = "EXT4343RI_2"  else -- [1]:UD, [0]:FB  
-                         "00" when GNR_MODEL = "EXT4343RI_4"  else -- [1]:UD, [0]:FB  
+                         "00" when GNR_MODEL = "EXT1616R"    else  -- [1]:UD, [0]:FB
+                         "11" when GNR_MODEL = "EXT2430RI"   else -- [1]:UD, [0]:FB
+                         "11" when GNR_MODEL = "EXT2430R"    else -- [1]:UD, [0]:FB
+                         "00" when GNR_MODEL = "EXT2832R"    else -- [1]:UD, [0]:FB
+                         "11" when GNR_MODEL = "EXT2832R_2"  else -- [1]:UD, [0]:FB
+--                       "00" when GNR_MODEL = "EXT4343R"    else -- [1]:UD, [0]:FB
+                         "00" when GNR_MODEL = "EXT4343R_1"  else -- [1]:UD, [0]:FB
+                         "00" when GNR_MODEL = "EXT4343R_2"  else -- [1]:UD, [0]:FB
+                         "00" when GNR_MODEL = "EXT4343R_4"  else -- [1]:UD, [0]:FB
+--                       "00" when GNR_MODEL = "EXT4343R_3"  else -- [1]:UD, [0]:FB
+--                       "00" when GNR_MODEL = "EXT4343RC"   else -- [1]:UD, [0]:FB
+                         "00" when GNR_MODEL = "EXT4343RC_1" else -- [1]:UD, [0]:FB
+                         "00" when GNR_MODEL = "EXT4343RC_2" else -- [1]:UD, [0]:FB
+--                       "00" when GNR_MODEL = "EXT4343RC_3" else -- [1]:UD, [0]:FB
+                         "00" when GNR_MODEL = "EXT4343RI_2"  else -- [1]:UD, [0]:FB
+                         "00" when GNR_MODEL = "EXT4343RI_4"  else -- [1]:UD, [0]:FB
                          "00" when GNR_MODEL = "EXT4343RCI_1" else -- [1]:UD, [0]:FB
                          "00" when GNR_MODEL = "EXT4343RCI_2" else -- [1]:UD, [0]:FB
-                         "00" when GNR_MODEL = "EXT4343RD"	 else  -- [1]:UD, [0]:FB
-                         "00" when GNR_MODEL = "EXT3643R"	 else  -- [1]:UD, [0]:FB
-                         "00";          
+                         "00" when GNR_MODEL = "EXT4343RD"     else  -- [1]:UD, [0]:FB
+                         "00" when GNR_MODEL = "EXT3643R"     else  -- [1]:UD, [0]:FB
+                         "00";
     GATE_CONFIG(0) <= sgate_ind;          -- '0':1,2,3,4 // '1':1,3,5,7
     GATE_CONFIG(1) <= GATE_SHIFT_DIR(0);  -- '0':Right input // '1':Left input
     GATE_CONFIG(2) <= GATE_SHIFT_DIR(1);  -- '0': 1 to 600 // '1': 600 to 1
 
     GATE_VGH_RST      <= not sgate_flk when GNR_MODEL = "EXT1024R"    else -- FLK -- jyp 241010
-                         not sgate_flk when GNR_MODEL = "EXT1616R"    else -- FLK 
-                         not sgate_flk when GNR_MODEL = "EXT2430RI"   else -- FLK 
-                         not sgate_flk when GNR_MODEL = "EXT2430R"    else -- FLK 
-                         not sgate_flk when GNR_MODEL = "EXT2832R"    else -- FLK 
-                         not sgate_flk when GNR_MODEL = "EXT2832R_2"  else -- FLK 
---                           sgate_flk when GNR_MODEL = "EXT4343R"    else -- FLK 
-                             sgate_flk when GNR_MODEL = "EXT4343R_1"  else -- FLK 
-                             sgate_flk when GNR_MODEL = "EXT4343R_2"  else -- FLK 
---                           sgate_flk when GNR_MODEL = "EXT4343R_3"  else -- FLK 
-                             sgate_flk when GNR_MODEL = "EXT4343R_4"  else -- FLK 
---                           sgate_flk when GNR_MODEL = "EXT4343RC"   else -- FLK 
-                             sgate_flk when GNR_MODEL = "EXT4343RC_1" else -- FLK 
-                             sgate_flk when GNR_MODEL = "EXT4343RC_2" else -- FLK 
-                             sgate_flk when GNR_MODEL = "EXT4343RC_4" else -- FLK 
---                           sgate_flk when GNR_MODEL = "EXT4343RC_3" else -- FLK 
-                             sgate_flk when GNR_MODEL = "EXT4343RI_2"  else -- FLK  
-                             sgate_flk when GNR_MODEL = "EXT4343RI_4"  else -- FLK  
-                             sgate_flk when GNR_MODEL = "EXT4343RCI_1" else -- FLK 
-                             sgate_flk when GNR_MODEL = "EXT4343RCI_2" else -- FLK 
-                             sgate_flk when GNR_MODEL = "EXT4343RD"    else -- FLK 
-                             sgate_flk when GNR_MODEL = "EXT3643R"     else -- FLK 
-                         not sgate_flk; 
+                         not sgate_flk when GNR_MODEL = "EXT1616R"    else -- FLK
+                         not sgate_flk when GNR_MODEL = "EXT2430RI"   else -- FLK
+                         not sgate_flk when GNR_MODEL = "EXT2430R"    else -- FLK
+                         not sgate_flk when GNR_MODEL = "EXT2832R"    else -- FLK
+                         not sgate_flk when GNR_MODEL = "EXT2832R_2"  else -- FLK
+--                           sgate_flk when GNR_MODEL = "EXT4343R"    else -- FLK
+                             sgate_flk when GNR_MODEL = "EXT4343R_1"  else -- FLK
+                             sgate_flk when GNR_MODEL = "EXT4343R_2"  else -- FLK
+--                           sgate_flk when GNR_MODEL = "EXT4343R_3"  else -- FLK
+                             sgate_flk when GNR_MODEL = "EXT4343R_4"  else -- FLK
+--                           sgate_flk when GNR_MODEL = "EXT4343RC"   else -- FLK
+                             sgate_flk when GNR_MODEL = "EXT4343RC_1" else -- FLK
+                             sgate_flk when GNR_MODEL = "EXT4343RC_2" else -- FLK
+                             sgate_flk when GNR_MODEL = "EXT4343RC_4" else -- FLK
+--                           sgate_flk when GNR_MODEL = "EXT4343RC_3" else -- FLK
+                             sgate_flk when GNR_MODEL = "EXT4343RI_2"  else -- FLK
+                             sgate_flk when GNR_MODEL = "EXT4343RI_4"  else -- FLK
+                             sgate_flk when GNR_MODEL = "EXT4343RCI_1" else -- FLK
+                             sgate_flk when GNR_MODEL = "EXT4343RCI_2" else -- FLK
+                             sgate_flk when GNR_MODEL = "EXT4343RD"    else -- FLK
+                             sgate_flk when GNR_MODEL = "EXT3643R"     else -- FLK
+                         not sgate_flk;
 
 end generate ver3_gate_sig_mapping;
 -- -------------------------------------------------------------------------
@@ -2029,125 +2055,123 @@ end generate ver3_gate_sig_mapping;
 --      GATE_SHIFT_CLK2R     <= 'Z';
 --      GATE_START_PULSE2(0) <= 'Z';
 --      PWR_EN(5)            <= 'Z';
-        
+
     end generate ver4_gate_sig_mapping;
 
-  ----------------------------------------------------------
-  -- External Trigger
-  ----------------------------------------------------------
-    process (sys_clk, sys_rst)
+    --# External Trigger generator
+    process(sys_clk)
     begin
-        if(sys_rst = '1') then
-            sext_trig_cnt <= (others => '0');
---            sext_trig_tmp <= '0';
-        elsif (sys_clk'event and sys_clk = '1') then
-            -- ### reg_ext_trig_high upper 16bits were used as trigger number 
-            -- ### when it changed, internal trigger restart
-             trig_num0 <= sreg_ext_trig_high(32-1 downto 16);
-             trig_num1 <= trig_num0;
-            if trig_num1 /= trig_num0 then
-                trig_num_cnt <= (others => '0');
-            elsif (trig_num_cnt < trig_num1) then
+        if(sys_clk'event and sys_clk = '1') then
+            if(sys_rst = '1') then
+                sext_trig_cnt <= (others => '0');
+--                sext_trig_tmp <= '0';
+            else
+                -- ### reg_ext_trig_high upper 16bits were used as trigger number
+                -- ### when it changed, internal trigger restart
+                trig_num0 <= sreg_ext_trig_high(32-1 downto 16);
+                trig_num1 <= trig_num0;
+                if trig_num1 /= trig_num0 then
+                    trig_num_cnt <= (others => '0');
+                elsif(trig_num_cnt < trig_num1) then
                     if(sext_trig_cnt >= sreg_ext_trig_period) then
                         sext_trig_cnt <= (others => '0');
-                        trig_num_cnt <= trig_num_cnt + '1';
+                        trig_num_cnt  <= trig_num_cnt + '1';
                     else
                         sext_trig_cnt <= sext_trig_cnt + '1';
-                     end if;
-             end if;             
-             
-            if(0 < sext_trig_cnt and sext_trig_cnt <= sreg_ext_trig_high(15 downto 0)) then -- mbh 210506
-                sext_trig_tmp <= '1';
-            else
-                sext_trig_tmp <= '0';
+                    end if;
+                end if;
+
+                if(0 < sext_trig_cnt and sext_trig_cnt <= sreg_ext_trig_high(15 downto 0)) then -- mbh 210506
+                    sext_trig_tmp <= '1';
+                else
+                    sext_trig_tmp <= '0';
+                end if;
             end if;
-             
-       --
         end if;
     end process;
-    
+
 --    F_GPIO3 <= sext_trig_tmp; -- TP out
 --    F_GPIO4 <= '0';
 
     sext_trig_in  <=
                     --### API Input ###
-                    '1'               when sreg_api_ext_trig(0) = '1' else 
+                    '1'               when sreg_api_ext_trig(0) = '1' else
                     --### REG Input ###
                     not sext_trig_tmp when 0 < trig_num0 and sreg_ext_trig_active(0) = '1' else
-                        sext_trig_tmp when 0 < trig_num0 and sreg_ext_trig_active(0) = '0' else  
+                        sext_trig_tmp when 0 < trig_num0 and sreg_ext_trig_active(0) = '0' else
                     --### Ext Input ###
-                        EXT_IN        when sreg_ext_trig_active(0) = '1' else 
+                        EXT_IN        when sreg_ext_trig_active(0) = '1' else
                     not EXT_IN;
     sEXT_OUT <= sext_trig_out when sreg_ext_trig_active(1) = '1' else not sext_trig_out;
     EXT_OUT  <= sEXT_OUT;
 
 -------------------
--- Test Point 
+-- Test Point
 -------------------
 
- TP_EXT: if(GNR_MODEL = "EXT810R" or 
-            GNR_MODEL = "EXT1024R" or -- jyp 241010 
-            GNR_MODEL = "EXT1616R" or 
-            GNR_MODEL = "EXT4343RC_1" or --# 241213 gpio 
-            GNR_MODEL = "EXT2832R" or 
-            GNR_MODEL = "EXT2430RI" or 
+    TP_EXT: if(GNR_MODEL = "EXT810R" or
+            GNR_MODEL = "EXT1024R" or -- jyp 241010
+            GNR_MODEL = "EXT1616R" or
+            GNR_MODEL = "EXT4343RC_1" or --# 241213 gpio
+            GNR_MODEL = "EXT2832R" or
+            GNR_MODEL = "EXT2430RI" or
             GNR_MODEL = "EXT2430RD") generate
     signal gpio : std_logic_vector(1 to 4);
-    type type_4x16b is array (1 to 4) of std_logic_vector(16-1 downto 0); 
+    type type_4x16b is array (1 to 4) of std_logic_vector(16-1 downto 0);
     signal sreg_testpoint : type_4x16b;
     signal tstate_tft_vec : std_logic_vector(4-1 downto 0);
 begin
 --    tstate_tft_vec <=  conv_std_logic_vector(oostate_tft,4);
     sreg_testpoint <= (sreg_testpoint1, sreg_testpoint2, sreg_testpoint3, sreg_testpoint4);
     gen4 : for i in 1 to 4 generate
-        gpio(i) <= 
---                 spwr_en(9)     when sreg_testpoint(i) = x"0001" else 
-                   sroic_sync_div when sreg_testpoint(i) = x"0001" else 
-                   sgate_cpv      when sreg_testpoint(i) = x"0002" else 
-                   sgate_dio1(0)  when sreg_testpoint(i) = x"0003" else 
-                   sgate_oe1      when sreg_testpoint(i) = x"0004" else 
-                   sgate_xon      when sreg_testpoint(i) = x"0005" else 
-                   sgate_flk      when sreg_testpoint(i) = x"0006" else 
+        gpio(i) <=
+--                 spwr_en(9)     when sreg_testpoint(i) = x"0001" else
+                   sroic_sync_div when sreg_testpoint(i) = x"0001" else
+                   sgate_cpv      when sreg_testpoint(i) = x"0002" else
+                   sgate_dio1(0)  when sreg_testpoint(i) = x"0003" else
+                   sgate_oe1      when sreg_testpoint(i) = x"0004" else
+                   sgate_xon      when sreg_testpoint(i) = x"0005" else
+                   sgate_flk      when sreg_testpoint(i) = x"0006" else
 
-                   '1' when sreg_testpoint(i) = x"1111" else 
-                   '0' when sreg_testpoint(i) = x"0000" else 
-                   
-                   '1' when sreg_testpoint(i) = x"0010" and  oostate_tft=s_IDLE       else 
-                   '1' when sreg_testpoint(i) = x"0011" and  oostate_tft=s_TRST       else 
-                   '1' when sreg_testpoint(i) = x"0012" and  oostate_tft=s_SRST       else 
-                   '1' when sreg_testpoint(i) = x"0013" and  oostate_tft=s_EWT        else 
-                   '1' when sreg_testpoint(i) = x"0014" and  oostate_tft=s_SCAN       else 
-                   '1' when sreg_testpoint(i) = x"0015" and  oostate_tft=s_FINISH     else 
-                   '1' when sreg_testpoint(i) = x"0016" and  oostate_tft=s_GRST       else 
-                   '1' when sreg_testpoint(i) = x"0017" and  oostate_tft=s_RstFINISH  else 
-                   '1' when sreg_testpoint(i) = x"0018" and  oostate_tft=s_ScanFrWait else 
-                   '1' when sreg_testpoint(i) = x"0019" and  oostate_tft=s_RstFrWait  else 
+                   '1' when sreg_testpoint(i) = x"1111" else
+                   '0' when sreg_testpoint(i) = x"0000" else
 
-                   '1' when sreg_testpoint(i) = x"0020" and  oostate_roic=s_IDLE      else 
-                   '1' when sreg_testpoint(i) = x"0021" and  oostate_roic=s_OFFSET    else 
-                   '1' when sreg_testpoint(i) = x"0022" and  oostate_roic=s_DUMMY     else 
-                   '1' when sreg_testpoint(i) = x"0023" and  oostate_roic=s_INTRST    else 
-                   '1' when sreg_testpoint(i) = x"0024" and  oostate_roic=s_CDS1      else 
-                   '1' when sreg_testpoint(i) = x"0025" and  oostate_roic=s_GATE_OPEN else 
-                   '1' when sreg_testpoint(i) = x"0026" and  oostate_roic=s_CDS2      else 
-                   '1' when sreg_testpoint(i) = x"0027" and  oostate_roic=s_LDEAD     else 
-                   '1' when sreg_testpoint(i) = x"0028" and  oostate_roic=s_FWAIT     else 
+                   '1' when sreg_testpoint(i) = x"0010" and  oostate_tft=s_IDLE       else
+                   '1' when sreg_testpoint(i) = x"0011" and  oostate_tft=s_TRST       else
+                   '1' when sreg_testpoint(i) = x"0012" and  oostate_tft=s_SRST       else
+                   '1' when sreg_testpoint(i) = x"0013" and  oostate_tft=s_EWT        else
+                   '1' when sreg_testpoint(i) = x"0014" and  oostate_tft=s_SCAN       else
+                   '1' when sreg_testpoint(i) = x"0015" and  oostate_tft=s_FINISH     else
+                   '1' when sreg_testpoint(i) = x"0016" and  oostate_tft=s_GRST       else
+                   '1' when sreg_testpoint(i) = x"0017" and  oostate_tft=s_RstFINISH  else
+                   '1' when sreg_testpoint(i) = x"0018" and  oostate_tft=s_ScanFrWait else
+                   '1' when sreg_testpoint(i) = x"0019" and  oostate_tft=s_RstFrWait  else
 
-                   '1' when sreg_testpoint(i) = x"0030" and  oostate_gate=s_IDLE      else 
-                   '1' when sreg_testpoint(i) = x"0031" and  oostate_gate=s_DUMMY     else 
-                   '1' when sreg_testpoint(i) = x"0032" and  oostate_gate=s_READY     else 
-                   '1' when sreg_testpoint(i) = x"0033" and  oostate_gate=s_DIO_CPV   else 
-                   '1' when sreg_testpoint(i) = x"0034" and  oostate_gate=s_CPV       else 
-                   '1' when sreg_testpoint(i) = x"0035" and  oostate_gate=s_XON       else 
-                   '1' when sreg_testpoint(i) = x"0036" and  oostate_gate=s_OE        else 
-                   '1' when sreg_testpoint(i) = x"0037" and  oostate_gate=s_XON_FLK   else 
-                   '1' when sreg_testpoint(i) = x"0038" and  oostate_gate=s_FLK       else 
-                   '1' when sreg_testpoint(i) = x"0039" and  oostate_gate=s_CHECK     else 
-                   '1' when sreg_testpoint(i) = x"003A" and  oostate_gate=s_OE_READY  else 
-                   '1' when sreg_testpoint(i) = x"003B" and  oostate_gate=s_LWAIT     else 
-                   '1' when sreg_testpoint(i) = x"003C" and  oostate_gate=s_FWAIT     else 
-                   '1' when sreg_testpoint(i) = x"003D" and  oostate_gate=s_GRST_G    else 
-                   '1' when sreg_testpoint(i) = x"003E" and  oostate_gate=s_GRST_GEnd else 
+                   '1' when sreg_testpoint(i) = x"0020" and  oostate_roic=s_IDLE      else
+                   '1' when sreg_testpoint(i) = x"0021" and  oostate_roic=s_OFFSET    else
+                   '1' when sreg_testpoint(i) = x"0022" and  oostate_roic=s_DUMMY     else
+                   '1' when sreg_testpoint(i) = x"0023" and  oostate_roic=s_INTRST    else
+                   '1' when sreg_testpoint(i) = x"0024" and  oostate_roic=s_CDS1      else
+                   '1' when sreg_testpoint(i) = x"0025" and  oostate_roic=s_GATE_OPEN else
+                   '1' when sreg_testpoint(i) = x"0026" and  oostate_roic=s_CDS2      else
+                   '1' when sreg_testpoint(i) = x"0027" and  oostate_roic=s_LDEAD     else
+                   '1' when sreg_testpoint(i) = x"0028" and  oostate_roic=s_FWAIT     else
+
+                   '1' when sreg_testpoint(i) = x"0030" and  oostate_gate=s_IDLE      else
+                   '1' when sreg_testpoint(i) = x"0031" and  oostate_gate=s_DUMMY     else
+                   '1' when sreg_testpoint(i) = x"0032" and  oostate_gate=s_READY     else
+                   '1' when sreg_testpoint(i) = x"0033" and  oostate_gate=s_DIO_CPV   else
+                   '1' when sreg_testpoint(i) = x"0034" and  oostate_gate=s_CPV       else
+                   '1' when sreg_testpoint(i) = x"0035" and  oostate_gate=s_XON       else
+                   '1' when sreg_testpoint(i) = x"0036" and  oostate_gate=s_OE        else
+                   '1' when sreg_testpoint(i) = x"0037" and  oostate_gate=s_XON_FLK   else
+                   '1' when sreg_testpoint(i) = x"0038" and  oostate_gate=s_FLK       else
+                   '1' when sreg_testpoint(i) = x"0039" and  oostate_gate=s_CHECK     else
+                   '1' when sreg_testpoint(i) = x"003A" and  oostate_gate=s_OE_READY  else
+                   '1' when sreg_testpoint(i) = x"003B" and  oostate_gate=s_LWAIT     else
+                   '1' when sreg_testpoint(i) = x"003C" and  oostate_gate=s_FWAIT     else
+                   '1' when sreg_testpoint(i) = x"003D" and  oostate_gate=s_GRST_G    else
+                   '1' when sreg_testpoint(i) = x"003E" and  oostate_gate=s_GRST_GEnd else
                    '0';
     end generate gen4;
 
@@ -2156,17 +2180,12 @@ begin
     F_GPIO3 <= gpio(3); --# 0448
     F_GPIO4 <= gpio(4); --# 044C
 end generate TP_EXT;
-    
-    
+
 --    F_GPIO1 <= sroic_mclk_div;
 --    F_GPIO2 <= sys_clk;
 --    F_GPIO3 <= axi_aclk; -- sys_rst;
 --    F_GPIO4 <= scalib_done;
 
-                    
-
-
-    
 --    sim : if(SIMULATION = "ON") generate
 
 --    component SIM_CPU
@@ -2348,7 +2367,7 @@ end generate TP_EXT;
 --    sreg_mpc_point2    <= conv_std_logic_vector(30000, 16);
 --    sreg_mpc_point3    <= conv_std_logic_vector(45000, 16);
 --    sreg_mpc_posoffset <= conv_std_logic_vector(400, 16);
-    
+
 --    sreg_defect_mode   <= '0';
 --    sreg_defect_wen    <= '0';
 --    sreg_defect_addr   <= (others => '0');
@@ -2388,7 +2407,7 @@ end generate TP_EXT;
 --    sreg_ext_trig_active <= "11";
 
 --    sreg_fw_busy <= '0';
---    sreg_toprst_ctrl <= (others => '0'); 
+--    sreg_toprst_ctrl <= (others => '0');
 
 --    sReg_DnrCtrl     <= (others => '0');
 --    sreg_SobelCoeff0 <= (others => '0');
@@ -2398,8 +2417,8 @@ end generate TP_EXT;
 --    sReg_AccCtrl     <= (others => '0');
 
 --    sreg_ExtTrigEn       <= '0';
---    sreg_ExtRst_MODE     <= conv_std_logic_vector(2, 8); 
---    sreg_ExtRst_DetTime  <= conv_std_logic_vector(100, 32); 
+--    sreg_ExtRst_MODE     <= conv_std_logic_vector(2, 8);
+--    sreg_ExtRst_DetTime  <= conv_std_logic_vector(100, 32);
 
 --    sreg_debug <= (others => '0');
 
@@ -2426,7 +2445,7 @@ end generate TP_EXT;
 --        end if;
 --    end process;
 
---    -- ### for simulation  210727mbh 
+--    -- ### for simulation  210727mbh
 --    rsreg_width      <= sreg_width  ;
 --    rsreg_height     <= sreg_height ;
 --    rsreg_offsetx    <= sreg_offsetx;
@@ -2439,108 +2458,104 @@ end generate TP_EXT;
 
 --end generate sim;
 
-    -- ######################################################
-    -- ##### image size register latch by tft out vsync #####
-    -- mbh 210415
-     process(sui_clk)
-     begin
-         if sui_clk'event and sui_clk='1' then
-        --
-           svsync_tft_1d <= svsync_tft;
-           svsync_tft_2d <= svsync_tft_1d;
-           svsync_tft_3d <= svsync_tft_2d;
-           svsync_tft_4d <= svsync_tft_3d;
+    --# image size register latch by tft out vsync (mbh 210415)
+    process(sui_clk)
+    begin
+        if(sui_clk'event and sui_clk = '1') then
+            svsync_tft_1d <= svsync_tft;
+            svsync_tft_2d <= svsync_tft_1d;
+            svsync_tft_3d <= svsync_tft_2d;
+            svsync_tft_4d <= svsync_tft_3d;
 
-           svsync_ddr_1d <= svsync_ddr3;
-           svsync_ddr_2d <= svsync_ddr_1d;
-           svsync_ddr_3d <= svsync_ddr_2d;
-           svsync_ddr_4d <= svsync_ddr_3d;
+            svsync_ddr_1d <= svsync_ddr3;
+            svsync_ddr_2d <= svsync_ddr_1d;
+            svsync_ddr_3d <= svsync_ddr_2d;
+            svsync_ddr_4d <= svsync_ddr_3d;
 
-           isreg_width_1d        <= isreg_width     ;
-           isreg_height_1d      <= isreg_height    ;
-           isreg_offsetx_1d     <= isreg_offsetx   ;
-           isreg_offsety_1d     <= isreg_offsety   ;
-           isreg_sexp_time_1d   <= isreg_sexp_time ;
-           isreg_exp_time_1d    <= isreg_exp_time  ;
-           isreg_frame_time_1d  <= isreg_frame_time;  
-           isreg_frame_num_1d   <= isreg_frame_num ;
-           isreg_frame_val_1d   <= isreg_frame_val ;
-           isreg_line_time_1d   <= isreg_line_time ;
+            isreg_width_1d      <= isreg_width;
+            isreg_height_1d     <= isreg_height;
+            isreg_offsetx_1d    <= isreg_offsetx;
+            isreg_offsety_1d    <= isreg_offsety;
+            isreg_sexp_time_1d  <= isreg_sexp_time;
+            isreg_exp_time_1d   <= isreg_exp_time;
+            isreg_frame_time_1d <= isreg_frame_time;
+            isreg_frame_num_1d  <= isreg_frame_num;
+            isreg_frame_val_1d  <= isreg_frame_val;
+            isreg_line_time_1d  <= isreg_line_time;
 
-           isreg_width_2d   <= isreg_width_1d  ;
-           isreg_height_2d  <= isreg_height_1d ;
-           isreg_offsetx_2d <=isreg_offsetx_1d ;
-           isreg_offsety_2d <=isreg_offsety_1d ;
-           isreg_sexp_time_2d <= isreg_sexp_time_1d ;
-           isreg_exp_time_2d  <= isreg_exp_time_1d  ;
-           isreg_frame_time_2d<= isreg_frame_time_1d;
-           isreg_frame_num_2d <= isreg_frame_num_1d ;
-           isreg_frame_val_2d <= isreg_frame_val_1d ;
-           isreg_line_time_2d <= isreg_line_time_1d ;
-           
-            frametimeLimit(5+32-1 downto 0)  <= isreg_frame_time_2d & b"0_0000"; -- *32
-            
+            isreg_width_2d      <= isreg_width_1d;
+            isreg_height_2d     <= isreg_height_1d;
+            isreg_offsetx_2d    <= isreg_offsetx_1d;
+            isreg_offsety_2d    <= isreg_offsety_1d;
+            isreg_sexp_time_2d  <= isreg_sexp_time_1d;
+            isreg_exp_time_2d   <= isreg_exp_time_1d;
+            isreg_frame_time_2d <= isreg_frame_time_1d;
+            isreg_frame_num_2d  <= isreg_frame_num_1d;
+            isreg_frame_val_2d  <= isreg_frame_val_1d;
+            isreg_line_time_2d  <= isreg_line_time_1d;
+
+            frametimeLimit(5 + 32 - 1 downto 0) <= isreg_frame_time_2d & b"0_0000"; -- *32
+
             -- #### tft blank counter
-            if (svsync_tft_4d='0' and svsync_tft_3d='1') then
-                tftBlankCnt <= (others=> '0');
+            if(svsync_tft_4d = '0' and svsync_tft_3d = '1') then
+                tftBlankCnt    <= (others => '0');
                 tftBlankCntLat <= tftBlankCnt;
-            elsif  svsync_tft_3d='0' then
+            elsif(svsync_tft_3d = '0') then
                 tftBlankCnt <= tftBlankCnt + '1';
             end if;
             -- #### tft blank center
-            if tftBlankCntLat(tftBlankCntLat'left downto 1) = tftBlankCnt then
+            if(tftBlankCntLat(tftBlankCntLat'left downto 1) = tftBlankCnt) then
                 tftBlankCenter <= '1';
             else
                 tftBlankCenter <= '0';
             end if;
-            
+
             -- #### ddr blank counter
-            if (svsync_ddr_4d='0' and svsync_ddr_3d='1') then
-                ddrBlankCnt <= (others=> '0');
+            if(svsync_ddr_4d = '0' and svsync_ddr_3d = '1') then
+                ddrBlankCnt    <= (others => '0');
                 ddrBlankCntLat <= ddrBlankCnt;
-            elsif svsync_ddr_3d='0' then
+            elsif(svsync_ddr_3d = '0') then
                 ddrBlankCnt <= ddrBlankCnt + '1';
             end if;
             -- #### ddr blank center
-            if ddrBlankCntLat(ddrBlankCntLat'left downto 1) = ddrBlankCnt then
+            if(ddrBlankCntLat(ddrBlankCntLat'left downto 1) = ddrBlankCnt) then
                 ddrBlankCenter <= '1';
             else
                 ddrBlankCenter <= '0';
             end if;
 
             -- #### detect sync stop
-            if (svsync_tft_4d='1' and svsync_tft_3d='0') or
-                (svsync_ddr_4d='1' and svsync_ddr_3d='0') then
-                runningCnt <= (others=> '0');
+            if(svsync_tft_4d = '1' and svsync_tft_3d = '0') or
+              (svsync_ddr_4d = '1' and svsync_ddr_3d = '0') then
+                runningCnt  <= (others => '0');
                 stoppedTrig <= '0';
-            elsif frametimeLimit < runningCnt then
-                runningCnt <= (others=> '0');
+            elsif(frametimeLimit < runningCnt) then
+                runningCnt  <= (others => '0');
                 stoppedTrig <= '1';
             else
-                runningCnt <= runningCnt + '1';
+                runningCnt  <= runningCnt + '1';
                 stoppedTrig <= '0';
             end if;
 
             -- #### tft register latch
-            if tftBlankCenter='1' or stoppedTrig = '1' then
-                rsreg_width      <= isreg_width_2d  ;
-                rsreg_height     <= isreg_height_2d ;
+            if(tftBlankCenter = '1' or stoppedTrig = '1') then
+                rsreg_width      <= isreg_width_2d;
+                rsreg_height     <= isreg_height_2d;
                 rsreg_offsetx    <= isreg_offsetx_2d;
                 rsreg_offsety    <= isreg_offsety_2d;
-                rsreg_sexp_time  <= isreg_sexp_time_2d ;
-                rsreg_exp_time   <= isreg_exp_time_2d  ;
+                rsreg_sexp_time  <= isreg_sexp_time_2d;
+                rsreg_exp_time   <= isreg_exp_time_2d;
                 rsreg_frame_time <= isreg_frame_time_2d;
-                rsreg_frame_num  <= isreg_frame_num_2d ;
-                rsreg_frame_val  <= isreg_frame_val_2d ;
-           end if;
+                rsreg_frame_num  <= isreg_frame_num_2d;
+                rsreg_frame_val  <= isreg_frame_val_2d;
+            end if;
 
             -- #### ddr register latch
-            if ddrBlankCenter = '1' or stoppedTrig = '1' then
-                sreg_width     <= isreg_width_2d  ;
-                sreg_height    <= isreg_height_2d ;
+            if(ddrBlankCenter = '1' or stoppedTrig = '1') then
+                sreg_width     <= isreg_width_2d;
+                sreg_height    <= isreg_height_2d;
                 sreg_line_time <= isreg_line_time_2d;
-           end if;
-        --
+            end if;
         end if;
     end process;
 
@@ -2671,7 +2686,7 @@ end generate TP_EXT;
             oreg_mpc_point1    => sreg_mpc_point1,
             oreg_mpc_point2    => sreg_mpc_point2,
             oreg_mpc_point3    => sreg_mpc_point3,
-            
+
             oreg_defect_mode   => sreg_defect_mode,
             oreg_defect_wen    => sreg_defect_wen,
             oreg_defect_addr   => sreg_defect_addr,
@@ -2796,10 +2811,10 @@ end generate TP_EXT;
             ireg_sm_data7 => sreg_sm_data7,
 
             oreg_bcal_ctrl => sreg_bcal_ctrl,
-            ireg_bcal_data => sreg_bcal_data, 
-            
+            ireg_bcal_data => sreg_bcal_data,
+
             oreg_mpc_posoffset => sreg_mpc_posoffset,
-            
+
             oreg_fw_busy     => sreg_fw_busy,
             oreg_toprst_ctrl => sreg_toprst_ctrl,
 
@@ -2850,7 +2865,7 @@ end generate TP_EXT;
         );
 
 --# for osd 220209mbh
- sreg_sync_rcnt <= 
+    sreg_sync_rcnt <=
     sreg_sync_rcnt0       &
     sreg_sync_rcnt1       &
     sreg_sync_rcnt2       &
@@ -2881,9 +2896,9 @@ end generate TP_EXT;
     sreg_sync_rdata_bglw7 &
     sreg_sync_rdata_bglw8 &
     sreg_sync_rdata_bglw9 ;
-            
+
 -- █▀▀ █▀▀ █░█
--- █▄█ ██▄ ▀▄▀ 
+-- █▄█ ██▄ ▀▄▀
 
   ----------------------------------------------------------
   -- Share Clock & Reset
@@ -2892,16 +2907,17 @@ end generate TP_EXT;
 --    axi_aclk  <= axi_clk;
     sddr_rst <= not sddr_rstn;
     sys_rstn <= not sys_rst;
-    
+
     sbd_clk_lock <= not sreg_toprst_ctrl;
     sbd_mclk <=  obd_mclk;
     sbd_dclk <=  obd_dclk;
-    
+
     -- Instantiation of components ---------------------------------------------
 
     -- CPU system
---    CPU_INST: entity work.cpu
-    GEV_CPU: entity work.cpu_wrapper
+--    CPU_INST: entity work.cpu\
+    GEV_CPU0 : if(DDR_BY_MODEL(GNR_MODEL) = 2) generate
+        CPU_2DDR: entity work.cpu_wrapper
         port map   ( -- Clocks and resets
 --                  ext_clk_p               => ext_clk_p,
 --                  ext_clk_n               => ext_clk_n,
@@ -3041,7 +3057,7 @@ end generate TP_EXT;
                     s0_axi_rlast            => axi_rlast,
                     s0_axi_rvalid           => axi_rvalid,
                     s0_axi_rready           => axi_rready,
-                    
+
                     axi2_arregion           => (others => '0'), --# smartconn->widthconv+crossbar 231213
                     s0_axi_arregion         => (others => '0'),
                     s0_axi_awregion         => (others => '0'),
@@ -3107,7 +3123,7 @@ end generate TP_EXT;
                     m_axil_reg_rresp      => axil_reg_rresp   ,
                     m_axil_reg_rvalid     => axil_reg_rvalid  ,
                     m_axil_reg_rready     => axil_reg_rready  ,
-                       
+
                     epc_addr     => epc_addr  ,
                     epc_be       => epc_be    ,
                     epc_cs_n(0)  => epc_cs_n  ,
@@ -3115,11 +3131,227 @@ end generate TP_EXT;
                     epc_rdy(0)   => epc_rdy   ,
                     epc_rnw      => epc_rnw   ,
                     epc_wdata    => epc_wrdata ,
-      
+
                     bd_mclk     => obd_mclk     ,
                     bd_clk_lock => obd_clk_lock ,
                     bd_dclk     => obd_dclk
                     );
+                end generate GEV_CPU0;
+
+    GEV_CPU1 : if(DDR_BY_MODEL(GNR_MODEL) = 4) generate
+        CPU_4DDR: entity work.cpu4ddr_wrapper
+             port map (
+              ddr_clk => sddr_clk,
+              ref_clk => sref_clk,
+              ddr_rst => sddr_rst,
+              calib_done => scalib_done,  
+              sys_clk => sys_clk,
+              sys_locked => sys_clk_lock,
+              sys_rst(0) => sys_rst,
+              -- Interrupt inputs
+              cpu_irq_0 => cpu_irq_0,
+              cpu_irq_1 => cpu_irq_1,
+              cpu_irq_2 => cpu_irq_2,              
+              -- UART
+              uart_rxd => uart_rx,
+              uart_txd => uart_tx,           
+              -- AXI4-Lite masters (to connect external slaves)
+              m0_axi_aresetn(0)         => axi0_aresetn,
+              -- m0
+              m0_axi_fb_araddr          => axi0_fb_araddr,
+              m0_axi_fb_arprot          => axi0_fb_arprot,
+              m0_axi_fb_arready(0)      => axi0_fb_arready,
+              m0_axi_fb_arvalid(0)      => axi0_fb_arvalid,
+              m0_axi_fb_awaddr          => axi0_fb_awaddr,
+              m0_axi_fb_awprot          => axi0_fb_awprot,
+              m0_axi_fb_awready(0)      => axi0_fb_awready,
+              m0_axi_fb_awvalid(0)      => axi0_fb_awvalid,
+              m0_axi_fb_bready(0)       => axi0_fb_bready,
+              m0_axi_fb_bresp           => axi0_fb_bresp,
+              m0_axi_fb_bvalid(0)       => axi0_fb_bvalid,
+              m0_axi_fb_rdata           => axi0_fb_rdata,
+              m0_axi_fb_rready(0)       => axi0_fb_rready,
+              m0_axi_fb_rresp           => axi0_fb_rresp,
+              m0_axi_fb_rvalid(0)       => axi0_fb_rvalid,
+              m0_axi_fb_wdata           => axi0_fb_wdata,
+              m0_axi_fb_wready(0)       => axi0_fb_wready,
+              m0_axi_fb_wstrb           => axi0_fb_wstrb,
+              m0_axi_fb_wvalid(0)       => axi0_fb_wvalid,
+              -- m1
+              m1_axi_gev_araddr         => axi1_gev_araddr,
+              m1_axi_gev_arprot         => axi1_gev_arprot,
+              m1_axi_gev_arready(0)     => axi1_gev_arready,
+              m1_axi_gev_arvalid(0)     => axi1_gev_arvalid,
+              m1_axi_gev_awaddr         => axi1_gev_awaddr,
+              m1_axi_gev_awprot         => axi1_gev_awprot,
+              m1_axi_gev_awready(0)     => axi1_gev_awready,
+              m1_axi_gev_awvalid(0)     => axi1_gev_awvalid,
+              m1_axi_gev_bready(0)      => axi1_gev_bready,
+              m1_axi_gev_bresp          => axi1_gev_bresp,
+              m1_axi_gev_bvalid(0)      => axi1_gev_bvalid,
+              m1_axi_gev_rdata          => axi1_gev_rdata,
+              m1_axi_gev_rready(0)      => axi1_gev_rready,
+              m1_axi_gev_rresp          => axi1_gev_rresp,
+              m1_axi_gev_rvalid(0)      => axi1_gev_rvalid,
+              m1_axi_gev_wdata          => axi1_gev_wdata,
+              m1_axi_gev_wready(0)      => axi1_gev_wready,
+              m1_axi_gev_wstrb          => axi1_gev_wstrb,
+              m1_axi_gev_wvalid(0)      => axi1_gev_wvalid,
+              -- m2
+              m2_axi_video_araddr       => axi2_video_araddr,
+              m2_axi_video_arprot       => axi2_video_arprot,
+              m2_axi_video_arready(0)   => axi2_video_arready,
+              m2_axi_video_arvalid(0)   => axi2_video_arvalid,
+              m2_axi_video_awaddr       => axi2_video_awaddr,
+              m2_axi_video_awprot       => axi2_video_awprot,
+              m2_axi_video_awready(0)   => axi2_video_awready,
+              m2_axi_video_awvalid(0)   => axi2_video_awvalid,
+              m2_axi_video_bready(0)    => axi2_video_bready,
+              m2_axi_video_bresp        => axi2_video_bresp,
+              m2_axi_video_bvalid(0)    => axi2_video_bvalid,
+              m2_axi_video_rdata        => axi2_video_rdata,
+              m2_axi_video_rready(0)    => axi2_video_rready,
+              m2_axi_video_rresp        => axi2_video_rresp,
+              m2_axi_video_rvalid(0)    => axi2_video_rvalid,
+              m2_axi_video_wdata        => axi2_video_wdata,
+              m2_axi_video_wready(0)    => axi2_video_wready,
+              m2_axi_video_wstrb        => axi2_video_wstrb,
+              m2_axi_video_wvalid(0)    => axi2_video_wvalid,
+              -- DDR3 SDRAM
+              ddr3_addr                 => ddr3_addr,
+              ddr3_ba                   => ddr3_ba,
+              ddr3_cas_n                => ddr3_cas_n,
+              ddr3_ck_n(0)              => ddr3_ck_n(0),
+              ddr3_ck_p(0)              => ddr3_ck_p(0),
+              ddr3_cke(0)               => ddr3_cke(0),
+              ddr3_cs_n(0)              => ddr3_cs_n(0),
+              ddr3_dm                   => ddr3_dm,
+              ddr3_dq                   => ddr3_dq,
+              ddr3_dqs_n                => ddr3_dqs_n,
+              ddr3_dqs_p                => ddr3_dqs_p,
+              ddr3_odt(0)               => ddr3_odt(0),
+              ddr3_ras_n                => ddr3_ras_n,
+              ddr3_reset_n              => ddr3_reset_n,
+              ddr3_we_n                 => ddr3_we_n,
+              -- AXI4 slave (to connect external master)   
+              s0_axi_aclk               => axi_aclk,
+              s0_axi_araddr             => axi_araddr,
+              s0_axi_arburst            => axi_arburst,
+              s0_axi_arcache            => axi_arcache,
+              s0_axi_aresetn(0)         => axi_aresetn,
+              s0_axi_arid               => axi_arid,
+              s0_axi_arlen              => axi_arlen,
+              s0_axi_arlock(0)          => axi_arlock(0),
+              s0_axi_arprot             => axi_arprot,
+              s0_axi_arready            => axi_arready,
+              s0_axi_arsize             => axi_arsize,
+              s0_axi_arvalid            => axi_arvalid,
+              s0_axi_awaddr             => axi_awaddr,
+              s0_axi_awburst            => axi_awburst,
+              s0_axi_awcache            => axi_awcache,
+              s0_axi_awid               => axi_awid,
+              s0_axi_awlen              => axi_awlen,
+              s0_axi_awlock(0)          => axi_awlock(0),
+              s0_axi_awprot             => axi_awprot,
+              s0_axi_awready            => axi_awready,
+              s0_axi_awsize             => axi_awsize,
+              s0_axi_awvalid            => axi_awvalid,
+              s0_axi_bid                => axi_bid,
+              s0_axi_bready             => axi_bready,
+              s0_axi_bresp              => axi_bresp,
+              s0_axi_bvalid             => axi_bvalid,
+              s0_axi_rdata              => axi_rdata,
+              s0_axi_rid                => axi_rid,
+              s0_axi_rlast              => axi_rlast,
+              s0_axi_rready             => axi_rready,
+              s0_axi_rresp              => axi_rresp,
+              s0_axi_rvalid             => axi_rvalid,
+              s0_axi_wdata              => axi_wdata,
+              s0_axi_wlast              => axi_wlast,
+              s0_axi_wready             => axi_wready,
+              s0_axi_wstrb              => axi_wstrb,
+              s0_axi_wvalid             => axi_wvalid,
+              
+              s0_axi_arqos              =>  (others => '0'),
+              s0_axi_arregion           => (others => '0'),
+              s0_axi_awqos              => (others => '0'),
+              s0_axi_awregion           => (others => '0'),
+              
+              -- AXI4 slave (to connect external master)
+              axi2_araddr               => axi2_araddr,
+              axi2_arburst              => axi2_arburst,
+              axi2_arid                 => axi2_arid,
+              axi2_arlen                => axi2_arlen,
+              axi2_arlock(0)            => axi2_arlock(0),
+              axi2_arready(0)           => axi2_arready,
+              axi2_arsize               => axi2_arsize,
+              axi2_arvalid(0)           => axi2_arvalid,
+              axi2_awaddr               => axi2_awaddr,
+              axi2_awburst              => axi2_awburst,
+              axi2_awid                 => axi2_awid,
+              axi2_awlen                => axi2_awlen,
+              axi2_awlock(0)            => axi2_awlock(0),
+              axi2_awready(0)           => axi2_awready,
+              axi2_awsize               => axi2_awsize,
+              axi2_awvalid(0)           => axi2_awvalid,
+              axi2_bid                  => axi2_bid,
+              axi2_bready(0)            => axi2_bready,
+              axi2_bresp                => axi2_bresp,
+              axi2_bvalid(0)            => axi2_bvalid,
+              axi2_rdata                => axi2_rdata,
+              axi2_rid                  => axi2_rid,
+              axi2_rlast(0)             => axi2_rlast,
+              axi2_rready(0)            => axi2_rready,
+              axi2_rresp                => axi2_rresp,
+              axi2_rvalid(0)            => axi2_rvalid,
+              axi2_wdata                => axi2_wdata,
+              axi2_wlast(0)             => axi2_wlast,
+              axi2_wready(0)            => axi2_wready,
+              axi2_wstrb                => axi2_wstrb,
+              axi2_wvalid(0)            => axi2_wvalid,
+
+              axi2_arcache              => (others => '0'),
+              axi2_arprot               => (others => '0'),
+              axi2_arqos                => (others => '0'),
+              axi2_awcache              => (others => '0'),
+              axi2_awprot               => (others => '0'),
+              axi2_awqos                => (others => '0'),
+              
+              m_axil_reg_araddr         => axil_reg_araddr,
+              m_axil_reg_arprot         => axil_reg_arprot,
+              m_axil_reg_arready(0)     => axil_reg_arready(0),
+              m_axil_reg_arvalid(0)     => axil_reg_arvalid(0),
+              m_axil_reg_awaddr         => axil_reg_awaddr,
+              m_axil_reg_awprot         => axil_reg_awprot,
+              m_axil_reg_awready(0)     => axil_reg_awready(0),
+              m_axil_reg_awvalid(0)     => axil_reg_awvalid(0),
+              m_axil_reg_bready(0)      => axil_reg_bready(0),
+              m_axil_reg_bresp          => axil_reg_bresp,
+              m_axil_reg_bvalid(0)      => axil_reg_bvalid(0),
+              m_axil_reg_rdata          => axil_reg_rdata,
+              m_axil_reg_rready(0)      => axil_reg_rready(0),
+              m_axil_reg_rresp          => axil_reg_rresp,
+              m_axil_reg_rvalid(0)      => axil_reg_rvalid(0),
+              m_axil_reg_wdata          => axil_reg_wdata,
+              m_axil_reg_wready(0)      => axil_reg_wready(0),
+              m_axil_reg_wstrb          => axil_reg_wstrb,
+              m_axil_reg_wvalid(0)      => axil_reg_wvalid(0), 
+            
+              epc_addr              => epc_addr,
+              epc_be                => epc_be,
+              epc_cs_n(0)           => epc_cs_n,
+              epc_rdata             => epc_rddata,
+              epc_rdy(0)            => epc_rdy,
+              epc_rnw               => epc_rnw,
+              epc_wdata             => epc_wrdata,
+
+              bd_clk_lock           => obd_clk_lock,
+              bd_dclk               => obd_dclk,
+              bd_mclk               => obd_mclk
+
+
+            );
+                end generate GEV_CPU1;
 
     -- Video test pattern generator
   -- GEV_VIDEO: entity work.videotpg_0
@@ -3161,7 +3393,7 @@ end generate TP_EXT;
     video_dv       <= sfb_dv;
     video_fb_width <= "0000" & sfb_width;
     video_data     <= LOWV(128-1 downto 64) &  sfb_data when sreg_fw_busy = '0' else (others => '1');
-    
+
     -- AXI framebuffer
      GEV_FRAMEBUF: entity work.framebuf_wrapper
         port map   (
@@ -3420,20 +3652,24 @@ end generate TP_EXT;
      GEV_RXAUI: entity work.rxaui_wrapper
         port map   (reset                   => sys_rst,
                     dclk                    => sys_clk,
-                    clk156_out              => xgmii_clk,
-                    clk156_lock             => xgmii_lock,
+--                    clk156_out              => xgmii_clk,
+--                    clk156_lock             => xgmii_lock,
+                    clk156_out              => rxaui_clk156,
+                    clk156_lock             => rxaui_clk156_lock,
                     refclk_out              => open,
 --                    refclk_p                => ref_clk_p,
 --                    refclk_n                => ref_clk_n,
-                    refclk_p             => PHY_CLK_P, --# 
+                    refclk_p             => PHY_CLK_P, --#
                     refclk_n             => PHY_CLK_N, --#
                     qplloutclk_out          => open,
                     qplllock_out            => open,
                     qplloutrefclk_out       => open,
                     xgmii_txd               => xgmii_txd,
                     xgmii_txc               => xgmii_txc,
-                    xgmii_rxd               => xgmii_rxd,
-                    xgmii_rxc               => xgmii_rxc,
+--                    xgmii_rxd               => xgmii_rxd,
+--                    xgmii_rxc               => xgmii_rxc,
+                    xgmii_rxd               => rxaui_xgmii_rxd,
+                    xgmii_rxc               => rxaui_xgmii_rxc,
                     rxaui_tx_l0_p           => PHY_SIP(0), -- rxaui_tx_l0_p,
                     rxaui_tx_l0_n           => PHY_SIN(0), -- rxaui_tx_l0_n,
                     rxaui_tx_l1_p           => PHY_SIP(1), -- rxaui_tx_l1_p,
@@ -3449,6 +3685,127 @@ end generate TP_EXT;
                     configuration_vector    => rxaui_config_vector,
                     status_vector           => rxaui_status_vector);
 
+    -- =========================================================================
+    --# SFP+ 10GBASE-R PHY and XGMII MUX
+    --# PHY has priority when SFP signal is detected
+    -- =========================================================================
+    GEN_SFP: if (FUNC_SFP_NUM(GNR_MODEL) > 0) generate   --# 260320 FUNC_SFP -> FUNC_SFP_NUM
+    begin
+        -- SFP+ signal detect and TX disable
+        sfp_signal_detect <= not sfp_los(0);               --# 260320 vector index
+        sfp_tx_dis_n(0)  <= not sfp_tx_disable;            --# 260320 vector index
+
+        -- PHY selection: SFP priority when signal is detected and PHY is ready
+        sfp_phy_sel <= sfp_signal_detect and sfp_rst_done;
+
+        -- Clock MUX: Select between RXAUI clk156 and SFP coreclk
+--        SFP_CLK_MUX: BUFGMUX_CTRL
+--            port map (O  => xgmii_clk,
+--                      I0 => rxaui_clk156,
+--                      I1 => sfp_coreclk,
+--                      S  => sfp_phy_sel);
+            xgmii_clk <= rxaui_clk156;
+
+        -- Clock lock MUX
+        xgmii_lock <= sfp_rst_done when sfp_phy_sel = '1' else rxaui_clk156_lock;
+
+        -- XGMII RX data MUX: SFP has priority
+        xgmii_rxd <= sfp_xgmii_rxd when sfp_phy_sel = '1' else rxaui_xgmii_rxd;
+        xgmii_rxc <= sfp_xgmii_rxc when sfp_phy_sel = '1' else rxaui_xgmii_rxc;
+
+        -- 10GBASE-R PCS/PMA PHY for SFP+
+        SFP_PHY_INST: entity work.phy
+            port map   (dclk                    => sys_clk,
+                        rxrecclk_out            => open,
+                        refclk_p                => sfp_ref_clk_p(0), --# 260320 vector index
+                        refclk_n                => sfp_ref_clk_n(0), --# 260320 vector index
+                        sim_speedup_control     => '0',
+                        coreclk_out             => sfp_coreclk,
+                        qplloutclk_out          => open,
+                        qplloutrefclk_out       => open,
+                        qplllock_out            => open,
+                        txusrclk_out            => open,
+                        txusrclk2_out           => open,
+                        areset_datapathclk_out  => sfp_xgmii_rst,
+                        gttxreset_out           => open,
+                        gtrxreset_out           => open,
+                        txuserrdy_out           => open,
+                        reset_counter_done_out  => open,
+                        reset                   => sys_rst,
+                        gt0_eyescanreset        => '0',
+                        gt0_eyescantrigger      => '0',
+                        gt0_rxcdrhold           => '0',
+                        gt0_txprbsforceerr      => '0',
+                        gt0_txpolarity          => '0',
+                        gt0_rxpolarity          => '0',
+                        gt0_rxrate              => (others => '0'),
+                        gt0_txpmareset          => '0',
+                        gt0_rxpmareset          => '0',
+                        gt0_rxdfelpmreset       => '0',
+                        gt0_txprecursor         => (others => '0'),
+                        gt0_txpostcursor        => (others => '0'),
+                        gt0_txdiffctrl          => "1110",
+                        gt0_rxlpmen             => '0',
+                        gt0_eyescandataerror    => open,
+                        gt0_txbufstatus         => open,
+                        gt0_txresetdone         => open,
+                        gt0_rxresetdone         => open,
+                        gt0_rxbufstatus         => open,
+                        gt0_rxprbserr           => open,
+                        gt0_dmonitorout         => open,
+                        xgmii_txd               => xgmii_txd,
+                        xgmii_txc               => xgmii_txc,
+                        xgmii_rxd               => sfp_xgmii_rxd,
+                        xgmii_rxc               => sfp_xgmii_rxc,
+                        txp                     => sfp_tx_p(0),      --# 260320 vector index
+                        txn                     => sfp_tx_n(0),      --# 260320 vector index
+                        rxp                     => sfp_rx_p(0),      --# 260320 vector index
+                        rxn                     => sfp_rx_n(0),      --# 260320 vector index
+                        mdc                     => mac_mdc,
+                        mdio_in                 => mac_mdio_in,
+                        mdio_out                => phy_mdio_out,
+                        mdio_tri                => phy_mdio_tri,
+                        prtad                   => (others => '0'),
+                        core_status             => open,
+                        resetdone_out           => sfp_rst_done,
+                        signal_detect           => sfp_signal_detect,
+                        tx_fault                => '0',
+                        drp_req                 => sfp_drp_req,
+                        drp_gnt                 => sfp_drp_req,
+                        drp_den_o               => sfp_drp_den,
+                        drp_dwe_o               => sfp_drp_dwe,
+                        drp_daddr_o             => sfp_drp_daddr,
+                        drp_di_o                => sfp_drp_di,
+                        drp_drdy_o              => sfp_drp_drdy,
+                        drp_drpdo_o             => sfp_drp_drpdo,
+                        drp_den_i               => sfp_drp_den,
+                        drp_dwe_i               => sfp_drp_dwe,
+                        drp_daddr_i             => sfp_drp_daddr,
+                        drp_di_i                => sfp_drp_di,
+                        drp_drdy_i              => sfp_drp_drdy,
+                        drp_drpdo_i             => sfp_drp_drpdo,
+                        pma_pmd_type            => "111",            -- 10GBASE-SR
+                        tx_disable              => sfp_tx_disable);
+
+    -- MDIO
+    mac_mdio_in <= (phy_mdio_tri and (not mac_mdio_tri) and mac_mdio_out) or
+                   (mac_mdio_tri and (not phy_mdio_tri) and phy_mdio_out);
+
+    end generate GEN_SFP;
+
+    -- Non-SFP models: direct RXAUI connections
+    GEN_NO_SFP: if (FUNC_SFP_NUM(GNR_MODEL) = 0) generate --# 260320 FUNC_SFP -> FUNC_SFP_NUM
+    begin
+        xgmii_clk   <= rxaui_clk156;
+        xgmii_lock  <= rxaui_clk156_lock;
+        xgmii_rxd   <= rxaui_xgmii_rxd;
+        xgmii_rxc   <= rxaui_xgmii_rxc;
+        --# 260320 sfp tie-off removed (null array, no ports to drive)
+        --sfp_tx_dis_n <= '1';
+        --sfp_tx_p     <= '0';
+        --sfp_tx_n     <= '1';
+        mac_mdio_in <= phy_mdio_iobuf_o;
+    end generate GEN_NO_SFP;
 
     -- KC705 platform specific logic -------------------------------------------
 
@@ -3490,10 +3847,9 @@ end generate TP_EXT;
                     USRDONEO        => '1',         -- 1-bit input: User DONE pin output control
                     USRDONETS       => '1');        -- 1-bit input: User DONE 3-state enable output
 
-
     -- Various glue logic ------------------------------------------------------
 
-    -- Ethernet clock domain reset and phy reset
+    --# Ethernet clock domain reset generator (S2I, async intentional)
     XGMII_RST_PROC: process (xgmii_clk, ext_rst, xgmii_lock)
         variable shreg  : unsigned(7 downto 0) := (others => '1');
     begin
@@ -3506,7 +3862,7 @@ end generate TP_EXT;
         end if;
     end process XGMII_RST_PROC;
 
-    -- XAUI reset (wait 1.31ms for align)
+    --# XAUI reset generator, wait 1.31ms for align (S2I, async intentional)
     XAUI_RST_PROC: process (sys_clk, xgmii_rst)
         variable rxaui_rst_cnt  : unsigned(17 downto 0) := (others => '1');
     begin
@@ -3521,7 +3877,7 @@ end generate TP_EXT;
         end if;
     end process XAUI_RST_PROC;
 
-    -- Action command
+    --# Action command toggle (S2I)
     ACT_TGL_PROC: process(sys_clk)
     begin
         if rising_edge(sys_clk) then
@@ -3541,7 +3897,7 @@ end generate TP_EXT;
     -- PHY MDIO
     MDIO_IOBUF_INST: IOBUF
         port map   (I   => mac_mdio_out,
-                    O   => mac_mdio_in,
+                    O   => phy_mdio_iobuf_o,
                     T   => mac_mdio_tri,
 --                    IO  => fmc_mdio);
                     IO  => PHY_MDIO);
@@ -3561,10 +3917,9 @@ end generate TP_EXT;
     -- FMC card reset
 --    fmc_reset_n <= not xgmii_rst;
     PHY_RESET_N <= not xgmii_rst;
-    
+
     axi_rst                   <= not axi_aresetn;       -- Synchronous reset
     video_data(127 downto 64) <= (others => '0');
-
 
     -- Test points -------------------------------------------------------------
 
@@ -3589,11 +3944,11 @@ end generate TP_EXT;
                  spi_rtl_0_sck_o when sreg_flaw_ctrl(0)='1' else
                  ge_FLASH_CLK;
 -- ### spi_cs
---    sFLASH_FCS <= ge_FLASH_FCS when sreg_fla_ctrl(0)='0' else 
+--    sFLASH_FCS <= ge_FLASH_FCS when sreg_fla_ctrl(0)='0' else
 --                 spi_rtl_0_ss_o when spi_rtl_0_ss_t='0' else
 --                 '1';
-    sFLASH_FCS <= spi_rtl_0_ss_o when sreg_fla_ctrl(0)='1' else 
-                  spi_rtl_0_ss_o when sreg_flaw_ctrl(0)='1' else 
+    sFLASH_FCS <= spi_rtl_0_ss_o when sreg_fla_ctrl(0)='1' else
+                  spi_rtl_0_ss_o when sreg_flaw_ctrl(0)='1' else
                   ge_FLASH_FCS ;
     FLASH_FCS <= sFLASH_FCS;
 
@@ -3611,11 +3966,11 @@ end generate TP_EXT;
           T => s_spi_rtl_0_io0_t
         );
 -- ### spi_data 1
-    s_spi_rtl_0_io1_o <= spi_rtl_0_io1_o when sreg_fla_ctrl(0)='1' else 
-                         spi_rtl_0_io1_o when sreg_flaw_ctrl(0)='1' else 
+    s_spi_rtl_0_io1_o <= spi_rtl_0_io1_o when sreg_fla_ctrl(0)='1' else
+                         spi_rtl_0_io1_o when sreg_flaw_ctrl(0)='1' else
                          '0';
-    s_spi_rtl_0_io1_t <= spi_rtl_0_io1_t when sreg_fla_ctrl(0)='1' else 
-                         spi_rtl_0_io1_t when sreg_flaw_ctrl(0)='1' else 
+    s_spi_rtl_0_io1_t <= spi_rtl_0_io1_t when sreg_fla_ctrl(0)='1' else
+                         spi_rtl_0_io1_t when sreg_flaw_ctrl(0)='1' else
                          '1';
     spi_rtl_0_io1_iobuf: component IOBUF
          port map (
@@ -3629,58 +3984,58 @@ end generate TP_EXT;
                      '0' when sreg_flaw_ctrl(0)='1' else
                      spi_rtl_0_io1_i;
 
-spi_rtl_0_io2_iobuf: component IOBUF
-     port map (
-      I => spi_rtl_0_io2_o,
-      IO => FLASH_D(2),
-      O => spi_rtl_0_io2_i,
-      T => spi_rtl_0_io2_t
-    );
-spi_rtl_0_io3_iobuf: component IOBUF
-     port map (
-      I => spi_rtl_0_io3_o,
-      IO => FLASH_D(3),
-      O => spi_rtl_0_io3_i,
-      T => spi_rtl_0_io3_t
-    );      
+    spi_rtl_0_io2_iobuf: component IOBUF
+        port map (
+            I  => spi_rtl_0_io2_o,
+            IO => FLASH_D(2),
+            O  => spi_rtl_0_io2_i,
+            T  => spi_rtl_0_io2_t
+        );
+    spi_rtl_0_io3_iobuf: component IOBUF
+        port map (
+            I  => spi_rtl_0_io3_o,
+            IO => FLASH_D(3),
+            O  => spi_rtl_0_io3_i,
+            T  => spi_rtl_0_io3_t
+        );
 
     u_flash_ctrl : entity work.flash_ctrl
-    port map(
-     irst          => '0', -- irst ,
-     isysclk       => sys_clk      ,
-     ireg_fla_ctrl => sreg_fla_ctrl,
-     ireg_fla_addr => sreg_fla_addr,
-     oreg_fla_data => sreg_fla_data,
-     iepc_cs_n     => epc_cs_n,
-     
-     ireg_flaw_ctrl  => sreg_flaw_ctrl ,
-     ireg_flaw_cmd   => sreg_flaw_cmd  ,
-     ireg_flaw_addr  => sreg_flaw_addr ,
-     ireg_flaw_wdata => sreg_flaw_wdata,
-     oreg_flaw_rdata => sreg_flaw_rdata,
+        port map (
+            irst          => '0',
+            isysclk       => sys_clk,
+            ireg_fla_ctrl => sreg_fla_ctrl,
+            ireg_fla_addr => sreg_fla_addr,
+            oreg_fla_data => sreg_fla_data,
+            iepc_cs_n     => epc_cs_n,
 
-     ispi_io0_i => spi_rtl_0_io0_i,
-     ospi_io0_o => spi_rtl_0_io0_o,
-     ospi_io0_t => spi_rtl_0_io0_t,
-     ispi_io1_i => spi_rtl_0_io1_i,
-     ospi_io1_o => spi_rtl_0_io1_o,
-     ospi_io1_t => spi_rtl_0_io1_t,
-     ispi_io2_i => spi_rtl_0_io2_i,
-     ospi_io2_o => spi_rtl_0_io2_o,
-     ospi_io2_t => spi_rtl_0_io2_t,
-     ispi_io3_i => spi_rtl_0_io3_i,
-     ospi_io3_o => spi_rtl_0_io3_o,
-     ospi_io3_t => spi_rtl_0_io3_t,
-     ispi_sck_i => spi_rtl_0_sck_i,
-     ospi_sck_o => spi_rtl_0_sck_o,
-     ospi_sck_t => spi_rtl_0_sck_t,
-     ispi_css_i => spi_rtl_0_ss_i ,
-     ospi_css_o => spi_rtl_0_ss_o ,
-     ospi_css_t => spi_rtl_0_ss_t 
- );
- 
-u_probe_top : entity work.probe_top 
-    port map(
+            ireg_flaw_ctrl  => sreg_flaw_ctrl,
+            ireg_flaw_cmd   => sreg_flaw_cmd,
+            ireg_flaw_addr  => sreg_flaw_addr,
+            ireg_flaw_wdata => sreg_flaw_wdata,
+            oreg_flaw_rdata => sreg_flaw_rdata,
+
+            ispi_io0_i => spi_rtl_0_io0_i,
+            ospi_io0_o => spi_rtl_0_io0_o,
+            ospi_io0_t => spi_rtl_0_io0_t,
+            ispi_io1_i => spi_rtl_0_io1_i,
+            ospi_io1_o => spi_rtl_0_io1_o,
+            ospi_io1_t => spi_rtl_0_io1_t,
+            ispi_io2_i => spi_rtl_0_io2_i,
+            ospi_io2_o => spi_rtl_0_io2_o,
+            ospi_io2_t => spi_rtl_0_io2_t,
+            ispi_io3_i => spi_rtl_0_io3_i,
+            ospi_io3_o => spi_rtl_0_io3_o,
+            ospi_io3_t => spi_rtl_0_io3_t,
+            ispi_sck_i => spi_rtl_0_sck_i,
+            ospi_sck_o => spi_rtl_0_sck_o,
+            ospi_sck_t => spi_rtl_0_sck_t,
+            ispi_css_i => spi_rtl_0_ss_i,
+            ospi_css_o => spi_rtl_0_ss_o,
+            ospi_css_t => spi_rtl_0_ss_t
+        );
+
+    u_probe_top : entity work.probe_top
+        port map (
         sys_clk    => sys_clk   ,
         sbd_mclk   => sbd_mclk  ,
         sbd_dclk   => sbd_dclk  ,
@@ -3693,80 +4048,80 @@ u_probe_top : entity work.probe_top
         sreg_clk_roicdclk => sreg_clk_roicdclk,
         sreg_clk_uiclk => sreg_clk_uiclk,
 
-    --####################
-    --### SYNC COUNTER ###
-        svsync_tft => svsync_tft,
-        shsync_tft => shsync_tft,
-        sdata_tft => sdata_tft,
+        --####################
+        --### SYNC COUNTER ###
+            svsync_tft => svsync_tft,
+            shsync_tft => shsync_tft,
+            sdata_tft  => sdata_tft,
 
-        svsync_ddr3 => svsync_ddr3,
-        shsync_ddr3 => shsync_ddr3,
-        sdata_ddr3 => sdata_ddr3(16-1 downto 0),
+            svsync_ddr3 => svsync_ddr3,
+            shsync_ddr3 => shsync_ddr3,
+            sdata_ddr3  => sdata_ddr3(16-1 downto 0),
 
-        shsync_calib => shsync_calib,
-        svsync_calib => svsync_calib,
-        sdata_calib => sdata_calib(16-1 downto 0),
+            shsync_calib => shsync_calib,
+            svsync_calib => svsync_calib,
+            sdata_calib  => sdata_calib(16-1 downto 0),
 
-        shsync_img_proc => shsync_img_proc,
-        svsync_img_proc => svsync_img_proc,
-        sdata_img_proc => sdata_img_proc(16-1 downto 0),
+            shsync_img_proc => shsync_img_proc,
+            svsync_img_proc => svsync_img_proc,
+            sdata_img_proc  => sdata_img_proc(16-1 downto 0),
 
-        sfb_frame => sfb_frame,
-        sfb_dv => sfb_dv,
-        sfb_data => sfb_data,
+            sfb_frame => sfb_frame,
+            sfb_dv    => sfb_dv,
+            sfb_data  => sfb_data,
 
-        sreg_sync_ctrl => sreg_sync_ctrl,
+            sreg_sync_ctrl => sreg_sync_ctrl,
 
-        sreg_sync_rcnt2 => sreg_sync_rcnt2,
-        sreg_sync_rcnt3 => sreg_sync_rcnt3,
-        sreg_sync_rcnt7 => sreg_sync_rcnt7,
-        sreg_sync_rcnt8 => sreg_sync_rcnt8,
-        sreg_sync_rcnt9 => sreg_sync_rcnt9,
+            sreg_sync_rcnt2 => sreg_sync_rcnt2,
+            sreg_sync_rcnt3 => sreg_sync_rcnt3,
+            sreg_sync_rcnt7 => sreg_sync_rcnt7,
+            sreg_sync_rcnt8 => sreg_sync_rcnt8,
+            sreg_sync_rcnt9 => sreg_sync_rcnt9,
 
-        sreg_sync_rdata_avcn2 => sreg_sync_rdata_avcn2,
-        sreg_sync_rdata_avcn3 => sreg_sync_rdata_avcn3,
-        sreg_sync_rdata_avcn7 => sreg_sync_rdata_avcn7,
-        sreg_sync_rdata_avcn8 => sreg_sync_rdata_avcn8,
-        sreg_sync_rdata_avcn9 => sreg_sync_rdata_avcn9,
+            sreg_sync_rdata_avcn2 => sreg_sync_rdata_avcn2,
+            sreg_sync_rdata_avcn3 => sreg_sync_rdata_avcn3,
+            sreg_sync_rdata_avcn7 => sreg_sync_rdata_avcn7,
+            sreg_sync_rdata_avcn8 => sreg_sync_rdata_avcn8,
+            sreg_sync_rdata_avcn9 => sreg_sync_rdata_avcn9,
 
-        sreg_sync_rdata_bglw2 => sreg_sync_rdata_bglw2,
-        sreg_sync_rdata_bglw3 => sreg_sync_rdata_bglw3,
-        sreg_sync_rdata_bglw7 => sreg_sync_rdata_bglw7,
-        sreg_sync_rdata_bglw8 => sreg_sync_rdata_bglw8,
-        sreg_sync_rdata_bglw9 => sreg_sync_rdata_bglw9,
+            sreg_sync_rdata_bglw2 => sreg_sync_rdata_bglw2,
+            sreg_sync_rdata_bglw3 => sreg_sync_rdata_bglw3,
+            sreg_sync_rdata_bglw7 => sreg_sync_rdata_bglw7,
+            sreg_sync_rdata_bglw8 => sreg_sync_rdata_bglw8,
+            sreg_sync_rdata_bglw9 => sreg_sync_rdata_bglw9,
 
-    --################
-    --### SM PROBE ###
-        oostate_tft => oostate_tft,
-        oostate_roic => oostate_roic,
-        oostate_gate => oostate_gate,
-        oostate_roic_setting => oostate_roic_setting,
-        oostate_dpram_data_align => oostate_dpram_data_align,
-        oostate_dpram_roi => oostate_dpram_roi,
-        oostate_avg => oostate_avg,
-        oostate_grab => oostate_grab, 
+        --################
+        --### SM PROBE ###
+            oostate_tft              => oostate_tft,
+            oostate_roic             => oostate_roic,
+            oostate_gate             => oostate_gate,
+            oostate_roic_setting     => oostate_roic_setting,
+            oostate_dpram_data_align => oostate_dpram_data_align,
+            oostate_dpram_roi        => oostate_dpram_roi,
+            oostate_avg              => oostate_avg,
+            oostate_grab             => oostate_grab,
 
-        sroic_mclk_div => sroic_mclk_div,
-        sreg_sm_ctrl   => sreg_sm_ctrl,
-        sreg_sm_data0  => sreg_sm_data0,
-        sreg_sm_data1  => sreg_sm_data1,
-        sreg_sm_data2  => sreg_sm_data2,
-        sreg_sm_data3  => sreg_sm_data3,
-        sreg_sm_data4  => sreg_sm_data4,
-        sreg_sm_data5  => sreg_sm_data5,
-        sreg_sm_data6  => sreg_sm_data6,
-        sreg_sm_data7  => sreg_sm_data7
-    );
+            sroic_mclk_div => sroic_mclk_div,
+            sreg_sm_ctrl   => sreg_sm_ctrl,
+            sreg_sm_data0  => sreg_sm_data0,
+            sreg_sm_data1  => sreg_sm_data1,
+            sreg_sm_data2  => sreg_sm_data2,
+            sreg_sm_data3  => sreg_sm_data3,
+            sreg_sm_data4  => sreg_sm_data4,
+            sreg_sm_data5  => sreg_sm_data5,
+            sreg_sm_data6  => sreg_sm_data6,
+            sreg_sm_data7  => sreg_sm_data7
+        );
 
 --    ila_debug_spi : if(GEN_ILA_TOP_SPI = "ON") generate
 
 ----        COMPONENT ila_top_spi
 ----        PORT (
 ----            clk     : IN STD_LOGIC;
-----            probe0  : IN STD_LOGIC_VECTOR(0 DOWNTO 0); 
-----            probe1  : IN STD_LOGIC_VECTOR(0 DOWNTO 0); 
-----            probe2  : IN STD_LOGIC_VECTOR(0 DOWNTO 0); 
-----            probe3  : IN STD_LOGIC_VECTOR(0 DOWNTO 0); 
+----            probe0  : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
+----            probe1  : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
+----            probe2  : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
+----            probe3  : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
 ----            probe4  : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
 ----            probe5  : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
 ----            probe6  : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
@@ -3774,32 +4129,31 @@ u_probe_top : entity work.probe_top
 ----            probe8  : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
 ----            probe9  : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
 ----            probe10 : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
-----            probe11 : IN STD_LOGIC_VECTOR(7 DOWNTO 0) 
+----            probe11 : IN STD_LOGIC_VECTOR(7 DOWNTO 0)
 ----        );
 ----        END COMPONENT  ;
 
 --    begin
-         
+
 --        u_ila_top_spi : entity work.ila_top_spi
 --        PORT MAP (
---            clk        => sys_clk, -- 100 Mhz 
---            probe0(0)  => FLASH_CLK,          
---            probe1(0)  => sFLASH_FCS,         
---            probe2(0)  => spi_rtl_0_io0_i,    
---            probe3(0)  => spi_rtl_0_io1_i,    
---            probe4(0)  => spi_rtl_0_io2_i,    
---            probe5(0)  => spi_rtl_0_io3_i,    
+--            clk        => sys_clk, -- 100 Mhz
+--            probe0(0)  => FLASH_CLK,
+--            probe1(0)  => sFLASH_FCS,
+--            probe2(0)  => spi_rtl_0_io0_i,
+--            probe3(0)  => spi_rtl_0_io1_i,
+--            probe4(0)  => spi_rtl_0_io2_i,
+--            probe5(0)  => spi_rtl_0_io3_i,
 --            probe6(0)  => s_spi_rtl_0_io0_t,
 --            probe7(0)  => s_spi_rtl_0_io1_t,
 --            probe8(0)  => spi_rtl_0_io2_t,
 --            probe9(0)  => spi_rtl_0_io3_t,
 --            probe10(0) => dummy(0),
 --            probe11    => dummy(8-1 downto 0)
-     
---        );      
---    end generate ila_debug_spi;    
 
- 
+--        );
+--    end generate ila_debug_spi;
+
   ----------------------------------------------------------
   -- DDR3 Update Timing for each Channel
   ----------------------------------------------------------
@@ -3852,7 +4206,7 @@ begin
 --            probe13 => svcnt_calib,
 --            probe14 => sdata_calib,
 --            probe10 => shsync_img_proc,
---            probe11 => svsync_img_proc,         
+--            probe11 => svsync_img_proc,
 --            probe12 => shcnt_img_proc,
 --            probe13 => svcnt_img_proc,
 --            probe14 => sdata_img_proc
@@ -3889,12 +4243,12 @@ ila_debug2 : if(GEN_ILA_top_roic = "ON") generate
             probe16 : in tstate_grab;
             probe17 : in tstate_tft;
             probe18 : in tstate_roic;
-            probe19 : in tstate_gate; 
-            
+            probe19 : in tstate_gate;
+
             probe20 : in std_logic_vector( 10-1 downto 0);
             probe21 : in std_logic_vector( 12-1 downto 0);
             probe22 : in std_logic_vector( 16-1 downto 0);
-            
+
             probe23 : in std_logic;
             probe24 : in std_logic;
 
@@ -3935,7 +4289,7 @@ probe2_pm <= "00" & sgate_dio2(4-1 downto 0);
             probe17 => oostate_tft,
             probe18 => oostate_roic,
             probe19 => oostate_gate,
-            
+
             probe20 => shcnt_tft,
             probe21 => svcnt_tft,
             probe22 => sdata_tft(16-1 downto 0),
@@ -3951,3 +4305,21 @@ probe2_pm <= "00" & sgate_dio2(4-1 downto 0);
 end generate ila_debug2;
 
 end top;
+
+--# ============================================================
+--# Unused signals (removed from original locations)
+--# ============================================================
+--#    signal clk_loop_in     : std_logic;
+--#    signal clk_loop_out    : std_logic;
+--#    signal spix_rdata      : std_logic_vector(DDR_BIT_R0(GNR_MODEL)-1 downto 0);
+--#    signal scalib_gain     : std_logic_vector(31 downto 0) := (others => '0');
+--#    signal scalib_offset   : std_logic_vector(31 downto 0) := (others => '0');
+--#    signal scalib_defect   : std_logic_vector(7 downto 0) := (others => '0');
+--#    signal sreg_rev_x      : std_logic := '0';
+--#    signal sreg_rev_y      : std_logic := '0';
+--#    signal stft_state      : std_logic_vector(15 downto 0);
+--#    signal stb_aligndone   : std_logic;
+--#    signal sbd_clk_lock_1d : std_logic := '0';
+--#    signal sbd_clk_lock_2d : std_logic := '0';
+--#    signal sbd_clk_lock_3d : std_logic := '0';
+--#    signal sclock_cnt      : std_logic_vector(10-1 downto 0) := (others=>'0');

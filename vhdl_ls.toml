@@ -1,0 +1,4 @@
+[libraries]
+work.files = [
+    'EXTxR2.srcs/sources_1/**/*.vhd',
+]

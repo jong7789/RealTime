@@ -1,20 +1,10 @@
 {
   "permissions": {
-    "defaultMode": "plan",
     "allow": [
-      "Read(**)",
-      "Grep(**)",
-      "Glob(**)",
-      "Bash(grep:*)",
-      "Bash(find:*)",
-      "Bash(cat:*)",
-      "Bash(ls:*)",
-      "Bash(head:*)",
-      "Bash(tail:*)",
-      "Bash(wc:*)",
-      "Bash(diff:*)",
-      "Bash(tree:*)",
-      "Bash(file:*)"
+      "Read",
+      "Grep",
+      "Glob",
+      "Bash(*)"
     ],
     "deny": [
       "Edit(*)",
@@ -24,6 +14,10 @@
       "Bash(cp:*)",
       "Bash(chmod:*)",
       "Bash(sed:*)"
-    ]
+    ],
+    "defaultMode": "plan"
+  },
+  "enabledPlugins": {
+    "github@claude-plugins-official": true
   }
 }

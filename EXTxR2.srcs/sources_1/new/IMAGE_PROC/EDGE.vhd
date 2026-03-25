@@ -33,7 +33,7 @@ port (
 end EDGE;
 
 architecture Behavioral of EDGE is
-    
+
     constant CDSH : integer := 2; --+1
 
     type ty_sh_12b is array (CDSH downto 0) of std_logic_vector(12-1 downto 0);
@@ -80,30 +80,31 @@ begin
             sh_reg_edge_left   <= sh_reg_edge_left  (CDSH-1 downto 0) & i_reg_edge_left  ;
             sh_reg_edge_right  <= sh_reg_edge_right (CDSH-1 downto 0) & i_reg_edge_right ;
             sh_reg_edge_bottom <= sh_reg_edge_bottom(CDSH-1 downto 0) & i_reg_edge_bottom;
-            
-               reg_width       <= sh_reg_width      (CDSH);
-               reg_height      <= sh_reg_height     (CDSH);
-               reg_edge_ctrl   <= sh_reg_edge_ctrl  (CDSH);
-               reg_edge_value  <= sh_reg_edge_value (CDSH);
-               reg_edge_top    <= sh_reg_edge_top   (CDSH);
-               reg_edge_left   <= sh_reg_edge_left  (CDSH);
-               reg_edge_right  <= sh_reg_edge_right (CDSH);
-               reg_edge_bottom <= sh_reg_edge_bottom(CDSH);
-            
+
+            reg_width       <= sh_reg_width      (CDSH);
+            reg_height      <= sh_reg_height     (CDSH);
+            reg_edge_ctrl   <= sh_reg_edge_ctrl  (CDSH);
+            reg_edge_value  <= sh_reg_edge_value (CDSH);
+            reg_edge_top    <= sh_reg_edge_top   (CDSH);
+            reg_edge_left   <= sh_reg_edge_left  (CDSH);
+            reg_edge_right  <= sh_reg_edge_right (CDSH);
+            reg_edge_bottom <= sh_reg_edge_bottom(CDSH);
+
             reg_edge_en <= reg_edge_ctrl(0);
         --
         end if;
     end process;
 
+    --# edge mask process
     process(clk)
     begin
         if(clk'event and clk = '1') then
         --
             if reg_edge_en = '0' then --# disable
-                data  <= i_data;
-            elsif reg_edge_top  <= i_vcnt and i_vcnt < reg_edge_bottom and 
-               reg_edge_left <= i_hcnt and i_hcnt < reg_edge_right  then
-                data  <= i_data;
+                data <= i_data;
+            elsif reg_edge_top <= i_vcnt and i_vcnt < reg_edge_bottom and
+                  reg_edge_left <= i_hcnt and i_hcnt < reg_edge_right then
+                data <= i_data;
             else
                 data <= reg_edge_value;
             end if;

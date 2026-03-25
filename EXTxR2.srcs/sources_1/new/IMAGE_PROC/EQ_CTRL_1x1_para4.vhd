@@ -1,21 +1,21 @@
 ----------------------------------------------------------------------------------
--- Company: DRT 
+-- Company: DRT
 -- Engineer: mbh
--- 
+--
 -- Create Date: 08/18/2023 06:53:38 PM
--- Design Name: 
+-- Design Name:
 -- Module Name: EQ_CTRL_1x1_para4 - Behavioral
--- Project Name: 
--- Target Devices: 
--- Tool Versions: 
--- Description: 
--- 
--- Dependencies: 
--- 
+-- Project Name:
+-- Target Devices:
+-- Tool Versions:
+-- Description:
+--
+-- Dependencies:
+--
 -- Revision:
 -- Revision 0.01 - File Created
 -- Additional Comments:
--- 
+--
 ----------------------------------------------------------------------------------
 
 library IEEE;
@@ -26,7 +26,6 @@ library IEEE;
 
 library UNISIM;
     use UNISIM.VComponents.all;
-
 
 entity EQ_CTRL_1x1_para4 is
     Port (
@@ -81,65 +80,67 @@ architecture Behavioral of EQ_CTRL_1x1_para4 is
         );
     end component;
 
-constant zero12 : std_logic_vector(12-1 downto 0):=(others=>'0');
+    constant zero12 : std_logic_vector(12-1 downto 0) := (others => '0');
 
-signal HActStt : std_logic_vector(12-1 downto 0);
-signal VActStt : std_logic_vector(12-1 downto 0);
-signal HActEnd : std_logic_vector(12-1 downto 0);
-signal VActEnd : std_logic_vector(12-1 downto 0);
+    signal HActStt : std_logic_vector(12-1 downto 0);
+    signal VActStt : std_logic_vector(12-1 downto 0);
+    signal HActEnd : std_logic_vector(12-1 downto 0);
+    signal VActEnd : std_logic_vector(12-1 downto 0);
 
-signal ibp_hsyn : std_logic;
-signal ibp_vsyn : std_logic;
-signal iac_hsyn : std_logic;
-signal iac_vsyn : std_logic;
-signal iac_hcnt : std_logic_vector(12-1 downto 0);
-signal iac_vcnt : std_logic_vector(12-1 downto 0);
-signal iac_data : std_logic_vector(64-1 downto 0);
- 
-signal oeq_hsyn : std_logic_vector(4-1 downto 0);
-signal oeq_vsyn : std_logic_vector(4-1 downto 0);
--- signal oeq_hcnt : std_logic_vector(12-1 downto 0);
--- signal oeq_vcnt : std_logic_vector(12-1 downto 0);
-signal oeq_data : std_logic_vector(64-1 downto 0);
+    signal ibp_hsyn : std_logic;
+    signal ibp_vsyn : std_logic;
+    signal iac_hsyn : std_logic;
+    signal iac_vsyn : std_logic;
+    signal iac_hcnt : std_logic_vector(12-1 downto 0);
+    signal iac_vcnt : std_logic_vector(12-1 downto 0);
+    signal iac_data : std_logic_vector(64-1 downto 0);
 
-type type_4a_12b is array (0 to 4-1) of std_logic_vector(12-1 downto 0);
-signal oeq_hcnt: type_4a_12b;
-signal oeq_vcnt: type_4a_12b;
+    signal oeq_hsyn : std_logic_vector(4-1 downto 0);
+    signal oeq_vsyn : std_logic_vector(4-1 downto 0);
+    -- signal oeq_hcnt : std_logic_vector(12-1 downto 0);
+    -- signal oeq_vcnt : std_logic_vector(12-1 downto 0);
+    signal oeq_data : std_logic_vector(64-1 downto 0);
 
-signal act_HActive : std_logic_vector(12-1 downto 0);
-signal act_VActive : std_logic_vector(12-1 downto 0);
-signal pr4_HActive : std_logic_vector(12-1 downto 0);
+    type type_4a_12b is array (0 to 4-1) of std_logic_vector(12-1 downto 0);
+    signal oeq_hcnt : type_4a_12b;
+    signal oeq_vcnt : type_4a_12b;
+
+    signal act_HActive : std_logic_vector(12-1 downto 0);
+    signal act_VActive : std_logic_vector(12-1 downto 0);
+    signal pr4_HActive : std_logic_vector(12-1 downto 0);
+
 begin
+
     --# Active area except Edge
     process(clk)
     begin
-        if clk'event and clk='1' then
+        if clk'event and clk = '1' then
             --
             -- EQ active area  6.25~94.75 %
-            HActStt <= zero12 + i_regHActive(12-1 downto 4); --# 6.25%                              
-            HActEnd <= zero12 + i_regHActive(12-1 downto 1) + 
+            HActStt <= zero12 + i_regHActive(12-1 downto 4); --# 6.25%
+            HActEnd <= zero12 + i_regHActive(12-1 downto 1) +
                                 i_regHActive(12-1 downto 2) +
-                                i_regHActive(12-1 downto 3) + 
+                                i_regHActive(12-1 downto 3) +
                                 i_regHActive(12-1 downto 4); --# 94.75 %
-            VActStt <= zero12 + i_regVActive(12-1 downto 4); --# 6.25%                              
-            VActEnd <= zero12 + i_regVActive(12-1 downto 1) + 
+            VActStt <= zero12 + i_regVActive(12-1 downto 4); --# 6.25%
+            VActEnd <= zero12 + i_regVActive(12-1 downto 1) +
                                 i_regVActive(12-1 downto 2) +
-                                i_regVActive(12-1 downto 3) + 
+                                i_regVActive(12-1 downto 3) +
                                 i_regVActive(12-1 downto 4); --# 94.75 %
-            act_HActive <= zero12 + i_regHActive(12-1 downto 1) +  -- 87.5%
+            act_HActive <= zero12 + i_regHActive(12-1 downto 1) + -- 87.5%
                                     i_regHActive(12-1 downto 2) +
                                     i_regHActive(12-1 downto 3);
             pr4_HActive <= zero12 + act_HActive(12-1 downto 2);
             act_VActive <= zero12 + i_regVActive(12-1 downto 1) +
                                     i_regVActive(12-1 downto 2) +
                                     i_regVActive(12-1 downto 3);
-               
+
             -- Active H sync
             if HActStt <= i_hcnt and i_hcnt < HActEnd and
                VActStt <= i_vcnt and i_vcnt < VActEnd then
-                  iac_hsyn <= i_hsyn;
+                iac_hsyn <= i_hsyn;
             else
-                  iac_hsyn <= '0';
+                iac_hsyn <= '0';
             end if;
             iac_vsyn <= i_vsyn;
             iac_hcnt <= i_hcnt;
@@ -153,33 +154,33 @@ begin
         end if;
     end process;
 
-gen_eq_para4: for i in 0 to 4-1 generate
-    U0_EQ_4096: EQ_4096
-        port map (
-            clk  => clk,
-            rstn => rstn,
+    gen_eq_para4 : for i in 0 to 4-1 generate
+        U0_EQ_4096 : EQ_4096
+            port map (
+                clk  => clk,
+                rstn => rstn,
 
-            i_regHActive  => pr4_HActive,
-            i_regVActive  => act_VActive,
-            i_regEqCtrl   => i_regEqCtrl  ,
-            i_regEqTopVal => i_regEqTopVal,
+                i_regHActive  => pr4_HActive,
+                i_regVActive  => act_VActive,
+                i_regEqCtrl   => i_regEqCtrl,
+                i_regEqTopVal => i_regEqTopVal,
 
-            i_hsbp => ibp_hsyn,
-            i_vsbp => ibp_vsyn,
+                i_hsbp => ibp_hsyn,
+                i_vsbp => ibp_vsyn,
 
-            i_hsyn => iac_hsyn,
-            i_vsyn => iac_vsyn,
-            i_hcnt => iac_hcnt,
-            i_vcnt => iac_vcnt,
-            i_data => iac_data(16*(i+1)-1 downto 16*i),
+                i_hsyn => iac_hsyn,
+                i_vsyn => iac_vsyn,
+                i_hcnt => iac_hcnt,
+                i_vcnt => iac_vcnt,
+                i_data => iac_data(16 * (i + 1) - 1 downto 16 * i),
 
-            o_hsyn => oeq_hsyn(i),
-            o_vsyn => oeq_vsyn(i),
-            o_hcnt => oeq_hcnt(i),
-            o_vcnt => oeq_vcnt(i),
-            o_data => oeq_data(16*(i+1)-1 downto 16*i)
-        );
-end generate gen_eq_para4;
+                o_hsyn => oeq_hsyn(i),
+                o_vsyn => oeq_vsyn(i),
+                o_hcnt => oeq_hcnt(i),
+                o_vcnt => oeq_vcnt(i),
+                o_data => oeq_data(16 * (i + 1) - 1 downto 16 * i)
+            );
+    end generate gen_eq_para4;
 
     o_hsyn <= oeq_hsyn(0);
     o_vsyn <= oeq_vsyn(0);

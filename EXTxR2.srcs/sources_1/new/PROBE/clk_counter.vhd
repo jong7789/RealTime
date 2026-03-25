@@ -33,7 +33,6 @@ entity clk_counter is
     );
     port (
         ISYSCLK : in    std_logic; -- 200 Mhz
-
         ICLK    : in    std_logic;
         OCLKCNT : out   std_logic_vector(16 - 1 downto 0)
     );
@@ -51,36 +50,37 @@ architecture behavioral of clk_counter is
 
     constant sys100n : integer := sysclkhz / 10000; -- 100ns
 
-    signal ToggleSys : std_logic := '0';
+    signal ToggleSys   : std_logic := '0';
     signal ToggleSys00 : std_logic := '0';
-    signal sysclkCnt : std_logic_vector(16 - 1 downto 0) := (others=> '0');
+    signal sysclkCnt   : std_logic_vector(16 - 1 downto 0) := (others => '0');
 
     signal ToggleSys0     : std_logic := '0';
     signal ToggleSys1     : std_logic := '0';
     signal ToggleSys2     : std_logic := '0';
-    signal ToggleCnt      : std_logic_vector(16 - 1 downto 0) := (others=>'0');
+    signal ToggleCnt      : std_logic_vector(16 - 1 downto 0) := (others => '0');
     signal ToggleCnt0     : std_logic := '0';
     signal ToggleCnt1     : std_logic := '0';
     signal ToggleCnt2     : std_logic := '0';
     signal Die            : std_logic := '0';
-    signal DieCnt         : std_logic_vector(16 - 1 downto 0) := (others=>'0');
-    signal SaveToggleCnt  : std_logic_vector(16 - 1 downto 0) := (others=>'0');
-    signal SaveToggleCnt0 : std_logic_vector(16 - 1 downto 0) := (others=>'0');
-    signal SaveToggleCnt1 : std_logic_vector(16 - 1 downto 0) := (others=>'0');
-    signal SaveToggleCnt2 : std_logic_vector(16 - 1 downto 0) := (others=>'0');
-    signal SaveClkCnt     : std_logic_vector(16 - 1 downto 0) := (others=>'0');
+    signal DieCnt         : std_logic_vector(16 - 1 downto 0) := (others => '0');
+    signal SaveToggleCnt  : std_logic_vector(16 - 1 downto 0) := (others => '0');
+    signal SaveToggleCnt0 : std_logic_vector(16 - 1 downto 0) := (others => '0');
+    signal SaveToggleCnt1 : std_logic_vector(16 - 1 downto 0) := (others => '0');
+    signal SaveToggleCnt2 : std_logic_vector(16 - 1 downto 0) := (others => '0');
+    signal SaveClkCnt     : std_logic_vector(16 - 1 downto 0) := (others => '0');
 
 begin
 
+    --# make 100ns toggle and die check in ISYSCLK domain
     process (ISYSCLK)
     begin
-        if ISYSCLK'event and ISYSCLK='1' then
+        if ISYSCLK'event and ISYSCLK = '1' then
             --
             -- ### make 100ns toggle
             if sysclkCnt < sys100n then
                 sysclkCnt <= sysclkCnt + '1';
             else
-                sysclkCnt <= (others=> '0');
+                sysclkCnt <= (others => '0');
                 ToggleSys <= not ToggleSys;
             end if;
             ToggleSys00 <= ToggleSys;
@@ -90,7 +90,7 @@ begin
             ToggleCnt1 <= ToggleCnt0;
             ToggleCnt2 <= ToggleCnt1;
             if ToggleCnt2 /= ToggleCnt1 then
-                DieCnt <= (others=> '0');
+                DieCnt <= (others => '0');
             else
                 if DieCnt < 2 ** 16 - 1 then
                     DieCnt <= DieCnt + '1';
@@ -105,7 +105,7 @@ begin
             SaveToggleCnt1 <= SaveToggleCnt0;
             SaveToggleCnt2 <= SaveToggleCnt1;
             if Die = '1' then
-                SaveClkCnt <= (others=>'0');
+                SaveClkCnt <= (others => '0');
             else
                 SaveClkCnt <= SaveToggleCnt2;
             end if;
@@ -116,28 +116,29 @@ begin
 
     OCLKCNT <= SaveClkCnt;
 
-              -- ### set
+    --# count toggle edges in ICLK domain
+    -- ### set
     process (ICLK)
     begin
-        if ICLK'event and ICLK='1' then
-              --
+        if ICLK'event and ICLK = '1' then
+            --
             ToggleSys0 <= ToggleSys00;
             ToggleSys1 <= ToggleSys0;
             ToggleSys2 <= ToggleSys1;
 
             if ToggleSys2 /= ToggleSys1 then
-                ToggleCnt     <= (others=> '0');
+                ToggleCnt     <= (others => '0');
                 SaveToggleCnt <= ToggleCnt;
             else
                 if ToggleCnt < x"FFFF" then
                     ToggleCnt <= ToggleCnt + '1';
                 end if;
             end if;
-              --
+            --
         end if;
     end process;
 
-    gen_vio : IF(vio='1') GENERATE
+    gen_vio : if (vio = '1') generate
     begin
         --
         u_vio_clkcnt : vio_clkcnt

@@ -36,7 +36,7 @@ architecture behavioral of dac_spi_ctrl is
 
     signal clk         : std_logic := '0';
     signal rstn        : std_logic := '0';
-    signal clk_cnt     : std_logic_vector(2 - 1 downto 0) := (others=> '0');
+    signal clk_cnt     : std_logic_vector(2 - 1 downto 0) := (others => '0');
     signal clken       : std_logic := '0';
     signal cmd_clkmode : std_logic := '0';
 
@@ -51,9 +51,9 @@ architecture behavioral of dac_spi_ctrl is
     signal cmd0    : std_logic_vector(16 - 1 downto 0);
     signal cmd1    : std_logic_vector(16 - 1 downto 0);
     signal cmd     : std_logic_vector(16 - 1 downto 0);
-    signal cmd_pd  : std_logic_vector(2 - 1 downto 0) := (others=> '0');
-    signal cmd_d12 : std_logic_vector(12 - 1 downto 0) := (others=> '0');
-    signal cur_d12 : std_logic_vector(12 - 1 downto 0) := (others=> '0');
+    signal cmd_pd  : std_logic_vector(2 - 1 downto 0) := (others => '0');
+    signal cmd_d12 : std_logic_vector(12 - 1 downto 0) := (others => '0');
+    signal cur_d12 : std_logic_vector(12 - 1 downto 0) := (others => '0');
 
     signal ticktime0 : std_logic_vector(32 - 1 downto 0);
     signal ticktime1 : std_logic_vector(32 - 1 downto 0);
@@ -73,12 +73,12 @@ architecture behavioral of dac_spi_ctrl is
     signal cmd_done   : std_logic := '0';
     signal end_done   : std_logic := '0';
 
-    signal sm_ready_cnt : std_logic_vector(4 - 1 downto 0) := (others=> '0');
-    signal sm_cmd_cnt   : std_logic_vector(4 - 1 downto 0) := (others=> '0');
-    signal sm_wait_cnt  : std_logic_vector(32 - 1 downto 0) := (others=> '0');
-    signal sm_end_cnt   : std_logic_vector(4 - 1 downto 0) := (others=> '0');
+    signal sm_ready_cnt : std_logic_vector(4 - 1 downto 0) := (others => '0');
+    signal sm_cmd_cnt   : std_logic_vector(4 - 1 downto 0) := (others => '0');
+    signal sm_wait_cnt  : std_logic_vector(32 - 1 downto 0) := (others => '0');
+    signal sm_end_cnt   : std_logic_vector(4 - 1 downto 0) := (others => '0');
 
-    signal sm_timeout_cnt : std_logic_vector(28 - 1 downto 0) := (others=> '0');
+    signal sm_timeout_cnt : std_logic_vector(28 - 1 downto 0) := (others => '0');
 
     signal timeout : std_logic := '0';
 
@@ -86,8 +86,8 @@ architecture behavioral of dac_spi_ctrl is
     signal data : std_logic := '0';
 
     signal trigi       : std_logic := '0';
-    signal trigi_shift : std_logic_vector(16 - 1 downto 0) := (others=> '0');
-    signal trig_shft   : std_logic_vector(8 - 1 downto 0) := (others=> '0');
+    signal trigi_shift : std_logic_vector(16 - 1 downto 0) := (others => '0');
+    signal trig_shft   : std_logic_vector(8 - 1 downto 0) := (others => '0');
 
     component ila_pwdac0
         port (
@@ -161,9 +161,10 @@ begin
 --#################
 --### registers ###
 
+    --# register latch and edge detect process
     process (clk)
     begin
-        if clk'event and clk='1' then
+        if clk'event and clk = '1' then
             --
             trig_shft  <= trig_shft(trig_shft'left - 1 downto 0) & trigi; -- 1 clk catched trig --# 220503
             start_trig <= (not trig_shft(trig_shft'left)) and trig_shft(trig_shft'left - 1);
@@ -173,11 +174,11 @@ begin
                 reg_pwdac_tickinc  <= i_reg_pwdac_tickinc;
             end if;
 
-            cmd0        <= reg_pwdac_cmd;
-            cmd1        <= cmd0;
-            cmd_pd      <= cmd1(15 downto 14); --# powerdown mode 0:normal 
-            cmd_d12     <= cmd1(13 downto 2);  --# 12bit dac data
---            cmd_clkmode <= start_trig; --# mis matching signal 220524mbh -- cmd1(0);            
+            cmd0    <= reg_pwdac_cmd;
+            cmd1    <= cmd0;
+            cmd_pd  <= cmd1(15 downto 14); --# powerdown mode 0:normal
+            cmd_d12 <= cmd1(13 downto 2);  --# 12bit dac data
+--            cmd_clkmode <= start_trig; --# mis matching signal 220524mbh -- cmd1(0);
                 --# 0:clk working during active 1: always
 
             ticktime0 <= reg_pwdac_ticktime;
@@ -191,14 +192,15 @@ begin
 
             tickinc0 <= reg_pwdac_tickinc;
             tickinc1 <= tickinc0;
-            tickinc  <= tickinc1 +'1'; --# not allow all'F'
+            tickinc  <= tickinc1 + '1'; --# not allow all'F'
 
-                --
+            --
         end if;
     end process;
 
 -- #####################
 -- ### state machine ###
+    --# state machine synchronous process
     SYNC_PROC : process (clk)
     begin
         if (clk'event and clk = '1') then
@@ -212,7 +214,7 @@ begin
             end if;
 
             if sm_dac = st_idle then
-                sm_timeout_cnt <= (others=> '0');
+                sm_timeout_cnt <= (others => '0');
             else
                 sm_timeout_cnt <= sm_timeout_cnt + '1';
             end if;
@@ -220,20 +222,20 @@ begin
             if sm_dac = st_ready then
                 sm_ready_cnt <= sm_ready_cnt + '1';
             else
-                sm_ready_cnt <= (others=> '0');
+                sm_ready_cnt <= (others => '0');
             end if;
 
             if sm_dac = st_cmd then
                 sm_cmd_cnt <= sm_cmd_cnt + '1';
             else
-                sm_cmd_cnt <= (others=> '0');
+                sm_cmd_cnt <= (others => '0');
             end if;
 
             if sm_dac = st_cmd or
                sm_dac = st_wait then
                 sm_wait_cnt <= sm_wait_cnt + '1';
             else
-                sm_wait_cnt <= (others=> '0');
+                sm_wait_cnt <= (others => '0');
             end if;
 
             if sm_dac = st_judge then
@@ -249,7 +251,7 @@ begin
             if sm_dac = st_end then
                 sm_end_cnt <= sm_end_cnt + '1';
             else
-                sm_end_cnt <= (others=> '0');
+                sm_end_cnt <= (others => '0');
             end if;
 
             cmd <= cmd_pd & cur_d12 & "00";
@@ -258,6 +260,7 @@ begin
         end if;
     end process;
 
+    --# output decode combinational process
     OUTPUT_DECODE : process (sm_timeout_cnt, sm_dac,
                              sm_cmd_cnt, sm_wait_cnt,
                              sm_ready_cnt, sm_end_cnt,
@@ -307,14 +310,14 @@ begin
         end if;
 
         if sm_dac = st_ready and
-           sm_ready_cnt = 4-1 then
+           sm_ready_cnt = 4 - 1 then
             ready_done <= '1';
         else
             ready_done <= '0';
         end if;
 
         if sm_dac = st_end and
-           sm_end_cnt = 4-1 then
+           sm_end_cnt = 4 - 1 then
             end_done <= '1';
         else
             end_done <= '0';
@@ -331,6 +334,7 @@ begin
 
     end process;
 
+    --# next state decode combinational process
     NEXT_STATE_DECODE : process (sm_dac, start_trig,
                                  ready_done, end_done,
                                  cmd_done, wait_done, judge_done)
@@ -373,8 +377,8 @@ begin
 --###########
 --### out ###
     o_reg_pwdac_currlevel <= x"0" & cur_d12;
-    o_clk                 <= clk when clken = '1' else '0';
-    o_syncn               <= not sync;
-    o_data                <= data;
+    o_clk                <= clk when clken = '1' else '0';
+    o_syncn              <= not sync;
+    o_data               <= data;
 
 end architecture behavioral;

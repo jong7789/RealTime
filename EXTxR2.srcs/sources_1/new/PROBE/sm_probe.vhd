@@ -45,12 +45,12 @@ end entity sm_probe;
 
 architecture behavioral of sm_probe is
 
-    constant ms500  : integer := sysclkhz / 2;
-    constant ms100  : integer := sysclkhz / 10;
+    constant ms500   : integer := sysclkhz / 2;
+    constant ms100   : integer := sysclkhz / 10;
     constant fifonum : integer := 9;
-    constant zero : std_logic_vector(12 - 1 downto 0) := (others=> '0');
-    signal   sysclk : std_logic;
-    signal   clk    : std_logic;
+    constant zero    : std_logic_vector(12 - 1 downto 0) := (others => '0');
+    signal   sysclk  : std_logic;
+    signal   clk     : std_logic;
 
     component fifo_sm_reg
         port (
@@ -79,23 +79,23 @@ architecture behavioral of sm_probe is
     signal fi_rd_data_count : std_logic_vector(fifonum - 1 downto 0);
 
     type   type_smsh is array (8 - 1 downto 0) of std_logic_vector(sm_bit - 1 downto 0);
-    signal smSysSh : type_smsh := (others=> (others=>'0'));
-    signal smSh    : type_smsh := (others=> (others=>'0'));
+    signal smSysSh : type_smsh := (others => (others => '0'));
+    signal smSh    : type_smsh := (others => (others => '0'));
 
-    signal smSysCnt : std_logic_vector(32 - 1 downto 0) := (others=> '0');
-    signal smLat    : std_logic_vector(4 - 1 downto 0) := (others=> '0');
+    signal smSysCnt : std_logic_vector(32 - 1 downto 0) := (others => '0');
+    signal smLat    : std_logic_vector(4 - 1 downto 0)  := (others => '0');
 
     -- signal wcntLat : integer range 0 to 8 - 1 := 0;
-    signal cnt    : std_logic_vector(32 - 1 downto 0) := (others=> '0');
-    signal cntLat : std_logic_vector(32 - 1 downto 0) := (others=> '0');
+    signal cnt    : std_logic_vector(32 - 1 downto 0) := (others => '0');
+    signal cntLat : std_logic_vector(32 - 1 downto 0) := (others => '0');
 
-    signal ms100cnt    : std_logic_vector(32 - 1 downto 0) := (others=> '0');
+    signal ms100cnt    : std_logic_vector(32 - 1 downto 0) := (others => '0');
     signal ms100togg   : std_logic := '0';
     signal ms100toggd1 : std_logic := '0';
     signal ms100toggd2 : std_logic := '0';
     signal ms100toggd3 : std_logic := '0';
 
-  -- 211214 mbh counter 16b->32b
+    -- 211214 mbh counter 16b->32b
 
     -- type   type_smcnt is array (sm_num - 1 downto 0) of std_logic_vector(32 - 1 downto 0);
     -- signal smCnt    : type_smcnt := (others=> (others=>'0'));
@@ -134,7 +134,7 @@ architecture behavioral of sm_probe is
     signal next_smw    : std_logic_vector(4 - 1 downto 0) := x"0";
     signal sreg_ready  : std_logic;
     signal sreg_sm_sel : std_logic_vector(4 - 1 downto 0) := x"0";
-    signal high32      : std_logic_vector(32 - 1 downto 0) := (others=> '1');
+    signal high32      : std_logic_vector(32 - 1 downto 0) := (others => '1');
 
     signal oreg_sm_data : std_logic_vector(32 - 1 downto 0);
 
@@ -173,14 +173,15 @@ begin
 
     sysclk <= ISYSCLK;
 
+    --# sm shift register, dead detect, and time counter in sysclk domain
     process (sysclk)
     begin
-        if sysclk'event and sysclk='1' then
-    --
+        if sysclk'event and sysclk = '1' then
+            --
             smSysSh <= smSysSh(8 - 2 downto 0) & sm;
 
             if smSysSh(3) /= smSysSh(2) then
-                smSysCnt <= (others=> '0');
+                smSysCnt <= (others => '0');
             elsif smSysCnt < ms500 then
                 smSysCnt <= smSysCnt + '1';
             end if;
@@ -204,23 +205,24 @@ begin
                 if sm100mCnt < ms100 then
                     sm100mCnt <= sm100mCnt + '1';
                 else
-                    sm100mCnt <= (others=> '0');
+                    sm100mCnt <= (others => '0');
                     smTimeCnt <= smTimeCnt + '1';
                 end if;
             else
-                sm100mCnt <= (others=> '0');
-                smTimeCnt <= (others=> '0');
+                sm100mCnt <= (others => '0');
+                smTimeCnt <= (others => '0');
             end if;
-    --
+            --
         end if;
     end process;
 
     clk <= iclk;
 
+    --# register shift and write enable output in iclk domain
     SYNC_PROC : process (clk)
     begin
-        if (clk'event and clk= '1') then
-      -- ### reg shift
+        if (clk'event and clk = '1') then
+            -- ### reg shift
             sreg_sm_ctrl_s0 <= ireg_sm_ctrl;
             sreg_sm_ctrl_s1 <= sreg_sm_ctrl_s0;
             smWriteTime     <= sreg_sm_ctrl_s1(32 - 1 downto 16);
@@ -229,7 +231,7 @@ begin
             smw          <= next_smw;
             r2_smTimeCnt <= r1_smTimeCnt; r1_smTimeCnt <= r0_smTimeCnt; r0_smTimeCnt <= smTimeCnt;
 
-      -- # output
+            -- # output
             if next_smw = x"1" then
                 smWriteEn <= '1';
             else
@@ -238,7 +240,8 @@ begin
         end if;
     end process;
 
-    NEXT_STATE_DECODE : process (smw, smWriteTime, smWriteTime0,  r2_smTimeCnt)
+    --# next state decode for write state machine
+    NEXT_STATE_DECODE : process (smw, smWriteTime, smWriteTime0, r2_smTimeCnt)
     begin
         next_smw <= smw;
         if smWriteTime = 0 then
@@ -247,7 +250,7 @@ begin
 
             case (smw) is
                 when x"0" => -- # idle
-                    if smWriteTime0=0 and smWriteTime /= 0 then
+                    if smWriteTime0 = 0 and smWriteTime /= 0 then
                         next_smw <= x"1";
                     end if;
                 when x"1" => -- # count wait time
@@ -261,21 +264,22 @@ begin
         end if;
     end process;
 
+    --# sm change detect and counter latch in iclk domain
     process (clk)
     begin
-        if clk'event and clk='1' then
-    --
+        if clk'event and clk = '1' then
+            --
             smWriteEn_d0 <= smWriteEn;
             smSh         <= smSh(8 - 2 downto 0) & sm;
 
             if smWriteEn = '1' then
                 if smSh(1) /= smSh(0) or
                    smWriteEn_d0 = '0' then -- least 1 write enable
-                    smEn <= '1';
+                    smEn   <= '1';
                     --wcntLat <= wcntLat + 1;
                     smLat  <= x"0" + smSh(1);
                     cntLat <= cnt;
-                    cnt    <= (others=> '0');
+                    cnt    <= (others => '0');
                 else
                     smEn <= '0';
                     if cnt < high32 then -- x"FFFF_FFFF" then -- 2 ** 32 - 2 then
@@ -284,7 +288,7 @@ begin
                 end if;
             else
                 --wcntLat <= 0;
-                cnt  <= (others=> '0');
+                cnt  <= (others => '0');
                 smEn <= '0';
             end if;
 
@@ -306,12 +310,12 @@ begin
             --     end if;
             -- end if;
 
-    --
+            --
         end if;
     end process;
 
     fi_wr_clk <= clk;
-    fi_wr_en  <= smEn when fi_full ='0' else '0';
+    fi_wr_en  <= smEn when fi_full = '0' else '0';
     fi_din    <= smLat & cntLat;
 --    36b     <=      4b &  32b ;
 
@@ -331,24 +335,25 @@ begin
         );
     fi_rd_clk <= sysclk;
 
+    --# fifo read control and register output in sysclk domain
     process (sysclk)
     begin
-        if sysclk'event and sysclk='1' then
-    --
-      -- ##### Write reg #####
-      -- ### (0)     : Read Enable
-      -- ### (1)     : Read Trigger
-      -- ### (2)     : Read data "Page" 32bit selection
-    -- ### (7:4)   : sm selection
-      -- ### (31:16) : write time
-      -- ##### Read reg #####
-      -- ### "Page 0"
-        -- ### (0)     : sm stop flag
-        -- ### (4:1)   : sm name
-        -- ### (14:5)  : sm fifo count
-        -- ### (31:16) : write time counter
-      -- ### "Page 1"
-        -- ### (31:0 ) : sm time counted value
+        if sysclk'event and sysclk = '1' then
+            --
+            -- ##### Write reg #####
+            -- ### (0)     : Read Enable
+            -- ### (1)     : Read Trigger
+            -- ### (2)     : Read data "Page" 32bit selection
+            -- ### (7:4)   : sm selection
+            -- ### (31:16) : write time
+            -- ##### Read reg #####
+            -- ### "Page 0"
+            -- ### (0)     : sm stop flag
+            -- ### (4:1)   : sm name
+            -- ### (14:5)  : sm fifo count
+            -- ### (31:16) : write time counter
+            -- ### "Page 1"
+            -- ### (31:0 ) : sm time counted value
             sreg_sm_ctrl_d0 <= ireg_sm_ctrl;
             sreg_sm_ctrl_d1 <= sreg_sm_ctrl_d0;
             sreg_ready      <= sreg_sm_ctrl_d1(0);
@@ -358,9 +363,9 @@ begin
             sreg_sm_sel     <= sreg_sm_ctrl_d1(7 downto 4);
             if sreg_ready = '0' then
                 fi_rd_en <= not fi_empty; -- make empty
-             -- fi_rd_en <= '1';          -- make empty --# 230515 misunderstand  
-            elsif sreg_read_trig1='0' and sreg_read_trig0='1' and -- rising
-                 sreg_sm_sel = sm_num then                        -- compare sm_selection
+                -- fi_rd_en <= '1';          -- make empty --# 230515 misunderstand
+            elsif sreg_read_trig1 = '0' and sreg_read_trig0 = '1' and -- rising
+                  sreg_sm_sel = sm_num then                            -- compare sm_selection
                 fi_rd_en <= '1';
             else
                 fi_rd_en <= '0';
@@ -368,15 +373,15 @@ begin
 
             smTimeCnt_s2 <= smTimeCnt_s1; smTimeCnt_s1 <= smTimeCnt_s0; smTimeCnt_s0 <= smTimeCnt;
             if sreg_read_page = '0' then
-        -- 32b       <= 16b + '0' + 10b(total) + 4b(sm) + 1b(stop)
+                -- 32b       <= 16b + '0' + 10b(total) + 4b(sm) + 1b(stop)
                 oreg_sm_data <= smTimeCnt_s2 &
-                                zero(10-fifonum downto 0) & fi_rd_data_count(fifonum - 1 downto 0) &
+                                zero(10 - fifonum downto 0) & fi_rd_data_count(fifonum - 1 downto 0) &
                                 fi_dout(32 + 4 - 1 downto 32) &
                                 reg_stopped;
             else
                 oreg_sm_data <= fi_dout(32 - 1 downto 0);
             end if;
-    --
+            --
         end if;
     end process;
 
