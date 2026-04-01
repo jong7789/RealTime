@@ -9,6 +9,10 @@
 #define SRC_FPGA_INFO_H_
 
 #include <xparameters.h>
+// Compatibility: old BSP uses XPAR_M1_AXI_GEV_BASEADDR, new BSP uses XPAR__CPU4DDR_I_M1_AXI_GEV_BASEADDR
+#ifndef XPAR__CPU4DDR_I_M1_AXI_GEV_BASEADDR
+#define XPAR__CPU4DDR_I_M1_AXI_GEV_BASEADDR XPAR_M1_AXI_GEV_BASEADDR
+#endif
 #include "xil_types.h"
 #include "func_printf.h"
 //#include "model_sel.h" //# 221018
@@ -248,7 +252,8 @@ extern char HW_VER[16];
 //#define XGIGE_REGS    XPAR_EPC_0_PRH0_BASEADDR
 //#define VIDEO_REGS    XPAR_M_AXIL_REG_BASEADDR
 #define FPGA_REGS    XPAR_AXI_EPC_0_PRH0_BASEADDR
-#define XGIGE_REGS    XPAR_M1_AXI_GEV_BASEADDR
+//#define XGIGE_REGS    XPAR_M1_AXI_GEV_BASEADDR
+#define XGIGE_REGS XPAR__CPU4DDR_I_M1_AXI_GEV_BASEADDR //$ 260401
 #define DDR3_REGS    XPAR_SDRAM_0_BASEADDR
 #define DDR3_CALIB_REGS   FPGA_DDR_BASEADDR
 

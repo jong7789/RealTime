@@ -241,7 +241,9 @@ int main(void)
     eeprom_access_mode = I2C_ACC_COMMON;
 
     // Initialize (X)GigE core
-    gige_init(0, XPAR_M1_AXI_GEV_BASEADDR, DEV_MODE_TX, XPAR_CPU_M_AXI_DP_FREQ_HZ,
+//    gige_init(0, XPAR_M1_AXI_GEV_BASEADDR, DEV_MODE_TX, XPAR_CPU_M_AXI_DP_FREQ_HZ,
+//              PHY_NBASET_MRVL, GIGE_PHY_ADDR, 2500000, 0, SCPS_MAX, DBG_ICMP);
+    gige_init(0, XPAR__CPU4DDR_I_M1_AXI_GEV_BASEADDR, DEV_MODE_TX, XPAR_CPU_M_AXI_DP_FREQ_HZ,
               PHY_NBASET_MRVL, GIGE_PHY_ADDR, 2500000, 0, SCPS_MAX, DBG_ICMP);
 
     gige_set_data_rates(200, 10000);                    // f(tx_stm_clk) = 200MHz, 10Gbps Ethernet link

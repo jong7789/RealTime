@@ -22,10 +22,14 @@
 
 // ---- SPI flash memory control registers -------------------------------------
 
-// SPI controller base addresses
-#define GIGE_SPI_REGS   (XPAR_M1_AXI_GEV_BASEADDR + 0x0000F000)
-#define GIGE_SPI_WBUF   (XPAR_M1_AXI_GEV_BASEADDR + 0x0000F800)
-#define GIGE_SPI_RBUF   (XPAR_M1_AXI_GEV_BASEADDR + 0x0000FC00)
+//// SPI controller base addresses
+//#define GIGE_SPI_REGS   (XPAR_M1_AXI_GEV_BASEADDR + 0x0000F000)
+//#define GIGE_SPI_WBUF   (XPAR_M1_AXI_GEV_BASEADDR + 0x0000F800)
+//#define GIGE_SPI_RBUF   (XPAR_M1_AXI_GEV_BASEADDR + 0x0000FC00)
+//$ 260401
+#define GIGE_SPI_REGS   (XPAR__CPU4DDR_I_M1_AXI_GEV_BASEADDR + 0x0000F000)
+#define GIGE_SPI_WBUF   (XPAR__CPU4DDR_I_M1_AXI_GEV_BASEADDR + 0x0000F800)
+#define GIGE_SPI_RBUF   (XPAR__CPU4DDR_I_M1_AXI_GEV_BASEADDR + 0x0000FC00)
 
 // SPI flash memory controller registers
 #define gige_spi_gcsr   (*(volatile u32 *)(GIGE_SPI_REGS + 0x0000))
