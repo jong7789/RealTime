@@ -428,7 +428,7 @@ extern char HW_VER[16];
 #define MAX_DGAIN   1600
 // TI_ROIC
 #define MIN_IFS         0 // #0.3 roic gain added 220706mbh
-#define MAX_IFS        39 //$ 260224 31->39
+#define MAX_IFS        16 //$ 260224 31->39 //$ 260403 39->16
 
 //#ifdef EXT4343R
 //    #define TFT_TIMING_MODE   3

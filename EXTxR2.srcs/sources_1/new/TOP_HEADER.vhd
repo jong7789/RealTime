@@ -11,8 +11,9 @@ package TOP_HEADER is
 
 --constant FPGA_VER  : std_logic_vector(19 downto 0) := x"1_99_00"; --# 1st image
     constant FPGA_VER  : std_logic_vector(19 downto 0) := x"2_01_11"; --(ti1,adi0_MainVer_subVer)
-constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0323_17";
+constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0401_10";
 
+-- # 2_01_11 26_0401_10 :  $ ila test
 -- # 2_01_11 26_0323_17 :  $ 2DDR & 4DDR
 -- # 2_01_11 26_0320_11 :  rxaui bufh, sfp bypass
 -- # 2_01_11 26_0320_10 :  --# bufh-> bufg 250320
@@ -1310,7 +1311,7 @@ PACKAGE BODY TOP_HEADER is
     function DDR_BY_MODEL (s : string) return integer is
         variable val : integer;
     begin
-        if(s = "EXT4343RD"  ) then val := 4;
+        if(s = "EXT4343RD"  ) then val := 2;
         else                       val := 2;
         end if;
         return (val);

@@ -134,12 +134,7 @@ architecture behavioral of TI_LVDS_RX is
     signal sbitslip_cnt : tbitslip_cnt;
 
     signal scurr_data    : std_logic_vector(23 downto 0);
-    signal scurr_data_d0 : std_logic_vector(23 downto 0);
-    signal scurr_data_d1 : std_logic_vector(23 downto 0);
-    signal scurr_data_d2 : std_logic_vector(23 downto 0);
     signal sprev_data    : std_logic_vector(23 downto 0);
-    signal sprev_data_d0 : std_logic_vector(23 downto 0);
-    signal sprev_data_d1 : std_logic_vector(23 downto 0);
 
     type   teye_data is array (0 to ROIC_NUM(GNR_MODEL)-1) of std_logic_vector(5 downto 0);
     signal seye_start : teye_data;
@@ -168,7 +163,6 @@ architecture behavioral of TI_LVDS_RX is
     signal ireg_bcal_ctrl_1d : std_logic_vector(31 downto 0);
     signal ireg_bcal_ctrl_2d : std_logic_vector(31 downto 0);
     signal sreg_bcal_ctrl    : std_logic_vector(31 downto 0);
-    signal sreg_bcal_data    : std_logic_vector(31 downto 0);
 
     type type_sreg_bcal_data_array is array (0 to ROIC_NUM(GNR_MODEL)-1) of std_logic_vector(32-1 downto 0);
     signal sreg_bcal_data_array : type_sreg_bcal_data_array;
@@ -181,14 +175,7 @@ architecture behavioral of TI_LVDS_RX is
 
     signal rclk_ch         : std_logic_vector(ROIC_NUM(GNR_MODEL)-1 downto 0);
     signal rclk_sel        : std_logic;
-    signal rclk_sel_bufgin : std_logic;
 
-    signal clk_mux_a  : std_logic;
-    signal clk_mux_b  : std_logic;
-    signal clk_mux_c  : std_logic;
-    signal clk_mux_d  : std_logic;
-    signal clk_mux_ab : std_logic;
-    signal clk_mux_cd : std_logic;
     signal sel         : std_logic_vector(2 downto 0) := "000";
 
     signal sroic_dvalidch_1d : std_logic_vector(ROIC_NUM(GNR_MODEL)-1 downto 0);
@@ -214,8 +201,6 @@ architecture behavioral of TI_LVDS_RX is
     signal sel0    : std_logic := '0';
     signal notsel1 : std_logic := '0';
     signal sel1    : std_logic := '0';
-    signal notsel2 : std_logic := '0';
-    signal sel2    : std_logic := '0';
 
     signal idle_ce_or  : std_logic_vector(ROIC_NUM(GNR_MODEL)-1 downto 0);
     signal idle_rst_or : std_logic_vector(ROIC_NUM(GNR_MODEL)-1 downto 0);
@@ -241,6 +226,9 @@ architecture behavioral of TI_LVDS_RX is
     signal sdata_ff00_ch0 : std_logic;
     signal sdata_ff00_ch1 : std_logic;
     signal sdata_ff00_ch  : std_logic;
+    
+    signal clk_mux_a : std_logic;
+    signal clk_mux_b : std_logic;
 
 begin --# %begin
 
@@ -1185,69 +1173,38 @@ ILA_LVDS_RX_DEBUG : if(GEN_ILA_lvds_rx_2 = "ON") generate
     COMPONENT ILA_LVDS_RX
     PORT (
         clk     : IN STD_LOGIC;
-        probe0  : IN tstate_align_ctrl;
-        probe1  : IN tstate_align;
-        probe2  : IN tstate_eye;
-        probe3  : IN tstate_dvalid;
-        probe4  : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
-        probe5  : IN STD_LOGIC_VECTOR(3 DOWNTO 0);
-        probe6  : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
-        probe7  : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
-        probe8  : IN STD_LOGIC_VECTOR(11 DOWNTO 0);
-        probe9  : IN STD_LOGIC_VECTOR(11 DOWNTO 0);
-        probe10 : IN STD_LOGIC_VECTOR(11 DOWNTO 0);
-        probe11 : IN STD_LOGIC_VECTOR(23 DOWNTO 0);
-        probe12 : IN STD_LOGIC_VECTOR(23 DOWNTO 0);
-        probe13 : IN STD_LOGIC_VECTOR(5 DOWNTO 0);
-        probe14 : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
-        probe15 : IN STD_LOGIC_VECTOR(23 DOWNTO 0);
-        probe16 : IN STD_LOGIC_VECTOR(23 DOWNTO 0);
-        probe17 : IN STD_LOGIC_VECTOR(23 DOWNTO 0);
-        probe18 : IN STD_LOGIC_VECTOR(23 DOWNTO 0);
-        probe19 : IN STD_LOGIC_VECTOR(5 DOWNTO 0);
-        probe20 : IN STD_LOGIC_VECTOR(5 DOWNTO 0);
-        probe21 : IN STD_LOGIC_VECTOR(5 DOWNTO 0);
-        probe22 : IN STD_LOGIC_VECTOR(5 DOWNTO 0);
-        probe23 : IN STD_LOGIC_VECTOR(4 DOWNTO 0);
-        probe24 : IN STD_LOGIC_VECTOR(11 DOWNTO 0);
-        probe25 : IN STD_LOGIC_VECTOR(11 DOWNTO 0);
-        probe26 : IN STD_LOGIC_VECTOR(11 DOWNTO 0);
-        probe27 : IN STD_LOGIC_VECTOR(11 DOWNTO 0)
+        probe0  : IN STD_LOGIC_VECTOR(0  DOWNTO 0);   -- idata_ser
+        probe1  : IN STD_LOGIC_VECTOR(23 DOWNTO 0);   -- odata_par
+        probe2  : IN STD_LOGIC_VECTOR(0  DOWNTO 0);   -- odata_val
+        probe3  : IN STD_LOGIC_VECTOR(0  DOWNTO 0);   -- odata_diff
+        probe4  : IN STD_LOGIC_VECTOR(0  DOWNTO 0);   -- odata_ff00
+        probe5  : IN STD_LOGIC_VECTOR(0  DOWNTO 0);   -- obitslipm
+        probe6  : IN STD_LOGIC_VECTOR(4  DOWNTO 0);   -- obitslipc
+        probe7  : IN STD_LOGIC_VECTOR(4  DOWNTO 0);   -- ocntvalue
+        probe8  : IN STD_LOGIC_VECTOR(4  DOWNTO 0);   -- oser_cnt
+        probe9  : IN STD_LOGIC_VECTOR(0  DOWNTO 0);   -- ireg_req_align
+        probe10 : IN STD_LOGIC_VECTOR(0  DOWNTO 0);   -- idly_ce
+        probe11 : IN STD_LOGIC_VECTOR(0  DOWNTO 0);   -- idly_rst
+        probe12 : IN STD_LOGIC_VECTOR(0  DOWNTO 0)    -- ibitslip
     );
     END COMPONENT;
 begin
-    ila_sdata_ch <= conv_std_logic_vector(sdata_ch, 5);
     U0_ILA_LVDS_RX : ILA_LVDS_RX
     PORT MAP (
         clk        => isys_clk,
-        probe0     => state_align_ctrl,
-        probe1     => state_align,
-        probe2     => state_eye,
-        probe3     => state_dvalid(0),
-        probe4(0)  => sroic_dvalid_3d,
-        probe5     => ila_sdata_ch,
-        probe6(0)  => sreg_req_align_3d,
-        probe7(0)  => salign_done,
-        probe8     => sdly_rst,
-        probe9     => sdly_ce,
-        probe10    => sbitslip,
-        probe11    => sprev_data,
-        probe12    => scurr_data,
-        probe13    => stap_cnt,
-        probe14    => swait_cnt,
-        probe15    => sprev_data_d0,
-        probe16    => sprev_data_d1,
-        probe17    => scurr_data_d0,
-        probe18    => scurr_data_d1,
-        probe19    => seye_start(0),
-        probe20    => seye_mid(0),
-        probe21    => seye_end(0),
-        probe22    => serr_cnt,
-        probe23    => sbitslip_cnt(0)(4 downto 0),
-        probe24    => svcnt(0),
-        probe25    => shcnt(0),
-        probe26    => svcnt_all,
-        probe27    => sdata_val
+        probe0(0)  => iroic_data(0),
+        probe1     => sdata_par(0),
+        probe2(0)  => sdata_val(0),
+        probe3(0)  => sdata_diff(0),
+        probe4(0)  => sdata_ff00(0),
+        probe5(0)  => obitslipm(0),
+        probe6     => obitslipc(0),
+        probe7     => ocntvalue(0),
+        probe8     => oser_cnt(0),
+        probe9(0)  => sreg_req_align_3d,
+        probe10(0) => sd_ser_dly(0),
+        probe11(0) => sd_ser_rst(0),
+        probe12(0) => sd_ser_bit(0)
     );
 end generate;
 

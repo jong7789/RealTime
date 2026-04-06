@@ -21,3 +21,6 @@
     "github@claude-plugins-official": true
   }
 }
+{
+  "enablePowerShellTool": true
+}

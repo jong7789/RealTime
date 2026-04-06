@@ -12,7 +12,7 @@ set_property BITSTREAM.CONFIG.SPI_32BIT_ADDR YES [current_design]
 set_property BITSTREAM.CONFIG.TIMER_CFG 32'h00100000 [current_design]
 ##################################################################################
 set_property BITSTREAM.CONFIG.CONFIGRATE 33 [current_design]
-connect_debug_port dbg_hub/clk [get_nets clk]
+#connect_debug_port dbg_hub/clk [get_nets clk]
 
 # █▀█ █▀█ █ █▀▀  ▄▀█
 # █▀▄ █▄█ █ █▄▄  █▀█ %roic

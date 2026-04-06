@@ -337,6 +337,7 @@ set_clock_groups -asynchronous -group [get_clocks -of_objects [get_pins GEV_CPU0
 set_clock_groups -asynchronous -group [get_clocks -of_objects [get_pins GEV_CPU0.CPU_2DDR/cpu_i/sdram_0/u_cpu_sdram_0_0_mig/u_ddr3_infrastructure/gen_mmcm.mmcm_i/CLKFBOUT]] -group [get_clocks -of_objects [get_pins GEV_CPU0.CPU_2DDR/cpu_i/clk_wiz_0/inst/CLK_CORE_DRP_I/clk_inst/mmcm_adv_inst/CLKOUT1]]
 set_clock_groups -asynchronous -group [get_clocks -of_objects [get_pins U0_TI_TFT_TOP/U0_TI_CLOCK_MANAGER/CLK_GEN/inst/plle2_adv_inst/CLKOUT1]] -group [get_clocks -of_objects [get_pins GEV_CPU0.CPU_2DDR/cpu_i/clk_wiz_0/inst/CLK_CORE_DRP_I/clk_inst/mmcm_adv_inst/CLKOUT0]]
 set_clock_groups -asynchronous -group [get_clocks -of_objects [get_pins GEV_CPU0.CPU_2DDR/cpu_i/clk_wiz_0/inst/CLK_CORE_DRP_I/clk_inst/mmcm_adv_inst/CLKOUT0]] -group [get_clocks -of_objects [get_pins U0_TI_TFT_TOP/U0_TI_CLOCK_MANAGER/CLK_GEN/inst/plle2_adv_inst/CLKOUT1]]
+set_clock_groups -asynchronous -group [get_clocks -of_objects [get_pins GEV_CPU0.CPU_2DDR/cpu_i/clk_wiz_0/inst/CLK_CORE_DRP_I/clk_inst/mmcm_adv_inst/CLKOUT0]] -group [get_clocks -of_objects [get_pins GEV_CPU0.CPU_2DDR/cpu_i/clk_wiz_0/inst/CLK_CORE_DRP_I/clk_inst/mmcm_adv_inst/CLKOUT1]]
 
 # SFP async
 set_clock_groups -asynchronous -group [get_clocks GEV_RXAUI/U1/U0/rxaui_block_i/gt0_wrapper_i/gtxe2_i/TXOUTCLK] -group [get_clocks sfp_ref_clk_p]

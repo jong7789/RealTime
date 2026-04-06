@@ -84,10 +84,13 @@
 		04. //$ 260303 AFE3256 ROIC TEMP Sensor
 		05. //$ 260305 AFE3256 Digital Offset Correction
 		06. //$ 260317 EXT3643R Model ADD
+        07. //$ 260401 SFP & LAN
+        08. //$ 260402
+        09. //$ 260403 Analog Gain 40 -> 12 step
 *****************************************************************************/
 
-u8  GIGE_DVER   [16] = "SW2.06.03      "; // SW1.SUB.MAIN version
-u8  FW_DATE     [20] = "2026.03.17 17:00";
+u8  GIGE_DVER   [16] = "SW2.08.03      "; // SW1.SUB.MAIN version
+u8  FW_DATE     [20] = "2026.04.03 14:30";
 
 /****************************************************************************
 timing profile => system_config

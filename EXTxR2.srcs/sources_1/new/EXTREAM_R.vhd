@@ -47,7 +47,7 @@ library UNISIM;
 
 entity EXTREAM_R is
 --    generic ( GNR_MODEL : string  := "EXT1616R" );
-    generic ( GNR_MODEL : string  := "EXT3643R" );
+    generic ( GNR_MODEL : string  := "EXT4343RD" );
     port   (
             SYSTEM_CLK_P : in    std_logic;
             SYSTEM_CLK_N : in    std_logic;

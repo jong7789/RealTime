@@ -67,8 +67,9 @@ void uart_command(void) {
         RecvByte = XUartLite_RecvByte(XPAR_UARTLITE_0_BASEADDR);
         if(RecvByte >= 'A' && RecvByte <= 'Z')    RecvByte += 0x20;
 
-        if(RecvByte == 0x08) // BackSpace
-            str[--pos] = 0;
+        if(RecvByte == 0x08){ // BackSpace
+            if(pos > 0) str[--pos] = 0; //$ 260402 underflow
+        }
         else if(RecvByte == 0x3D )     { // equal = copy command // mbh 210526
             memcpy(str, pre_str, sizeof(str));    // Input Data
             command_execute((char*)str);        // Command Execute
@@ -79,7 +80,9 @@ void uart_command(void) {
             command_execute((char*)str);        // Command Execute
             func_printf("prev2_command\r\n");
         }
-        else if(RecvByte != '\n' && RecvByte != '\r')     str[pos++] = RecvByte;    // Input Data
+        else if(RecvByte != '\n' && RecvByte != '\r'){
+            if(pos < sizeof(str) - 1) str[pos++] = RecvByte;    // Input Data   //$ 260402 overflow
+        }     
         else if(RecvByte == '\n' || RecvByte == '\t') {
             str[pos] = '\0';                    // Finish
             command_execute((char*)str);        // Command Execute
@@ -613,7 +616,8 @@ void roic_3256_init(Profile_Def *profile){
 
     //$ Input Charge Range Selection
     execute_cmd_wroic(0x82,  0x0808);                  // Input Charge Range 1.25pC
-    func_ifs_index = 3; 							   //$ 260305 1.25pC => index : 3
+    //func_ifs_index = 3; 							   //$ 260305 1.25pC => index : 3
+    func_ifs_index = 2; 							   //$ 260403 1.25pC => index : 2 (12 step)
 
     //$ Integration Mode Selection (Integrate up)
     execute_cmd_wroic(0x80,  0x080D);
@@ -1906,6 +1910,7 @@ void execute_calib_cmd(void) {
     switch(func_calib_cmd) {
         case 1    :    func_busy = 1;
         			if(AFE3256_series){ //$ 260305
+                        func_busy_time = 300;
         				execute_cmd_doc();
         			}
         			else{
@@ -2195,18 +2200,28 @@ void read_fpga_temp(void) {
 //}
 
 //$ 260224
+//u32 AFE3256_Cfb (u32 data){
+//	u32 n = data + 1;
+//	u32 value = 0;
+//
+//	if(n >= 16) { value |= 0x40; n -= 16; }
+//	if(n >=  8) { value |= 0x20; n -=  8; }
+//	if(n >=  8) { value |= 0x10; n -=  8; }
+//	if(n >=  4) { value |= 0x08; n -=  4; }
+//	if(n >=  2) { value |= 0x04; n -=  2; }
+//	if(n >=  1) { value |= 0x02; n -=  1; }
+//	if(n >=  1) { value |= 0x01;          }
+//	return value;
+//}
+//$ 260403 Reduce AFE3256 Cfb from 40 to 12 steps
 u32 AFE3256_Cfb (u32 data){
-	u32 n = data + 1;
-	u32 value = 0;
-
-	if(n >= 16) { value |= 0x40; n -= 16; }
-	if(n >=  8) { value |= 0x20; n -=  8; }
-	if(n >=  8) { value |= 0x10; n -=  8; }
-	if(n >=  4) { value |= 0x08; n -=  4; }
-	if(n >=  2) { value |= 0x04; n -=  2; }
-	if(n >=  1) { value |= 0x02; n -=  1; }
-	if(n >=  1) { value |= 0x01;          }
-	return value;
+	const u32 cfb_table[12] = {
+// Step : 0      1      2      3      4      5      6      7      8      9      10     11
+// QFS  : 0.3125 0.625  1.250  2.500  3.750  5.000  6.250  7.500  8.750  10.00  11.25  12.50 (pC)
+		  0x01,  0x04,  0x08,  0x10,  0x18,  0x40,  0x48,  0x60,  0x68,  0x70,  0x78,  0x7F
+	};
+	if(data > 11) data = 11;
+	return cfb_table[data];
 }
 // TI_ROIC
 void set_roic_data(u32 num, u32 data) {

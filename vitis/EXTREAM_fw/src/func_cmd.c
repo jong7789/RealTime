@@ -436,19 +436,38 @@ void execute_cmd_bmode_gain(u32 data) { //# 0.3 gain support 221208
     u32 prev = (func_binning_mode + 2) >> 1;
 
     //$ 260224 AFE3256 Analog Gain
+    //if(AFE3256_series){
+    //	u32 idx = func_ifs_index;
+    //
+    //	idx = (u32)((idx+1) * ((float)curr/prev));
+    //
+    //	//$ 260224 to prevent under/over flow
+    //	if (idx <  1) idx =  1;
+    //	idx = idx - 1;
+    //	//if (idx > 39) idx = 39;
+    //	if (idx > 11) idx = 11; //$ 260403 12 step
+    //
+    //	func_ifs_index = idx;
+    //	set_roic_data(1, AFE3256_Cfb(idx));
+    //	if(DBG_BGAIN) func_printf("[DBG_BGAIN] AFE3256 idx = %d \r\n", idx);
+    //}
+    //$ 260403 AFE3256 Analog Gain - QFS based scaling for 12 step
     if(AFE3256_series){
+    	// QFS x16 table (integer): 0.3125*16=5, 0.625*16=10, ... 12.5*16=200
+    	const u32 qfs_x16[12] = {5, 10, 20, 40, 60, 80, 100, 120, 140, 160, 180, 200};
     	u32 idx = func_ifs_index;
+    	u32 target = qfs_x16[idx] * curr / prev;
+    	u32 new_idx = 0;
+    	u32 i;
 
-    	idx = (u32)((idx+1) * ((float)curr/prev));
+    	for(i = 0; i < 12; i++){
+    		if(qfs_x16[i] <= target) new_idx = i;
+    		else break;
+    	}
 
-    	//$ 260224 to prevent under/over flow
-    	if (idx <  1) idx =  1;
-    	idx = idx - 1;
-    	if (idx > 39) idx = 39;
-
-    	func_ifs_index = idx;
-    	set_roic_data(1, AFE3256_Cfb(idx));
-    	if(DBG_BGAIN) func_printf("[DBG_BGAIN] AFE3256 idx = %d \r\n", idx);
+    	func_ifs_index = new_idx;
+    	set_roic_data(1, AFE3256_Cfb(new_idx));
+    	if(DBG_BGAIN) func_printf("[DBG_BGAIN] AFE3256 idx = %d \r\n", new_idx);
     }
     else { //$ AFE2256
     	u32 ifs = get_roic_data(0);
@@ -6446,8 +6465,14 @@ void execute_cmd_fpgareboot(void) {
 }
 void execute_cmd_doc(void){ //$ 260305
    	u32 timeoutcnt = 0;
+    u32 grab = func_grab_en;
 
    	func_printf("Digital Offset Correction...");
+
+    REG(ADDR_FW_BUSY) = 1;
+    execute_cmd_grab(0);
+    msdelay(50);
+
 	execute_cmd_wroic(0x0D,  0x4800);
     execute_cmd_wroic(0x94,  0x8001);
     execute_cmd_wroic(0x89,  0x3230);
@@ -6471,6 +6496,9 @@ void execute_cmd_doc(void){ //$ 260305
     execute_cmd_wroic(0x94,  0x0001);
     execute_cmd_wroic(0x89,  0x3000);
     execute_cmd_wroic(0x80,  0x080D);
+
+    execute_cmd_grab(grab);
+    REG(ADDR_FW_BUSY) = 0;
 
     func_printf("\t DONE \r\n");
 }

@@ -43,7 +43,7 @@
 			<item key="ignoreCase" value="true"/>
 			<item key="isRegExSearch" value="false"/>
 			<item key="isWholeWord" value="false"/>
-			<item key="textPattern" value="AFE3256"/>
+			<item key="textPattern" value="MAX_IFS"/>
 			<item key="scope" value="0"/>
 			<list key="fileNamePatterns">
 				<item value="*.*"/>
@@ -60,7 +60,7 @@
 			<item key="ignoreCase" value="true"/>
 			<item key="isRegExSearch" value="false"/>
 			<item key="isWholeWord" value="false"/>
-			<item key="textPattern" value="0x0404"/>
+			<item key="textPattern" value="cfb_table"/>
 			<item key="scope" value="0"/>
 			<list key="fileNamePatterns">
 				<item value="*.*"/>
@@ -72,7 +72,7 @@
 			<item key="ignoreCase" value="true"/>
 			<item key="isRegExSearch" value="false"/>
 			<item key="isWholeWord" value="false"/>
-			<item key="textPattern" value="0x0202"/>
+			<item key="textPattern" value="AFE3256_Cfb"/>
 			<item key="scope" value="0"/>
 			<list key="fileNamePatterns">
 				<item value="*.*"/>
@@ -84,7 +84,7 @@
 			<item key="ignoreCase" value="true"/>
 			<item key="isRegExSearch" value="false"/>
 			<item key="isWholeWord" value="false"/>
-			<item key="textPattern" value="0x0101"/>
+			<item key="textPattern" value="afe3256"/>
 			<item key="scope" value="0"/>
 			<list key="fileNamePatterns">
 				<item value="*.*"/>
@@ -96,7 +96,7 @@
 			<item key="ignoreCase" value="true"/>
 			<item key="isRegExSearch" value="false"/>
 			<item key="isWholeWord" value="false"/>
-			<item key="textPattern" value="0x82"/>
+			<item key="textPattern" value="ifs"/>
 			<item key="scope" value="0"/>
 			<list key="fileNamePatterns">
 				<item value="*.*"/>
@@ -108,7 +108,7 @@
 			<item key="ignoreCase" value="true"/>
 			<item key="isRegExSearch" value="false"/>
 			<item key="isWholeWord" value="false"/>
-			<item key="textPattern" value="func_edge_mask_left"/>
+			<item key="textPattern" value="0x0808"/>
 			<item key="scope" value="0"/>
 			<list key="fileNamePatterns">
 				<item value="*.*"/>
@@ -120,7 +120,7 @@
 			<item key="ignoreCase" value="true"/>
 			<item key="isRegExSearch" value="false"/>
 			<item key="isWholeWord" value="false"/>
-			<item key="textPattern" value="//$"/>
+			<item key="textPattern" value="0404"/>
 			<item key="scope" value="0"/>
 			<list key="fileNamePatterns">
 				<item value="*.*"/>
@@ -132,7 +132,7 @@
 			<item key="ignoreCase" value="true"/>
 			<item key="isRegExSearch" value="false"/>
 			<item key="isWholeWord" value="false"/>
-			<item key="textPattern" value="left="/>
+			<item key="textPattern" value="AFE3256"/>
 			<item key="scope" value="0"/>
 			<list key="fileNamePatterns">
 				<item value="*.*"/>
@@ -144,7 +144,7 @@
 			<item key="ignoreCase" value="true"/>
 			<item key="isRegExSearch" value="false"/>
 			<item key="isWholeWord" value="false"/>
-			<item key="textPattern" value="edge"/>
+			<item key="textPattern" value="0x0404"/>
 			<item key="scope" value="0"/>
 			<list key="fileNamePatterns">
 				<item value="*.*"/>
@@ -156,7 +156,7 @@
 			<item key="ignoreCase" value="true"/>
 			<item key="isRegExSearch" value="false"/>
 			<item key="isWholeWord" value="false"/>
-			<item key="textPattern" value="read_roic_temp"/>
+			<item key="textPattern" value="0x0202"/>
 			<item key="scope" value="0"/>
 			<list key="fileNamePatterns">
 				<item value="*.*"/>
@@ -168,7 +168,7 @@
 			<item key="ignoreCase" value="true"/>
 			<item key="isRegExSearch" value="false"/>
 			<item key="isWholeWord" value="false"/>
-			<item key="textPattern" value="ADDR_MPC_POSOFFSET"/>
+			<item key="textPattern" value="0x0101"/>
 			<item key="scope" value="0"/>
 			<list key="fileNamePatterns">
 				<item value="*.*"/>
@@ -180,7 +180,7 @@
 			<item key="ignoreCase" value="true"/>
 			<item key="isRegExSearch" value="false"/>
 			<item key="isWholeWord" value="false"/>
-			<item key="textPattern" value="mpc"/>
+			<item key="textPattern" value="0x82"/>
 			<item key="scope" value="0"/>
 			<list key="fileNamePatterns">
 				<item value="*.*"/>

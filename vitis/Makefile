@@ -169,8 +169,8 @@ CC_BFLAGS   = -D _OFFSET_BIT_=0x0000 -D _MAX_BIT_=0xC00000 \
               -D _OFFSET_XML_=0x00C2 -D _MAX_XML_=0x0E0000 \
               -D _OFFSET_APP_=0x00D0 -D _MAX_APP_=0x200000 \
               -D _OFFSET_AP2_=0x0FE0 -D _MAX_AP2_=0x0F0000 \
-#             -D GIGE_REGS=XPAR_M1_AXI_GEV_BASEADDR \r
-              -D GIGE_REGS=0x44A10000 \r
+#             -D GIGE_REGS=XPAR_M1_AXI_GEV_BASEADDR \
+              -D GIGE_REGS=0x44A10000 \
               -D SDRAM=XPAR_SDRAM_0_BASEADDR
 CC_INCLUDES = -I$(BSP_PATH)/bspinclude/include
 

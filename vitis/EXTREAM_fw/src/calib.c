@@ -231,8 +231,11 @@ void set_ddr_raddr(u32 addr, u32 ch)
     if(ch == 0)      REG(ADDR_DDR_CH0_RADDR) = addr;
     else if(ch == 1) REG(ADDR_DDR_CH1_RADDR) = addr;
     else if(ch == 2) REG(ADDR_DDR_CH2_RADDR) = addr;
-    else if(ch == 3) REG(ADDR_DDR_CH3_WADDR) = addr;
-    else if(ch == 4) REG(ADDR_DDR_CH4_WADDR) = addr;
+    //$ 260402 WADDR -> RADDR
+    // else if(ch == 3) REG(ADDR_DDR_CH3_WADDR) = addr;
+    // else if(ch == 4) REG(ADDR_DDR_CH4_WADDR) = addr;
+    else if(ch == 3) REG(ADDR_DDR_CH3_RADDR) = addr;
+    else if(ch == 4) REG(ADDR_DDR_CH4_RADDR) = addr;
     usdelay(1);
 }
 void set_ddr_waddr(u32 addr, u32 ch) 
@@ -1480,15 +1483,17 @@ void set_calib_rdefect(void) {
     u32 defect_row_north  = 0;
     u32 defect_row_south  = 0;
     u32 news_enable  = 0;
-    for (i = 0; i < defect_cnt; i++) {
-        defect_row_north  = defect_final[i-1];
+    for (i = 0; i < defect_cnt_final; i++) { //$ 260402 defect_cnt -> defect_cnt_final
+        //$ 260402 add ? condition
+        defect_row_north  = (i > 0) ? defect_final[i-1] : 0;
         defect_row_center = defect_final[i];
-        defect_row_south  = defect_final[i+1];
+        defect_row_south  = (i < defect_cnt_final - 1) ? defect_final[i+1] : 0;
+        news_enable = 0;
 //      func_printf("defect_row %d, %d, %d \r\n", defect_row_north, defect_row_center, defect_row_south);
         if (defect_row_north+1 == defect_row_center) // north detect
-            news_enable  =+ 0x1;                     // south enable
+            news_enable  += 0x1;                     // south enable    //$ 260402 =+ -> +=
         if (defect_row_south-1 == defect_row_center) // south detect
-            news_enable  =+ 0x8;                     // north enable
+            news_enable  += 0x8;                     // north enable    //$ 260402 =+ -> +=
         if ((defect_row_north+1 == defect_row_center) && // clear if both side
             (defect_row_south-1 == defect_row_center))
             news_enable  =  0;
@@ -1655,14 +1660,16 @@ void set_calib_cdefect(void){
     u32 defect_col_west   = 0;
     u32 defect_col_east   = 0;
     u32 news_enable  = 0;
-    for (i = 0; i < defect_cnt; i++) {
-        defect_col_west   = defect_final[i-1];
+    for (i = 0; i < defect_cnt_final; i++) { //$ 260402 defect_cnt -> defect_cnt_final
+        //$ 260402 add ? condition
+        defect_col_west   = (i > 0) ? defect_final[i-1] : 0;
         defect_col_center = defect_final[i];
-        defect_col_east   = defect_final[i+1];
+        defect_col_east   = (i < defect_cnt_final -1) ? defect_final[i+1] : 0;
+        news_enable = 0;
         if (defect_col_west+1 == defect_col_center) // west detect
-            news_enable  =+ 0x4;                    // east enable
+            news_enable  += 0x4;                    // east enable  //$ 260402 =+ -> +=
         if (defect_col_east-1 == defect_col_center) // east detect
-            news_enable  =+ 0x2;                    // west enable
+            news_enable  += 0x2;                    // west enable  //$ 260402 =+ -> +=
         if ((defect_col_west+1 == defect_col_center) && // clear if both side
             (defect_col_east-1 == defect_col_center))
             news_enable  =  0;
@@ -1759,7 +1766,7 @@ u32 encode_calib_defect(u32 addr, u32 defect[MAX_DEFECT][2], u32 defect_cnt) {
 
         case 1 :
             for(j = 0; j < defect_cnt; j++)  {
-                if((defect[j][0] >= MAX_HEIGHT-2) && (defect[j][1] <= 1)) {
+                if((defect[j][0] >= MAX_WIDTH-2) && (defect[j][1] <= 1)) {
                     if      ((defect[i][0]-1 == defect[j][0]) && (defect[i][1]   == defect[j][1]))      cluster -= 8;
                     else if ((defect[i][0]-1 == defect[j][0]) && (defect[i][1]+1 == defect[j][1]))      cluster -= 32;
                     else if ((defect[i][0]   == defect[j][0]) && (defect[i][1]+1 == defect[j][1]))      cluster -= 64;

@@ -721,7 +721,12 @@ u8 UART_CMD_ifs (u8 num, u32* data) {
         return CMD_OK;
     }
     else if (num == 1) {
-    	if(data[0] < 0 || data[0] > 39) return CMD_ERR4;
+    	//if(data[0] < 0 || data[0] > 39) return CMD_ERR4;
+    	if(AFE3256_series){ //$ 260403 12 step
+    		if(data[0] > 11) return CMD_ERR4;
+    	} else {
+    		if(data[0] > 15) return CMD_ERR4;
+    	}
         execute_cmd_ifs(data[0]);
         disp_roic_ifs();
         return CMD_OK;
