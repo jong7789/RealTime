@@ -567,6 +567,7 @@ void pwr_init(void) {
 void roic_3256_init(Profile_Def *profile){
 	u32 grab = func_grab_en;
 	u32 str_init = 0;
+    u32 T_tdef;
 
 	func_printf("AFE3256 Configuration...   ");
 
@@ -653,16 +654,19 @@ void roic_3256_init(Profile_Def *profile){
     u32 T_lpf_min, lpf;
     func_roicstr       = profile->cmdstr;
     u32 dclk = (func_roicstr/256);
+    u32 T_sig0 = 750;
+    u32 T_sig1 = 200;
+    u32 T_sig2 = 500;
 
     switch (func_roicstr) {
-        case 256 : REG(ADDR_ROIC_STR) = 0; break;
-        case 512 : REG(ADDR_ROIC_STR) = 1; break;
-        case 1024: REG(ADDR_ROIC_STR) = 2; break;
-        case 2048: REG(ADDR_ROIC_STR) = 3; break;
-        default  : REG(ADDR_ROIC_STR) = 0;
+        case 256 : REG(ADDR_ROIC_STR) = 0; T_tdef = 1000; break;
+        case 512 : REG(ADDR_ROIC_STR) = 1; T_tdef = 1000; break;
+        case 1024: REG(ADDR_ROIC_STR) = 2; T_tdef = 2000; break;
+        case 2048: REG(ADDR_ROIC_STR) = 3; T_tdef = 2000; break;
+        default  : REG(ADDR_ROIC_STR) = 0; T_tdef = 1000;
     }
 
-    float tmclk    = (1 * 1000000000) / (mclk/(1<<str_init) * 100000);    //When 30Mhz => 33.3333ns
+    float tmclk    = (1 * 1000000000.0f) / (mclk * 100000);    //$ 260407 only use str 0
     float MCLK_MHz = mclk * 100000 / 1000000.0;
     float MCLK_KHz = mclk * 100000 / 1000.0;
 
@@ -683,18 +687,26 @@ void roic_3256_init(Profile_Def *profile){
     			  T_lpf_min = 1600;
     }
 
-    u32 T_step         = (1<<str_init) * tmclk;    // When, str_init = 0, tmclk = 30Mhz => T_step = 33.333ns
-
-    u32 N_irst		= ceil(T_irst		/ T_step);
-    u32 N_shr_lpf1	= ceil(T_shr_lpf1	/ T_step);
-    u32 N_lpf1_min	= ceil(T_lpf_min	/ T_step);
-    u32 N_shs_lpf2	= ceil(T_shs_lpf2	/ T_step);
-    u32 N_lpf2_min	= ceil(T_lpf_min	/ T_step);
-//    u32 N_tdef		= ceil(T_tdef		/ T_step);
-//    u32 N_sig0		= ceil(T_sig0		/ T_step);
-//    u32 N_sig1		= ceil(T_sig1		/ T_step);
-//    u32 N_sig2		= ceil(T_sig2		/ T_step);
-    u32 N_gate		= ceil(T_gate		/ T_step);	// not in roic datasheet
+     u32 T_step         = (1<<str_init) * tmclk;    // When, str_init = 0, tmclk = 30Mhz => T_step = 33.333ns
+     u32 N_irst		= ceil(T_irst		/ T_step);
+     u32 N_shr_lpf1	= ceil(T_shr_lpf1	/ T_step);
+     u32 N_lpf1_min	= ceil(T_lpf_min	/ T_step);
+     u32 N_shs_lpf2	= ceil(T_shs_lpf2	/ T_step);
+     u32 N_lpf2_min	= ceil(T_lpf_min	/ T_step);
+     u32 N_tdef		= ceil(T_tdef		/ T_step);
+     u32 N_gate		= ceil(T_gate		/ T_step);	// not in roic datasheet
+    
+//    float T_step         = (1<<str_init) * tmclk;    // When, str_init = 0, tmclk = 30Mhz => T_step = 33.333ns
+//    u32 N_irst		= (u32)ceilf((float)T_irst		/ T_step);
+//    u32 N_shr_lpf1	= (u32)ceilf((float)T_shr_lpf1	/ T_step);
+//    u32 N_lpf1_min	= (u32)ceilf((float)T_lpf_min	/ T_step);
+//    u32 N_shs_lpf2	= (u32)ceilf((float)T_shs_lpf2	/ T_step);
+//    u32 N_lpf2_min	= (u32)ceilf((float)T_lpf_min	/ T_step);
+//    u32 N_tdef		= (u32)ceilf((float)T_tdef		/ T_step);
+//    u32 N_gate		= (u32)ceilf((float)T_gate		/ T_step);	// not in roic datasheet
+    u32 N_sig0		= T_sig0 / T_step + 1;
+    u32 N_sig1		= T_sig1 / T_step + 1;
+    u32 N_sig2		= T_sig2 / T_step + 1;
 
     u32 N_TFT      	= 256 - (N_irst + N_shr_lpf1 + N_lpf1_min + N_lpf2_min ) - 4;
     u32 N_extra    	= 256 - (N_irst + N_shr_lpf1 + fmax(N_shs_lpf2,N_TFT)) - 4;
@@ -702,26 +714,28 @@ void roic_3256_init(Profile_Def *profile){
     u32 N_lpf2     	= fmax((int)N_extra-(int)N_lpf1,N_lpf2_min);
     u32 N_shr      	= N_shr_lpf1 + N_lpf1;
     u32 N_shs      	= N_shs_lpf2 + N_lpf2;
-    u32 N_tdef		= N_shs;
+
+    //$ 260406 Grab protection before TG register write
+    execute_cmd_grab(0);
+    execute_cmd_grab(1);
+    execute_cmd_grab(0);
+    msdelay(10);
 
     execute_cmd_wroic(0x3A, N_irst);
     execute_cmd_wroic(0x3B, N_shr_lpf1);
     execute_cmd_wroic(0x3E, N_lpf1);
-//    execute_cmd_wroic(0x3D, fmax(N_shs_lpf2, T_tft));
-    execute_cmd_wroic(0x3D, 0x008C);
+    execute_cmd_wroic(0x3D, fmax(N_shs_lpf2, N_TFT));
     execute_cmd_wroic(0x3C, N_tdef+N_lpf2);
-//    execute_cmd_wroic(0x1E, (N_sig1 << 8 | N_sig0));
-//    execute_cmd_wroic(0x1F, N_sig2);
-    execute_cmd_wroic(0x1E, 0x040F);
-    execute_cmd_wroic(0x1F, 0x000A);
+    execute_cmd_wroic(0x1E, (N_sig1 << 8 | N_sig0));
+    execute_cmd_wroic(0x1F, N_sig2);
     execute_cmd_wroic(0x96, ((1<<15) | lpf << 8 | lpf));
 
     execute_cmd_wroic(0x1A,  0x000F);
 //    execute_cmd_ifs(get_roic_data(1)); //$ to Get Analog Gain
 
-    /*DEB*/ if (DBG_3256) func_printf("\r\n MCLK_MHz =%dMhz \r\n", (u32)MCLK_MHz);
-    /*DEB*/ if (DBG_3256) func_printf("(float)tmclk =%d(ns) \r\n", (u32)tmclk);
-    /*DEB*/ if (DBG_3256) func_printf("T_step =%d \r\n", T_step);
+    /*DEB*/ if (DBG_3256) func_printf("\r\n MCLK_MHz =%dMhz       \r\n", (u32)MCLK_MHz);
+    /*DEB*/ if (DBG_3256) func_printf("(float)tmclk =%d(ns)       \r\n", (u32)tmclk);
+    /*DEB*/ if (DBG_3256) func_printf("T_step     = %d            \r\n", (u32) T_step);
     /*DEB*/ if (DBG_3256) func_printf("N_irst     =%3d, %3d.%3dus \r\n", N_irst    , (u32)tmclk*N_irst    /1000,(u32)tmclk*N_irst    %1000);
     /*DEB*/ if (DBG_3256) func_printf("N_shr_lpf1 =%3d, %3d.%3dus \r\n", N_shr_lpf1, (u32)tmclk*N_shr_lpf1/1000,(u32)tmclk*N_shr_lpf1%1000);
     /*DEB*/ if (DBG_3256) func_printf("N_shs_lpf2 =%3d, %3d.%3dus \r\n", N_shs_lpf2, (u32)tmclk*N_shs_lpf2/1000,(u32)tmclk*N_shs_lpf2%1000);
@@ -731,7 +745,11 @@ void roic_3256_init(Profile_Def *profile){
     /*DEB*/ if (DBG_3256) func_printf("N_lpf2     =%3d, %3d.%3dus \r\n", N_lpf2    , (u32)tmclk*N_lpf2    /1000,(u32)tmclk*N_lpf2    %1000);
     /*DEB*/ if (DBG_3256) func_printf("N_shr      =%3d, %3d.%3dus \r\n", N_shr     , (u32)tmclk*N_shr     /1000,(u32)tmclk*N_shr     %1000);
     /*DEB*/ if (DBG_3256) func_printf("N_shs      =%3d, %3d.%3dus \r\n", N_shs     , (u32)tmclk*N_shs     /1000,(u32)tmclk*N_shs     %1000);
+    /*DEB*/ if (DBG_3256) func_printf("N_tdef     =%3d, %3d.%3dus \r\n", N_tdef    , (u32)tmclk*N_tdef    /1000,(u32)tmclk*N_tdef    %1000);
     /*DEB*/ if (DBG_3256) func_printf("N_gate     =%3d, %3d.%3dus \r\n", N_gate    , (u32)tmclk*N_gate    /1000,(u32)tmclk*N_gate    %1000);
+    /*DEB*/ if (DBG_3256) func_printf("N_SIG0     =%3d, %3d.%3dus \r\n", N_sig0    , (u32)tmclk*N_sig0    /1000,(u32)tmclk*N_sig0    %1000);                   
+    /*DEB*/ if (DBG_3256) func_printf("N_SIG1     =%3d, %3d.%3dus \r\n", N_sig1    , (u32)tmclk*N_sig1    /1000,(u32)tmclk*N_sig1    %1000);                   
+    /*DEB*/ if (DBG_3256) func_printf("N_SIG2     =%3d, %3d.%3dus \r\n", N_sig2    , (u32)tmclk*N_sig2    /1000,(u32)tmclk*N_sig2    %1000);                   
 
     //$ 251125 FPGA TFT SET
     u32 total_step	= N_irst + N_shr + N_shs + 4;
@@ -2510,7 +2528,8 @@ void system_config(void) {
    profile.d2.filter = FILTER_4;
    profile.d2.m_clock = FPGA_TFT_MAIN_CLK;
     }
-    else if((msame(mEXT4343RD))) //$ 251121
+    else if((msame(mEXT4343RD)) ||\
+            (msame(mEXT3643R))) //$ 251121 //$ 260408 add EXT3643R
     {
     profile.init.mclk = MCLK_300;
     profile.init.cmdstr = CMDSTR_256;
