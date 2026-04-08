@@ -1,28 +1,84 @@
 # ============================================================
-# Vivado 생성 파일 (합성/구현 결과물 - 재생성 가능)
+# 기본 정책: 전부 무시, 필요한 것만 허용 (whitelist 방식)
 # ============================================================
+
+# 1) 전체 무시
+*
+
+# 2) 디렉토리 탐색 허용 (재귀적으로 하위 폴더 진입)
+!*/
+
+# ============================================================
+# 소스 코드 (직접 수정/관리하는 파일만 허용)
+# ============================================================
+!*.vhd
+!*.c
+!*.h
+!*.xdc
+!*.xml
+!*.cpp
+!*.xcix
+!*.xci
+
+# ============================================================
+# 프로젝트 스크립트 / 빌드
+# ============================================================
+!*.tcl
+!*.py
+!*.toml
+!Makefile
+
+# ============================================================
+# 문서 / 설정
+# ============================================================
+!*.md
+!*.json
+!*.yml
+!*.xlsx
+!.gitignore
+
+# ============================================================
+# Vivado Block Diagram (MicroBlaze 구조 정의)
+# ============================================================
+!*.bd
+!*.bda
+!*.prj
+!*.ui
+
+# ============================================================
+# 펌웨어 바이너리 (배포용)
+# ============================================================
+!vitis/lib/bootloader.elf
+
+# ============================================================
+# 다시 제외: 자동 생성되는 디렉토리/파일 (whitelist 예외)
+# ============================================================
+
+# Vivado 빌드 산출물
 EXTxR2.cache/
 EXTxR2.runs/
 EXTxR2.gen/
 EXTxR2.ip_user_files/
 EXTxR2.hw/
 EXTxR2.sim/
-*.jou
-*.log
-*.str
-*.debug
 
-# Vivado 백업/임시 파일
-*.vhd.bak
-*.vhd.bak2
-*.vhd.bak321286432
-*.bak
-*.backup.*
-*.orig
+# Vivado/Vitis 임시
+.Xil/
+vitis/.Xil/
 
-# ============================================================
-# Vitis / SDK 빌드 산출물
-# ============================================================
+# IDE 메타데이터
+.metadata/
+vitis/.metadata/
+.analytics
+vitis/.analytics
+
+# Xilinx 생성 IP (bd0.tcl로 재생성)
+EXTxR2.srcs/sources_1/bd/cpu/ipshared/
+
+# IP lock 파일
+EXTxR2.srcs/sources_1/ip/.Xil/
+
+# Vitis 빌드 산출물
 vitis/EXTREAM_fw/Debug/
 vitis/EXTREAM_fw/Release/
 vitis/EXTREAM_fw_system/Debug/
@@ -35,27 +91,37 @@ vitis/EXTREAM_R_platform/
 vitis/EXTREAM_R_xsa/
 vitis/EXTREAM_R_xsatest/
 vitis/RemoteSystemsTempFiles/
-vitis/xrc.log
-vitis/IDE.log
-vitis/*.jou
-vitis/*.log
-vitis/xsdb_prog.tcl@echo
-
-# Vitis 빌드 바이너리 (재빌드 가능)
 vitis/bin/*.elf
 vitis/bin/*.bit
 vitis/bin/*.bin
+vitis/bin/*.zip
 vitis/bin/FPGA1stBin/
 vitis/bin/Debug/
 vitis/bin/Release/
 vitis/fw/
 
-# 릴리즈 ZIP 패키지 (용량 큼, 별도 관리 권장)
-vitis/bin/*.zip
-
-# ============================================================
-# IP 코어 압축 파일 (원본 zip 보존, 압축 해제본 제외)
-# ============================================================
+# 기타 빌드/임시 파일
+*.dcp
+*.jou
+*.log
+*.str
+*.debug
+*.bak
+*.backup.*
+*.orig
+*.lock
+*.pdom
+*.sc
+*.markers
+*.dat
+*.mark
+*.prefs
+*.xmi
+*.ini
+*.properties
+*.xsa
+sdk/
+RemoteSystemsTempFiles/
 cores/rxaui_v4_4/
 cores/xaui_v12_3/
 cores/s2i_framebuf_2.2.6_l0_vivado2022.2/
@@ -65,39 +131,6 @@ cores/s2i_xgige_2.3.4_l12_vivado2022.2/
 cores/s2i_xgmac_2.0.2_l12_vivado2022.2/
 cores/SphinxSDK_GEV_2.7.3_Windows_UpdateGigE/
 cores/bootloader_src_v1.25/
-
-# ============================================================
-# SDK 레거시 디렉토리
-# ============================================================
-sdk/
-
-# ============================================================
-# 기타
-# ============================================================
-RemoteSystemsTempFiles/
-IDE.log
-ip_upgrade.log
-*.xsa
-
-# Windows 시스템 파일
+xgvrd-*.zip
 Thumbs.db
 desktop.ini
-
-# ============================================================
-# 대용량 바이너리 / Vivado 체크포인트
-# ============================================================
-# Vivado Design Checkpoint (수십~수백 MB, 재생성 가능)
-*.dcp
-
-# Vivado / Vitis 임시 작업 디렉토리
-.Xil/
-vitis/.Xil/
-.metadata/
-vitis/.metadata/
-
-# 분석 캐시
-.analytics
-vitis/.analytics
-
-# 대용량 ZIP 패키지
-xgvrd-*.zip
