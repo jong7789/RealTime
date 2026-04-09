@@ -787,12 +787,7 @@ void roic_3256_init(Profile_Def *profile){
 //    REG(ADDR_TOPRST_CTRL)= 0;
 //    msdelay(100);
     execute_cmd_fmax2(mclk*100000);
-
-    execute_cmd_grab(grab);
-    msdelay(10);
-
-    execute_cmd_grab(grab);
-
+    
     msdelay(200);
     func_printf("\t AFE3256 Init Done\r\n");
 
