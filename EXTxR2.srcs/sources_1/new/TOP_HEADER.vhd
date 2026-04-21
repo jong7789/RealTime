@@ -10,9 +10,14 @@ package TOP_HEADER is
 -- constant GNR_MODEL  : string := "EXT1616R";
 
 --constant FPGA_VER  : std_logic_vector(19 downto 0) := x"1_99_00"; --# 1st image
-    constant FPGA_VER  : std_logic_vector(19 downto 0) := x"2_01_11"; --(ti1,adi0_MainVer_subVer)
-constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0408_15";
+constant FPGA_VER  : std_logic_vector(19 downto 0) := x"2_01_11"; --(ti1,adi0_MainVer_subVer)
+constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0420_15";
 
+-- # 2_01_11 26_0420_10 :  --$ 260420 sdata_ff00_latch
+-- # 2_01_11 26_0414_14 :  $ ila gev drop
+-- # 2_01_11 26_0414_09 :  $ ila ddr sync gen / qos
+-- # 2_01_11 26_0413_13 :  --$ 260413 state ddr - write error
+-- # 2_01_11 26_0410_16 :  $ il AXI_MASTER_IF
 -- # 2_01_11 26_0408_15 :  $SYSV0.2 4DDR
 -- # 2_01_11 26_0401_10 :  $ ila test
 -- # 2_01_11 26_0323_17 :  $ 2DDR & 4DDR
@@ -988,6 +993,7 @@ constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0408_15";
     constant DDR_DQS_4   : integer := 8;
     constant DDR_DQ_4    : integer := 64;
     constant DDR_AXI2_4  : integer := 6;
+--    constant DDR_AXI2_4  : integer := 4; --$ 260409 SmartConnect native slave ID width (crossbar prepended 2bits, no longer needed)
     
     type tstate_grab            is (
                                         s_IDLE,         -- 0

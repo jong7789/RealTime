@@ -780,7 +780,7 @@ void roic_3256_init(Profile_Def *profile){
 
     //$ Digital Offset Correction (Page 56)
     // Calibration Time = 2 * AVG_NUM * tScan
-    execute_cmd_doc();
+//    execute_cmd_doc();
 
 //    REG(ADDR_TOPRST_CTRL)= 0xFFFB;
 //    msdelay(10);
@@ -797,7 +797,7 @@ void roic_3256_init(Profile_Def *profile){
 
 void roic_init(void) {
     // TI_ROIC
-//    u32 i;
+//    u32 i;4
 //    u32 cnt = 0;
     u32 grab  = func_grab_en;
 
@@ -1922,16 +1922,16 @@ void execute_calib_cmd(void) {
 
     switch(func_calib_cmd) {
         case 1    :    func_busy = 1;
-        			if(AFE3256_series){ //$ 260305
-                        func_busy_time = 300;
-        				execute_cmd_doc();
-        			}
-        			else{
+//        			if(AFE3256_series){ //$ 260305
+//                        func_busy_time = 300;
+//        				execute_cmd_doc();
+//        			}
+//        			else{
                     func_busy_time = (u32)(((1 << (user_avg_level)) / func_frate) * 1000);
                     execute_cmd_wddr(func_calib_map, user_avg_level);
 //                    if((func_calib_map == 1) && (func_check_gain_calib == 1))    // dskim - ti 사용하지 않음
 //                        execute_cmd_ucal();
-        			}
+//        			}
                     break;
         case 2    :     execute_cmd_cddr(func_calib_map);
                     break;

@@ -191,6 +191,7 @@ architecture Behavioral of DDR3_TOP is
             ireg_height         : in std_logic_vector(11 downto 0);
 
             iaxi_wready         : in std_logic;
+            iaxi_wvalid         : in std_logic; --$ 260413
             iaxi_bready         : in std_logic;
 
             iconv_rlast         : in std_logic;
@@ -593,6 +594,7 @@ begin
         ireg_height         => ireg_height,
 
         iaxi_wready         => axi_wready,
+        iaxi_wvalid         => saxi_wvalid, --$ 260413
         iaxi_bready         => saxi_bready,
 
         iconv_rlast         => sconv_rlast,

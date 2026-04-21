@@ -508,6 +508,13 @@ set_clock_groups -asynchronous -group [get_clocks -of_objects [get_pins GEV_CPU1
 set_clock_groups -asynchronous -group [get_clocks -of_objects [get_pins U0_TI_TFT_TOP/U0_TI_CLOCK_MANAGER/CLK_GEN/inst/plle2_adv_inst/CLKOUT1]] -group [get_clocks GEV_RXAUI/U1/U0/rxaui_block_i/gt0_wrapper_i/gtxe2_i/TXOUTCLK]
 set_clock_groups -asynchronous -group [get_clocks -of_objects [get_pins U0_TI_TFT_TOP/U0_TI_CLOCK_MANAGER/CLK_GEN/inst/plle2_adv_inst/CLKOUT1]] -group [get_clocks SYNTH.G_rxaui_10G.RXAUI_INST/U0/rxaui_block_i/gt0_wrapper_i/gtxe2_i/TXOUTCLK]
 
+# DIFF_TERM
+set_property DIFF_TERM TRUE [get_ports {ROIC_DCLK_P[*]}]
+set_property DIFF_TERM TRUE [get_ports {ROIC_DCLK_N[*]}]
+set_property DIFF_TERM TRUE [get_ports {ROIC_DOUT_P[*]}]
+set_property DIFF_TERM TRUE [get_ports {ROIC_DOUT_N[*]}]
+
+
 set_property C_CLK_INPUT_FREQ_HZ 300000000 [get_debug_cores dbg_hub]
 set_property C_ENABLE_CLK_DIVIDER false [get_debug_cores dbg_hub]
 set_property C_USER_SCAN_CHAIN 1 [get_debug_cores dbg_hub]

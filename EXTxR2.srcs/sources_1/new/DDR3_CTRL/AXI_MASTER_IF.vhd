@@ -326,8 +326,11 @@ ostate_read_ddr_mast  <= state_read;
             probe13 => axi_rlast,               -- 1
             probe14 => saxi_wbusy,              -- 1
             probe15 => saxi_rbusy,              -- 1
-            probe16 => iconv_wdata(31 downto 0), -- 32
-            probe17 => axi_rdata(31 downto 0),  -- 32
+--            probe16 => iconv_wdata(31 downto 0), -- 32
+--            probe17 => axi_rdata(31 downto 0),  -- 32
+--            probe18 => saxi_rdata(31 downto 0)  -- 32
+            probe16 => saxi_rdata(511 downto 480), -- 32
+            probe17 => saxi_rdata(255 downto 224), --32
             probe18 => saxi_rdata(31 downto 0)  -- 32
         );
     end generate;

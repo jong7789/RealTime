@@ -1039,16 +1039,18 @@ void execute_cmd_frate(u32 data) {
 	else
 		linetime_sel = ft_roll;
 
-    if(DBG_FRATE) func_printf("[DEBUG] ft_ext2 = %d \r\n", ft_ext2);
-    if(DBG_FRATE) func_printf("[DEBUG] ft_ext1 = %d \r\n", ft_ext1);
-    if(DBG_FRATE) func_printf("[DEBUG] ft_roll = %d \r\n", ft_roll);
+    if(DBG_FRATE) func_printf("[DBG_FRATE] ft_ext2 = %d \r\n", ft_ext2);
+    if(DBG_FRATE) func_printf("[DBG_FRATE] ft_ext1 = %d \r\n", ft_ext1);
+    if(DBG_FRATE) func_printf("[DBG_FRATE] ft_roll = %d \r\n", ft_roll);
 
     // ##########################
     // ##### Line Time Calc ##### 210422
 //  float max_line_time =( real_frame_time / FPGA_TFT_MAIN_CLK * FPGA_DATA_CLK / func_height * 0.9 ); // roic 1 frame time / ddr time height
 //  float max_line_time = (float)FPGA_DATA_CLK / func_frate / (func_height+2.0) - 0.5 ; // 2.0 for margin 211015 mbh
 //    float max_line_time = (float)FPGA_DATA_CLK * REG(ADDR_FRAME_TIME) / FPGA_TFT_MAIN_CLK / (func_height) + 0.5 ; // 2.0 for margin 211015 mbh
-    float max_line_time = (float)FPGA_DATA_CLK * linetime_sel / FPGA_TFT_MAIN_CLK / (func_height) + 0.5 ; //# 230728
+//    float max_line_time = (float)FPGA_DATA_CLK * linetime_sel / FPGA_TFT_MAIN_CLK / (func_height) + 0.5 ; //# 230728
+    float max_line_time = (float)FPGA_DATA_CLK * linetime_sel / FPGA_TFT_MAIN_CLK / (func_height) ; //$ 260416
+
     max_line_time = (0xffff <= max_line_time ) ? 0xffff : max_line_time; // 16bit cut
 
 //#if defined(GEV10G)
@@ -1066,11 +1068,10 @@ void execute_cmd_frate(u32 data) {
 //	float sel_line_time = (def_gev_speed == 10) ? (float)FPGA_DATA_CLK / MAX_FRATE / (func_height) + 0.5 :
 //						  (min_line_time < max_line_time) ? max_line_time : min_line_time;
 
-//    REG(ADDR_LINE_TIME)=(u32)sel_line_time;
-    REG(ADDR_LINE_TIME)=1200;
-    if(DBG_FRATE) func_printf("sel_line_time = %d \r\n",(int)sel_line_time);
-    if(DBG_FRATE) func_printf("max_line_time = %d \r\n",(int)max_line_time);
-    if(DBG_FRATE) func_printf("min_line_time = %d \r\n",(int)min_line_time);
+    REG(ADDR_LINE_TIME)=(u32)sel_line_time;
+    if(DBG_FRATE) func_printf("[DBG_FRATE]sel_line_time = %d \r\n",(int)sel_line_time);
+    if(DBG_FRATE) func_printf("[DBG_FRATE]max_line_time = %d \r\n",(int)max_line_time);
+    if(DBG_FRATE) func_printf("[DBG_FRATE]min_line_time = %d \r\n",(int)min_line_time);
     // #######################
     // ### save frame rate ###
     if      (func_acqmode==ACQMODE_ROLL  ) func_roll_frate   = func_frate;
@@ -1146,6 +1147,7 @@ void execute_cmd_fmax2(u32 MAIN_CLK) {
     else                        func_frate_max = (1000000 / (frame_time_us + trst_time_us + MIN_EWT));
 
     REG(ADDR_LINE_TIME)     = (u32)((float)(FPGA_DATA_CLK) / (func_height * func_frate_max)) - 100;
+    func_printf("fmax2_line_time = %d\r\n",REG(ADDR_LINE_TIME));
 
     // dskim - 21.03.15 - HEIGH 따라서 강제로 frate max 변경
     // dskim - 21.04.06 - 컴파일 오류 수정
@@ -1226,11 +1228,12 @@ if(func_gain_cal && func_d2m) REG(ADDR_DDR_CH_EN)   = 0b11110101; // d2m on writ
 void execute_cmd_offset(u32 data) {
     func_offset_cal = data;
 //  REG(ADDR_OFFSET_CAL) = data;
-    if(AFE3256_series){ //$ 260305 Digital Offset Correction
-    	if(data)     		execute_cmd_wroic(0x51, 0x0306);
-    	else	    		execute_cmd_wroic(0x51, 0x0006);
-    }
-    else REG(ADDR_MPC_CTRL) = data;  // dskim - 21.03.08 - offset 먼저 subtraction 하도록 변경
+//    if(AFE3256_series){ //$ 260305 Digital Offset Correction
+//    	if(data)     		execute_cmd_wroic(0x51, 0x0306);
+//    	else	    		execute_cmd_wroic(0x51, 0x0006);
+//    }
+//    else REG(ADDR_MPC_CTRL) = data;  // dskim - 21.03.08 - offset 먼저 subtraction 하도록 변경
+    REG(ADDR_MPC_CTRL) = data;
 }
 
 void execute_cmd_defect(u32 data) {

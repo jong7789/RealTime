@@ -815,14 +815,14 @@ end generate serdes;
                 when s_CHECK2 =>
                     if (swait_cnt = 31) then
                         if (sroic_dvalid_3d = '1') then
-                            swait_cnt <= (others => '0');
+                            swait_cnt        <= (others => '0');
                             if (sbitslip_cnt(sdata_ch) = 24*4-1) then --# 4 cycle for FFF000
                                 state_align              <= s_FINISH;
                                 salign_success(sdata_ch) <= '0';
                                 sbitslip_cnt(sdata_ch)   <= (others => '0');
                             else
 --                                if(scurr_data_d2 = strain_word) then
-                                if (sdata_ff00_ch = '1') then --### FFF000 compare by 1bit #25121520
+                                 if (sdata_ff00_ch = '1') then --### FFF000 compare by 1bit #25121520
                                     state_align              <= s_FINISH;
                                     salign_success(sdata_ch) <= '1';
                                 else
@@ -962,7 +962,7 @@ end generate gen_out;
 --# req_align shift register (sync reset)
     process (iroic_clk)
     begin
-        if (iroic_clk'event and iroic_clk = '1') then
+         if (iroic_clk'event and iroic_clk = '1') then
             if (iroic_rstn = '0') then
                 sreg_req_align_1d <= '0';
                 sreg_req_align_2d <= '0';
@@ -1170,6 +1170,7 @@ begin
 end generate;
 
 ILA_LVDS_RX_DEBUG : if(GEN_ILA_lvds_rx_2 = "ON") generate
+    signal ila_sdata_ch : std_logic_vector(4 downto 0);
     COMPONENT ILA_LVDS_RX
     PORT (
         clk     : IN STD_LOGIC;
@@ -1181,30 +1182,31 @@ ILA_LVDS_RX_DEBUG : if(GEN_ILA_lvds_rx_2 = "ON") generate
         probe5  : IN STD_LOGIC_VECTOR(0  DOWNTO 0);   -- obitslipm
         probe6  : IN STD_LOGIC_VECTOR(4  DOWNTO 0);   -- obitslipc
         probe7  : IN STD_LOGIC_VECTOR(4  DOWNTO 0);   -- ocntvalue
-        probe8  : IN STD_LOGIC_VECTOR(4  DOWNTO 0);   -- oser_cnt
-        probe9  : IN STD_LOGIC_VECTOR(0  DOWNTO 0);   -- ireg_req_align
-        probe10 : IN STD_LOGIC_VECTOR(0  DOWNTO 0);   -- idly_ce
-        probe11 : IN STD_LOGIC_VECTOR(0  DOWNTO 0);   -- idly_rst
-        probe12 : IN STD_LOGIC_VECTOR(0  DOWNTO 0)    -- ibitslip
+        probe8  : IN STD_LOGIC_VECTOR(4  DOWNTO 0);    -- oser_cnt
+        probe9  : IN STD_LOGIC_VECTOR(23  DOWNTO 0);   -- sdata_ff00_ch
+        probe10 : IN STD_LOGIC_VECTOR(0  DOWNTO 0);     -- state_align
+        probe11 : IN STD_LOGIC_VECTOR(0  DOWNTO 0);    -- sbitslip_cnt
+        probe12 : IN STD_LOGIC_VECTOR(0  DOWNTO 0)    -- sbitslip_cnt
     );
     END COMPONENT;
 begin
+    ila_sdata_ch <= conv_std_logic_vector(sdata_ch, 5);
     U0_ILA_LVDS_RX : ILA_LVDS_RX
     PORT MAP (
-        clk        => isys_clk,
-        probe0(0)  => iroic_data(0),
-        probe1     => sdata_par(0),
-        probe2(0)  => sdata_val(0),
-        probe3(0)  => sdata_diff(0),
-        probe4(0)  => sdata_ff00(0),
-        probe5(0)  => obitslipm(0),
-        probe6     => obitslipc(0),
-        probe7     => ocntvalue(0),
-        probe8     => oser_cnt(0),
-        probe9(0)  => sreg_req_align_3d,
-        probe10(0) => sd_ser_dly(0),
-        probe11(0) => sd_ser_rst(0),
-        probe12(0) => sd_ser_bit(0)
+        clk        => rclk_ch(7),
+        probe0(0)  => iroic_data(7),
+        probe1     => sdata_par(7),
+        probe2(0)  => sdata_val(7),
+        probe3(0)  => sdata_diff(7),
+        probe4(0)  => sdata_ff00(7),
+        probe5(0)  => obitslipm(7),
+        probe6     => obitslipc(7),
+        probe7     => ocntvalue(7),
+        probe8     => oser_cnt(7),
+        probe9  => sdata_par(6),
+        probe10(0)    => sdata_val(6),
+        probe11(0)    => sdata_diff(6),
+        probe12(0)    => sdata_ff00(6)
     );
 end generate;
 

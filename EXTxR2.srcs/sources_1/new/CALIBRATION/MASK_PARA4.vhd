@@ -123,40 +123,40 @@ architecture Behavioral of MASK_PARA4 is
     signal blank_cnt : std_logic_vector(16 - 1 downto 0) := (others => '0');
     signal blank_num : std_logic_vector(16 - 1 downto 0) := (others => '0');
 
-    component ila_mask_para4
-    port (
-        clk     : in std_logic;
-        probe0  : in type_sm_gensync;
-        probe1  : in std_logic_vector(11 downto 0);
-        probe2  : in std_logic_vector(11 downto 0);
-        probe3  : in std_logic;
-        probe4  : in std_logic;
-        probe5  : in std_logic_vector(11 downto 0);
-        probe6  : in std_logic_vector(11 downto 0);
-        probe7  : in std_logic;
-        probe8  : in std_logic;
-        probe9  : in std_logic_vector(11 downto 0);
-        probe10 : in std_logic_vector(15 downto 0)
-    );
-    end component;
+--    component ila_mask_para4
+--    port (
+--        clk     : in std_logic;
+--        probe0  : in type_sm_gensync;
+--        probe1  : in std_logic_vector(11 downto 0);
+--        probe2  : in std_logic_vector(11 downto 0);
+--        probe3  : in std_logic;
+--        probe4  : in std_logic;
+--        probe5  : in std_logic_vector(11 downto 0);
+--        probe6  : in std_logic_vector(11 downto 0);
+--        probe7  : in std_logic;
+--        probe8  : in std_logic;
+--        probe9  : in std_logic_vector(11 downto 0);
+--        probe10 : in std_logic_vector(15 downto 0)
+--    );
+--    end component;
 
 begin
 
-    U0_ILA_MASK : ila_mask_para4
-    port map (
-        clk     => clk,
-        probe0  => state,
-        probe1  => vcnt,
-        probe2  => hcnt,
-        probe3  => gen_vsyn,
-        probe4  => gen_hsyn,
-        probe5  => gen_vcnt,
-        probe6  => gen_hcnt,
-        probe7  => i_vsyn,
-        probe8  => i_hsyn,
-        probe9  => i_vcnt,
-        probe10 => blank_cnt
-    );
+--    U0_ILA_MASK : ila_mask_para4
+--    port map (
+--        clk     => clk,
+--        probe0  => state,
+--        probe1  => vcnt,
+--        probe2  => hcnt,
+--        probe3  => gen_vsyn,
+--        probe4  => gen_hsyn,
+--        probe5  => gen_vcnt,
+--        probe6  => gen_hcnt,
+--        probe7  => i_vsyn,
+--        probe8  => i_hsyn,
+--        probe9  => i_vcnt,
+--        probe10 => blank_cnt
+--    );
 
 -- ▀█ █░░ █ █▄░█ █▀▀   █▄▄ █░█ █▀▀
 -- █▄ █▄▄ █ █░▀█ ██▄   █▄█ █▄█ █▀░ %2line buffer

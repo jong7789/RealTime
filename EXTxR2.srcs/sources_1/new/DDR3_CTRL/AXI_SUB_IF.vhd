@@ -35,6 +35,7 @@ generic ( GNR_MODEL : string := "EXT1616R" );
         ireg_height : in    std_logic_vector(11 downto 0);
 
         iaxi_wready : in    std_logic;
+        iaxi_wvalid : in    std_logic; --$ 260413
         iaxi_bready : in    std_logic;
 
         iconv_rlast : in    std_logic;
@@ -957,7 +958,8 @@ end generate GEN_2p5G_LEN;
                         sch4_rtrig <= '0';
 
                     when s_WRITE =>
-                        if (iaxi_wready = '1') then
+                        -- if (iaxi_wready = '1') then
+                        if (iaxi_wready = '1' and  iaxi_wvalid = '1') then --$ 260413
                             if (sddr_waddr = sddr_wlen - 1) then
                                 state_ddr <= s_WRESP;
 

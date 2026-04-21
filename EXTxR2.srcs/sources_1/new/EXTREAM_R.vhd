@@ -1586,13 +1586,21 @@ begin
             sfb_width <= (others => '0');
         elsif(sui_clk'event and sui_clk = '1') then
 --          if(sreg_out_en = '1') then
---              sfb_frame        <= svsync_ddr3;
---              sfb_dv           <= shsync_ddr3;
---              sfb_data         <= sdata_ddr3( 8-1 downto  0) & sdata_ddr3(16-1 downto  8) &
---                                  sdata_ddr3(24-1 downto 16) & sdata_ddr3(32-1 downto 24) &
---                                  sdata_ddr3(40-1 downto 32) & sdata_ddr3(48-1 downto 40) &
---                                  sdata_ddr3(56-1 downto 48) & sdata_ddr3(64-1 downto 56) ;
+--              sfb_frame        <= svsync_tft;
+--              sfb_dv           <= shsync_tft;
+--              sfb_data         <= sdata_tft( 8-1 downto  0) & sdata_tft(16-1 downto  8) &
+--                                  sdata_tft(24-1 downto 16) & sdata_tft(32-1 downto 24) &
+--                                  sdata_tft(40-1 downto 32) & sdata_tft(48-1 downto 40) &
+--                                  sdata_tft(56-1 downto 48) & sdata_tft(64-1 downto 56) ;
 --              sfb_width        <= "111";
+          if(sreg_out_en = '1') then
+              sfb_frame        <= svsync_ddr3;
+              sfb_dv           <= shsync_ddr3;
+              sfb_data         <= sdata_ddr3( 8-1 downto  0) & sdata_ddr3(16-1 downto  8) &
+                                  sdata_ddr3(24-1 downto 16) & sdata_ddr3(32-1 downto 24) &
+                                  sdata_ddr3(40-1 downto 32) & sdata_ddr3(48-1 downto 40) &
+                                  sdata_ddr3(56-1 downto 48) & sdata_ddr3(64-1 downto 56) ;
+              sfb_width        <= "111";
 --          else
 --          if(sreg_out_en = '1') then
 --              sfb_frame        <= svsync_calib;
@@ -1602,14 +1610,14 @@ begin
 --                                  sdata_calib(40-1 downto 32) & sdata_calib(48-1 downto 40) &
 --                                  sdata_calib(56-1 downto 48) & sdata_calib(64-1 downto 56) ;
 --              sfb_width        <= "111";
-            if(sreg_out_en = '1') then
-                sfb_frame <= svsync_img_proc;
-                sfb_dv    <= shsync_img_proc;
-                sfb_data  <= sdata_img_proc( 8-1 downto  0) & sdata_img_proc(16-1 downto  8) &
-                             sdata_img_proc(24-1 downto 16) & sdata_img_proc(32-1 downto 24) &
-                             sdata_img_proc(40-1 downto 32) & sdata_img_proc(48-1 downto 40) &
-                             sdata_img_proc(56-1 downto 48) & sdata_img_proc(64-1 downto 56);
-                sfb_width <= "111";
+--            if(sreg_out_en = '1') then
+--                sfb_frame <= svsync_img_proc;
+--                sfb_dv    <= shsync_img_proc;
+--                sfb_data  <= sdata_img_proc( 8-1 downto  0) & sdata_img_proc(16-1 downto  8) &
+--                             sdata_img_proc(24-1 downto 16) & sdata_img_proc(32-1 downto 24) &
+--                             sdata_img_proc(40-1 downto 32) & sdata_img_proc(48-1 downto 40) &
+--                             sdata_img_proc(56-1 downto 48) & sdata_img_proc(64-1 downto 56);
+--                sfb_width <= "111";
             else
                 sfb_frame <= '0';
                 sfb_dv    <= '0';
@@ -3312,7 +3320,8 @@ end generate TP_EXT;
 
               axi2_arcache              => (others => '0'),
               axi2_arprot               => (others => '0'),
-              axi2_arqos                => (others => '0'),
+            --   axi2_arqos                => (others => '0'),
+              axi2_arqos                => "1111", --$ 260413 prior read
               axi2_awcache              => (others => '0'),
               axi2_awprot               => (others => '0'),
               axi2_awqos                => (others => '0'),
@@ -4157,7 +4166,6 @@ end generate TP_EXT;
   ----------------------------------------------------------
   -- DDR3 Update Timing for each Channel
   ----------------------------------------------------------
-
 ila_debug : if(GEN_ILA_TOP = "ON") generate
 
     component ILA_TOP
