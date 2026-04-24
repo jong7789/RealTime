@@ -11,9 +11,9 @@ package TOP_HEADER is
 
 --constant FPGA_VER  : std_logic_vector(19 downto 0) := x"1_99_00"; --# 1st image
 constant FPGA_VER  : std_logic_vector(19 downto 0) := x"2_01_11"; --(ti1,adi0_MainVer_subVer)
-constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0420_15";
+constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0421_09";
 
--- # 2_01_11 26_0420_10 :  --$ 260420 sdata_ff00_latch
+-- # 2_01_11 26_0421_09 :  $ ila cal par4
 -- # 2_01_11 26_0414_14 :  $ ila gev drop
 -- # 2_01_11 26_0414_09 :  $ ila ddr sync gen / qos
 -- # 2_01_11 26_0413_13 :  --$ 260413 state ddr - write error
@@ -507,7 +507,6 @@ constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0420_15";
     constant GEN_ILA_tpc_proc         : string := "OFF";
     constant GEN_ILA_defect_proc      : string := "OFF";
     constant GEN_ILA_defectline_proc  : string := "OFF";
-
     -- IMG_PROC
     constant GEN_2DDNR    : std_logic := '0';
     constant GEN_ACC      : std_logic := '0'; -- #210928

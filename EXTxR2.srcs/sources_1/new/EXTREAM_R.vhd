@@ -1593,14 +1593,14 @@ begin
 --                                  sdata_tft(40-1 downto 32) & sdata_tft(48-1 downto 40) &
 --                                  sdata_tft(56-1 downto 48) & sdata_tft(64-1 downto 56) ;
 --              sfb_width        <= "111";
-          if(sreg_out_en = '1') then
-              sfb_frame        <= svsync_ddr3;
-              sfb_dv           <= shsync_ddr3;
-              sfb_data         <= sdata_ddr3( 8-1 downto  0) & sdata_ddr3(16-1 downto  8) &
-                                  sdata_ddr3(24-1 downto 16) & sdata_ddr3(32-1 downto 24) &
-                                  sdata_ddr3(40-1 downto 32) & sdata_ddr3(48-1 downto 40) &
-                                  sdata_ddr3(56-1 downto 48) & sdata_ddr3(64-1 downto 56) ;
-              sfb_width        <= "111";
+        --   if(sreg_out_en = '1') then
+        --       sfb_frame        <= svsync_ddr3;
+        --       sfb_dv           <= shsync_ddr3;
+        --       sfb_data         <= sdata_ddr3( 8-1 downto  0) & sdata_ddr3(16-1 downto  8) &
+        --                           sdata_ddr3(24-1 downto 16) & sdata_ddr3(32-1 downto 24) &
+        --                           sdata_ddr3(40-1 downto 32) & sdata_ddr3(48-1 downto 40) &
+        --                           sdata_ddr3(56-1 downto 48) & sdata_ddr3(64-1 downto 56) ;
+        --       sfb_width        <= "111";
 --          else
 --          if(sreg_out_en = '1') then
 --              sfb_frame        <= svsync_calib;
@@ -1610,14 +1610,14 @@ begin
 --                                  sdata_calib(40-1 downto 32) & sdata_calib(48-1 downto 40) &
 --                                  sdata_calib(56-1 downto 48) & sdata_calib(64-1 downto 56) ;
 --              sfb_width        <= "111";
---            if(sreg_out_en = '1') then
---                sfb_frame <= svsync_img_proc;
---                sfb_dv    <= shsync_img_proc;
---                sfb_data  <= sdata_img_proc( 8-1 downto  0) & sdata_img_proc(16-1 downto  8) &
---                             sdata_img_proc(24-1 downto 16) & sdata_img_proc(32-1 downto 24) &
---                             sdata_img_proc(40-1 downto 32) & sdata_img_proc(48-1 downto 40) &
---                             sdata_img_proc(56-1 downto 48) & sdata_img_proc(64-1 downto 56);
---                sfb_width <= "111";
+           if(sreg_out_en = '1') then
+               sfb_frame <= svsync_img_proc;
+               sfb_dv    <= shsync_img_proc;
+               sfb_data  <= sdata_img_proc( 8-1 downto  0) & sdata_img_proc(16-1 downto  8) &
+                            sdata_img_proc(24-1 downto 16) & sdata_img_proc(32-1 downto 24) &
+                            sdata_img_proc(40-1 downto 32) & sdata_img_proc(48-1 downto 40) &
+                            sdata_img_proc(56-1 downto 48) & sdata_img_proc(64-1 downto 56);
+               sfb_width <= "111";
             else
                 sfb_frame <= '0';
                 sfb_dv    <= '0';
@@ -4180,17 +4180,17 @@ ila_debug : if(GEN_ILA_TOP = "ON") generate
             probe6  : in std_logic;
             probe7  : in std_logic_vector(11 downto 0);
             probe8  : in std_logic_vector(11 downto 0);
-            probe9  : in std_logic_vector(63 downto 0)
---            probe10 : in std_logic;
---            probe11 : in std_logic;
---            probe12 : in std_logic_vector(11 downto 0);
---            probe13 : in std_logic_vector(11 downto 0);
---            probe14 : in std_logic_vector(63 downto 0)
---            probe15 : in std_logic;
---            probe16 : in std_logic;
---            probe17 : in std_logic_vector(11 downto 0);
---            probe18 : in std_logic_vector(11 downto 0);
---            probe19 : in std_logic_vector(63 downto 0)
+            probe9  : in std_logic_vector(63 downto 0);
+           probe10 : in std_logic;
+           probe11 : in std_logic;
+           probe12 : in std_logic_vector(11 downto 0);
+           probe13 : in std_logic_vector(11 downto 0);
+           probe14 : in std_logic_vector(63 downto 0);
+           probe15 : in std_logic;
+           probe16 : in std_logic;
+           probe17 : in std_logic_vector(11 downto 0);
+           probe18 : in std_logic_vector(11 downto 0);
+           probe19 : in std_logic_vector(63 downto 0)
         );
     end component;
 
@@ -4207,17 +4207,17 @@ begin
             probe6  => svsync_ddr3,
             probe7  => shcnt_ddr3,
             probe8  => svcnt_ddr3,
-            probe9  => sdata_ddr3
---            probe10 => shsync_calib,
---            probe11 => svsync_calib,
---            probe12 => shcnt_calib,
---            probe13 => svcnt_calib,
---            probe14 => sdata_calib,
---            probe10 => shsync_img_proc,
---            probe11 => svsync_img_proc,
---            probe12 => shcnt_img_proc,
---            probe13 => svcnt_img_proc,
---            probe14 => sdata_img_proc
+            probe9  => sdata_ddr3,
+           probe10 => shsync_calib,
+           probe11 => svsync_calib,
+           probe12 => shcnt_calib,
+           probe13 => svcnt_calib,
+           probe14 => sdata_calib,
+           probe15 => shsync_img_proc,
+           probe16 => svsync_img_proc,
+           probe17 => shcnt_img_proc,
+           probe18 => svcnt_img_proc,
+           probe19 => sdata_img_proc
         );
 end generate ila_debug;
 

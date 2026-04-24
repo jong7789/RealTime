@@ -376,8 +376,8 @@ void execute_cmd_bmode(u32 data) {
     // TI_ROIC
 //  float DCLK_MHz = FPGA_TFT_DATA_CLK / 1000000.0;
 //  u32 ana2x2 = 12;
-
-    execute_cmd_bmode_gain(data);   // dskim - 21.03.10 - Binning mode에 따라서 Gain 값 변경
+	//$ 260423 AFE3256 does not use bmode gain.
+    if(!AFE3256_series) execute_cmd_bmode_gain(data);   // dskim - 21.03.10 - Binning mode에 따라서 Gain 값 변경
 
     execute_cmd_bmode_edge_cut(data);   // dskim - 21.09.27
 
@@ -435,41 +435,6 @@ void execute_cmd_bmode_gain(u32 data) { //# 0.3 gain support 221208
     u32 curr = (data+2) >> 1;
     u32 prev = (func_binning_mode + 2) >> 1;
 
-    //$ 260224 AFE3256 Analog Gain
-    //if(AFE3256_series){
-    //	u32 idx = func_ifs_index;
-    //
-    //	idx = (u32)((idx+1) * ((float)curr/prev));
-    //
-    //	//$ 260224 to prevent under/over flow
-    //	if (idx <  1) idx =  1;
-    //	idx = idx - 1;
-    //	//if (idx > 39) idx = 39;
-    //	if (idx > 11) idx = 11; //$ 260403 12 step
-    //
-    //	func_ifs_index = idx;
-    //	set_roic_data(1, AFE3256_Cfb(idx));
-    //	if(DBG_BGAIN) func_printf("[DBG_BGAIN] AFE3256 idx = %d \r\n", idx);
-    //}
-    //$ 260403 AFE3256 Analog Gain - QFS based scaling for 12 step
-    if(AFE3256_series){
-    	// QFS x16 table (integer): 0.3125*16=5, 0.625*16=10, ... 12.5*16=200
-    	const u32 qfs_x16[12] = {5, 10, 20, 40, 60, 80, 100, 120, 140, 160, 180, 200};
-    	u32 idx = func_ifs_index;
-    	u32 target = qfs_x16[idx] * curr / prev;
-    	u32 new_idx = 0;
-    	u32 i;
-
-    	for(i = 0; i < 12; i++){
-    		if(qfs_x16[i] <= target) new_idx = i;
-    		else break;
-    	}
-
-    	func_ifs_index = new_idx;
-    	set_roic_data(1, AFE3256_Cfb(new_idx));
-    	if(DBG_BGAIN) func_printf("[DBG_BGAIN] AFE3256 idx = %d \r\n", new_idx);
-    }
-    else { //$ AFE2256
     	u32 ifs = get_roic_data(0);
 
     	if(DBG_BGAIN)func_printf("[DBG_BGAIN] get ifs 0=%d\r\n",ifs);
@@ -490,7 +455,7 @@ void execute_cmd_bmode_gain(u32 data) { //# 0.3 gain support 221208
     	if(DBG_BGAIN)func_printf("[DBG_BGAIN] set ifs =%d\r\n",ifs);
 
     	set_roic_data(0, ifs);
-	}
+
 }
 //# 221207
 //void execute_cmd_bmode_gain(u32 data) {
@@ -1321,7 +1286,7 @@ void execute_cmd_ifs(u32 data) {
     //####################################################
      // 0.3pc roic gain set 220726mbh
     if(DEBUG_IFS)func_printf("execute_cmd_ifs 1\r\n");
-    if(AFE3256_series == 0){
+    if(!AFE3256_series){
     	if(data == 0 || data > 15) //0.3step //# data>15 221108
     	{
     		if(DEBUG_IFS)func_printf("execute_cmd_ifs 2\r\n");
@@ -3407,11 +3372,11 @@ void execute_cmd_wddr(u32 data, u32 level) {
 
     switch(data) {
         case 0 :                                    break;
-        case 1 : addr = ADDR_AVG_DATA_DOSE0; if(DBG_wddr)func_printf("[DBG_wddr] AVG DOSE 0\r\n "); break;
-        case 2 : addr = ADDR_AVG_DATA_DOSE1; if(DBG_wddr)func_printf("[DBG_wddr] AVG DOSE 1\r\n ");  break;
-        case 3 : addr = ADDR_AVG_DATA_DOSE2; if(DBG_wddr)func_printf("[DBG_wddr] AVG DOSE 2\r\n ");  break;
-        case 4 : addr = ADDR_AVG_DATA_DOSE3; if(DBG_wddr)func_printf("[DBG_wddr] AVG DOSE 3\r\n ");  break;
-        case 5 : addr = ADDR_AVG_DATA_DOSE4; if(DBG_wddr)func_printf("[DBG_wddr] AVG DOSE 4\r\n ");  break;
+        case 1 : addr = ADDR_AVG_DATA_DOSE0; if(DBG_wddr)func_printf("[DBG_wddr] AVG DOSE 0\r\n");  break;
+        case 2 : addr = ADDR_AVG_DATA_DOSE1; if(DBG_wddr)func_printf("[DBG_wddr] AVG DOSE 1\r\n");  break;
+        case 3 : addr = ADDR_AVG_DATA_DOSE2; if(DBG_wddr)func_printf("[DBG_wddr] AVG DOSE 2\r\n");  break;
+        case 4 : addr = ADDR_AVG_DATA_DOSE3; if(DBG_wddr)func_printf("[DBG_wddr] AVG DOSE 3\r\n");  break;
+        case 5 : addr = ADDR_AVG_DATA_DOSE4; if(DBG_wddr)func_printf("[DBG_wddr] AVG DOSE 4\r\n");  break;
     }
     if(DBG_wddr)func_printf("[DBG_wddr] addr = 0x%8x\r\n",addr);
     set_ddr_waddr(addr, 2);
@@ -6469,6 +6434,7 @@ void execute_cmd_fpgareboot(void) {
 void execute_cmd_doc(void){ //$ 260305
    	u32 timeoutcnt = 0;
     u32 grab = func_grab_en;
+    u32 keep0x0D = execute_cmd_rroic(0x0D);
 
    	func_printf("Digital Offset Correction...");
 
@@ -6487,7 +6453,7 @@ void execute_cmd_doc(void){ //$ 260305
     while(!(execute_cmd_rroic(0x4B) >> 14 & 0x1)){
     	msdelay(10);
     	timeoutcnt++;
-    	if(10 < timeoutcnt){
+    	if(20 < timeoutcnt){
     		func_printf("Digital Offset FAIL !!\r\n");
     		break;
     	}
@@ -6495,7 +6461,7 @@ void execute_cmd_doc(void){ //$ 260305
 
     execute_cmd_wroic(0x4B,  0x0003);
     execute_cmd_wroic(0x4C,  0x8005);
-    execute_cmd_wroic(0x0D,  0x0000);
+    execute_cmd_wroic(0x0D,  keep0x0D);
     execute_cmd_wroic(0x94,  0x0001);
     execute_cmd_wroic(0x89,  0x3000);
     execute_cmd_wroic(0x80,  0x080D);

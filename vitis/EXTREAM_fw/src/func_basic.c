@@ -597,7 +597,7 @@ void roic_3256_init(Profile_Def *profile){
     execute_cmd_wroic(0x96,  0x8000);
     execute_cmd_wroic(0x08,  0x0004);
     execute_cmd_wroic(0x13,  0x0200);
-    execute_cmd_wroic(0xA3,  0x4C20);                  // Power Control Register
+    execute_cmd_wroic(0xA3,  0x4C00);                  // Power Control Register //$ 260422 4C20 -> 4C00 to Enable DAC
     execute_cmd_wroic(0x8D,  0x0240);
     execute_cmd_wroic(0x8E,  0x0002);
     execute_cmd_wroic(0xA5,  0x4000);                  // Power Control Register
@@ -617,8 +617,7 @@ void roic_3256_init(Profile_Def *profile){
 
     //$ Input Charge Range Selection
     execute_cmd_wroic(0x82,  0x0808);                  // Input Charge Range 1.25pC
-    //func_ifs_index = 3; 							   //$ 260305 1.25pC => index : 3
-    func_ifs_index = 2; 							   //$ 260403 1.25pC => index : 2 (12 step)
+    func_ifs_index = 2; 							   //$ 260403 1.25pC => index : 2 (16 step)
 
     //$ Integration Mode Selection (Integrate up)
     execute_cmd_wroic(0x80,  0x080D);
@@ -626,10 +625,22 @@ void roic_3256_init(Profile_Def *profile){
     execute_cmd_wroic(0xE9,  0x0000);
     execute_cmd_wroic(0xD2,  0x0000);
 
-    //$ Power Mode Selection (Low Noise)
-    execute_cmd_wroic(0x86,  0x0400);
+    // //$ Power Mode Selection (Low Noise)
+    // execute_cmd_wroic(0x86,  0x0400);
+    // execute_cmd_wroic(0x88,  0x0000);
+    // execute_cmd_wroic(0x8E,  0x0002);
+
+    //$ Power Mode Selection (Normal Power)
+    execute_cmd_wroic(0x86,  0x0000);
     execute_cmd_wroic(0x88,  0x0000);
     execute_cmd_wroic(0x8E,  0x0002);
+
+    //$ 260422 TFT Charge Injection
+    execute_cmd_wroic(0x0D,  0x04E8);
+    // execute_cmd_wroic(0x86,  0x8401); low noise
+    execute_cmd_wroic(0x86,  0x8001); // normal power
+    execute_cmd_wroic(0x87,  0x0300);
+    execute_cmd_wroic(0x6D,  0x0010);               //$ Internal DAC Ctrl
 
     //$ User settings - STR 0 (107 page)
     execute_cmd_wroic(0xAD,  0x1800);
@@ -715,6 +726,24 @@ void roic_3256_init(Profile_Def *profile){
     u32 N_shr      	= N_shr_lpf1 + N_lpf1;
     u32 N_shs      	= N_shs_lpf2 + N_lpf2;
 
+    //$ 260422 TFT Charge Injection
+    u32 SHS_RISE = N_irst + N_shr_lpf1 + N_lpf1 + 3;
+    u32 SHS_FALL = SHS_RISE + N_shs;
+    u32 DF_SM0_R = SHS_RISE;
+    u32 DF_SM0_F = SHS_FALL;
+    u32 DF_SM1_R = SHS_RISE;
+    u32 DF_SM1_F = SHS_FALL;
+    u32 DF_SM2_R = SHS_RISE;
+    u32 DF_SM2_F = SHS_FALL;
+    u32 DF_SM3_R = SHS_RISE;
+    u32 DF_SM3_F = SHS_FALL;
+    u32 DF_SM4_R = SHS_RISE;
+    u32 DF_SM4_F = SHS_FALL;
+    u32 DF_SM5_R = SHS_RISE;
+    u32 DF_SM5_F = SHS_FALL;
+    u32 DF_SM6_R = SHS_RISE;
+    u32 DF_SM6_F = SHS_FALL;
+
     //$ 260406 Grab protection before TG register write
     execute_cmd_grab(0);
     execute_cmd_grab(1);
@@ -729,6 +758,18 @@ void roic_3256_init(Profile_Def *profile){
     execute_cmd_wroic(0x1E, (N_sig1 << 8 | N_sig0));
     execute_cmd_wroic(0x1F, N_sig2);
     execute_cmd_wroic(0x96, ((1<<15) | lpf << 8 | lpf));
+
+    //$ 260422 TFT Charge Injection
+   execute_cmd_wroic(0x03, 0x0006);
+   execute_cmd_wroic(0x72, DF_SM0_R); execute_cmd_wroic(0x73, DF_SM0_F);
+   execute_cmd_wroic(0x74, DF_SM1_R); execute_cmd_wroic(0x75, DF_SM1_F);
+   execute_cmd_wroic(0x76, DF_SM2_R); execute_cmd_wroic(0x77, DF_SM2_F);
+   execute_cmd_wroic(0x78, DF_SM3_R); execute_cmd_wroic(0x79, DF_SM3_F);
+   execute_cmd_wroic(0x7A, DF_SM4_R); execute_cmd_wroic(0x7B, DF_SM4_F);
+   execute_cmd_wroic(0x7C, DF_SM5_R); execute_cmd_wroic(0x7D, DF_SM5_F);
+   execute_cmd_wroic(0x7E, DF_SM6_R); execute_cmd_wroic(0x7F, DF_SM6_F);
+   execute_cmd_wroic(0x03, 0x0000);
+
 
     execute_cmd_wroic(0x1A,  0x000F);
 //    execute_cmd_ifs(get_roic_data(1)); //$ to Get Analog Gain
@@ -780,7 +821,7 @@ void roic_3256_init(Profile_Def *profile){
 
     //$ Digital Offset Correction (Page 56)
     // Calibration Time = 2 * AVG_NUM * tScan
-//    execute_cmd_doc();
+    // execute_cmd_doc();
 
 //    REG(ADDR_TOPRST_CTRL)= 0xFFFB;
 //    msdelay(10);
@@ -797,7 +838,7 @@ void roic_3256_init(Profile_Def *profile){
 
 void roic_init(void) {
     // TI_ROIC
-//    u32 i;4
+//    u32 i;
 //    u32 cnt = 0;
     u32 grab  = func_grab_en;
 
@@ -1922,16 +1963,16 @@ void execute_calib_cmd(void) {
 
     switch(func_calib_cmd) {
         case 1    :    func_busy = 1;
-//        			if(AFE3256_series){ //$ 260305
-//                        func_busy_time = 300;
-//        				execute_cmd_doc();
-//        			}
-//        			else{
+        			// if(AFE3256_series){ //$ 260305
+                    //     func_busy_time = 300;
+        			// 	execute_cmd_doc();
+        			// }
+        			// else{
                     func_busy_time = (u32)(((1 << (user_avg_level)) / func_frate) * 1000);
                     execute_cmd_wddr(func_calib_map, user_avg_level);
 //                    if((func_calib_map == 1) && (func_check_gain_calib == 1))    // dskim - ti 사용하지 않음
 //                        execute_cmd_ucal();
-//        			}
+        			// }
                     break;
         case 2    :     execute_cmd_cddr(func_calib_map);
                     break;
@@ -2226,14 +2267,14 @@ void read_fpga_temp(void) {
 //	if(n >=  1) { value |= 0x01;          }
 //	return value;
 //}
-//$ 260403 Reduce AFE3256 Cfb from 40 to 12 steps
+//$ 260403 Reduce AFE3256 Cfb from 40 to 12 steps //$ 260423 12 -> 16
 u32 AFE3256_Cfb (u32 data){
-	const u32 cfb_table[12] = {
-// Step : 0      1      2      3      4      5      6      7      8      9      10     11
-// QFS  : 0.3125 0.625  1.250  2.500  3.750  5.000  6.250  7.500  8.750  10.00  11.25  12.50 (pC)
-		  0x01,  0x04,  0x08,  0x10,  0x18,  0x40,  0x48,  0x60,  0x68,  0x70,  0x78,  0x7F
+	const u32 cfb_table[16] = {
+// Step : 0      1     2     3     4     5     6     7     8     9     10    11	   12    13    14    15
+// QFS  : 0.3125 0.625 1.250 1.875 2.500 3.125 3.750 4.375 5.000 5.625 6.250 6.875 7.500 8.125 8.750 9.375 (pC)
+		  0x01,  0x04, 0x08, 0x0C, 0x10, 0x14, 0x18, 0x1C, 0x40, 0x44, 0x48, 0x4C, 0x60, 0x64, 0x68, 0x6C
 	};
-	if(data > 11) data = 11;
+	if(data > 15) data = 15;
 	return cfb_table[data];
 }
 // TI_ROIC

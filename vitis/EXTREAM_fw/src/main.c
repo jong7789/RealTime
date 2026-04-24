@@ -90,10 +90,12 @@
 
     SW2.xx.04
     	01. EXT4343RD DDR3 * 4EA
+    	02. //$ 260422 TFT Charge Injection
+    	03. //$ 260423 AFE3256 does not use bmode gain
 *****************************************************************************/
 
-u8  GIGE_DVER   [16] = "SW2.01.04      "; // SW1.SUB.MAIN version
-u8  FW_DATE     [20] = "2026.04.21 09:00";
+u8  GIGE_DVER   [16] = "SW2.03.04      "; // SW1.SUB.MAIN version
+u8  FW_DATE     [20] = "2026.04.23 15:00";
 
 /****************************************************************************
 timing profile => system_config
