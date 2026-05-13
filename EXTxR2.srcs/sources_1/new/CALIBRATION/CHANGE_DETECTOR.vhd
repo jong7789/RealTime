@@ -31,7 +31,7 @@ entity change_detector is
     port (
         clk              : in  std_logic;
         i_reg_width      : in  std_logic_vector(12 - 1 downto 0);
-        i_reg_height     : in  std_logic_vector(12 - 1 downto 0);
+        i_reg_height     : in  std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
         i_reg_chgdet_en  : in  std_logic;
         i_reg_chgdet_md  : in  std_logic;
         i_reg_chgSense   : in  std_logic_vector(4 - 1 downto 0);
@@ -44,7 +44,7 @@ entity change_detector is
         i_Hsyn   : in  std_logic;
         i_Vsyn   : in  std_logic;
         i_Hcnt   : in  std_logic_vector(12 - 1 downto 0);
-        i_Vcnt   : in  std_logic_vector(12 - 1 downto 0);
+        i_Vcnt   : in  std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
         i_Data   : in  std_logic_vector(16 - 1 downto 0);
         o_change : out std_logic
     );

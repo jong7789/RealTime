@@ -23,18 +23,18 @@ port (
     oreg_ldefect_rdata : out std_logic_vector(15 downto 0);
 
     ireg_width         : in  std_logic_vector(11 downto 0);
-    ireg_height        : in  std_logic_vector(11 downto 0);
+    ireg_height        : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
     ihsync             : in  std_logic;
     ivsync             : in  std_logic;
     ihcnt              : in  std_logic_vector(11 downto 0);
-    ivcnt              : in  std_logic_vector(11 downto 0);
+    ivcnt              : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     idata              : in  std_logic_vector(15 downto 0);
 
     ohsync             : out std_logic;
     ovsync             : out std_logic;
     ohcnt              : out std_logic_vector(11 downto 0);
-    ovcnt              : out std_logic_vector(11 downto 0);
+    ovcnt              : out std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     odata              : out std_logic_vector(15 downto 0)
 );
 end LINE_DEFECT_PROC;
@@ -47,18 +47,18 @@ architecture Behavioral of LINE_DEFECT_PROC is
         idata_rstn : in  std_logic;
 
         ireg_width  : in  std_logic_vector(11 downto 0);
-        ireg_height : in  std_logic_vector(11 downto 0);
+        ireg_height : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
         ihsync : in  std_logic;
         ivsync : in  std_logic;
-        ivcnt  : in  std_logic_vector(11 downto 0);
+        ivcnt  : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
         ihcnt  : in  std_logic_vector(11 downto 0);
         idata  : in  std_logic_vector(15 downto 0);
 
         ohsync_2x2 : out std_logic;
         ovsync_2x2 : out std_logic;
         ohcnt_2x2  : out std_logic_vector(11 downto 0);
-        ovcnt_2x2  : out std_logic_vector(11 downto 0);
+        ovcnt_2x2  : out std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
         odata_1x1 : out std_logic_vector(15 downto 0);
         odata_1x2 : out std_logic_vector(15 downto 0);
@@ -113,7 +113,7 @@ architecture Behavioral of LINE_DEFECT_PROC is
     signal sdefect_rdata         : std_logic_vector(15 downto 0);
 
     signal swidth                : std_logic_vector(11 downto 0);
-    signal sheight               : std_logic_vector(11 downto 0);
+    signal sheight               : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sdebug_mode           : std_logic;
     signal sdefect_map           : std_logic;
     signal sldefect_mode         : std_logic;
@@ -127,9 +127,9 @@ architecture Behavioral of LINE_DEFECT_PROC is
     signal shcnt_1x1             : std_logic_vector(11 downto 0);
     signal shcnt_1x2             : std_logic_vector(11 downto 0);
     signal shcnt_2x2             : std_logic_vector(11 downto 0);
-    signal svcnt_1x1             : std_logic_vector(11 downto 0);
-    signal svcnt_1x2             : std_logic_vector(11 downto 0);
-    signal svcnt_2x2             : std_logic_vector(11 downto 0);
+    signal svcnt_1x1             : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal svcnt_1x2             : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal svcnt_2x2             : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sdata_1x1             : std_logic_vector(15 downto 0);
     signal sdata_1x2             : std_logic_vector(15 downto 0);
     signal sdata_1x3             : std_logic_vector(15 downto 0);
@@ -139,7 +139,7 @@ architecture Behavioral of LINE_DEFECT_PROC is
     signal shsync                : std_logic;
     signal svsync                : std_logic;
     signal shcnt                 : std_logic_vector(11 downto 0);
-    signal svcnt                 : std_logic_vector(11 downto 0);
+    signal svcnt                 : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sdata                 : std_logic_vector(15 downto 0);
     signal srow_sum              : std_logic_vector(16 downto 0);
     signal scol_sum              : std_logic_vector(16 downto 0);
@@ -147,13 +147,13 @@ architecture Behavioral of LINE_DEFECT_PROC is
     signal shsync_defect         : std_logic;
     signal svsync_defect         : std_logic;
     signal shcnt_defect          : std_logic_vector(11 downto 0);
-    signal svcnt_defect          : std_logic_vector(11 downto 0);
+    signal svcnt_defect          : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sdata_defect          : std_logic_vector(15 downto 0);
 
     signal shsync_out            : std_logic;
     signal svsync_out            : std_logic;
     signal shcnt_out             : std_logic_vector(11 downto 0);
-    signal svcnt_out             : std_logic_vector(11 downto 0);
+    signal svcnt_out             : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sdata_out             : std_logic_vector(15 downto 0);
 
     signal shsync_1d             : std_logic;
@@ -186,10 +186,10 @@ architecture Behavioral of LINE_DEFECT_PROC is
     signal sreg_width_1d         : std_logic_vector(11 downto 0);
     signal sreg_width_2d         : std_logic_vector(11 downto 0);
     signal sreg_width_3d         : std_logic_vector(11 downto 0);
-    signal sreg_height           : std_logic_vector(11 downto 0);
-    signal sreg_height_1d        : std_logic_vector(11 downto 0);
-    signal sreg_height_2d        : std_logic_vector(11 downto 0);
-    signal sreg_height_3d        : std_logic_vector(11 downto 0);
+    signal sreg_height           : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal sreg_height_1d        : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal sreg_height_2d        : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal sreg_height_3d        : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
 begin
 
@@ -313,7 +313,8 @@ begin
                     -- sdefect_addr    <= x"0";
                     vdefect_addr <= x"0";
                 else
-                    if( (MODE = "ROW" and svcnt = sdefect_rdata(12 - 1 downto 0) and shcnt = swidth - 1) or
+--                  if( (MODE = "ROW" and svcnt = sdefect_rdata(12 - 1 downto 0) and shcnt = swidth - 1) or
+                    if( (MODE = "ROW" and svcnt(11 downto 0) = sdefect_rdata(12 - 1 downto 0) and shcnt = swidth - 1) or --# 2604231608 Slice V to 12bit for RAM compare
                         (MODE = "COL" and shcnt = sdefect_rdata(12 - 1 downto 0) and shsync = '1')) then
                         -- sdefect_addr    <= sdefect_addr + '1';
                         vdefect_addr <= vdefect_addr + '1';
@@ -346,7 +347,8 @@ begin
                 if(shsync = '1') then
                     if(sdefect_map = '0') then
                         if(MODE = "ROW") then
-                            if(svcnt = sdefect_rdata(12 - 1 downto 0)) then
+--                          if(svcnt = sdefect_rdata(12 - 1 downto 0)) then
+                            if(svcnt(11 downto 0) = sdefect_rdata(12 - 1 downto 0)) then --# 2604231608 Slice V to 12bit for RAM compare
                                 if(svcnt = 0) then
                                     sdata_defect <= sdata_3x2;
                                 elsif(svcnt = sheight - 1) then
@@ -380,7 +382,8 @@ begin
                         end if;
                     else
                         if(MODE = "ROW") then
-                            if(svcnt = sdefect_rdata(12 - 1 downto 0)) then
+--                          if(svcnt = sdefect_rdata(12 - 1 downto 0)) then
+                            if(svcnt(11 downto 0) = sdefect_rdata(12 - 1 downto 0)) then --# 2604231608 Slice V to 12bit for RAM compare
                                 sdata_defect <= x"FFFF";
                             else
                                 if(sdata_2x2 = x"FFFF") then

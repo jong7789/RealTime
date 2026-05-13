@@ -28,6 +28,7 @@ extern u8 FW_VER [16]; //# 230621
 void disp_err(u16 err_code);
 void disp_cmd_h(void);
 void disp_cmd_auth(void);
+void disp_cmd_port(void); //# 260421 show selected PHY port
 void disp_cmd_stat(void);
 void disp_cmd_tser(void);
 void disp_cmd_pser(void);
@@ -126,4 +127,5 @@ void disp_cmd_romdiag(void);
 void disp_cmd_romread(void);
 void disp_cmd_ropertime(void);
 void disp_cmd_wtp(void);
+void disp_cmd_doc(void);
 #endif /* SRC_DISPLAY_H_ */

@@ -17,13 +17,13 @@ entity AVG_PROC_PARA4 is
         i_hsyn  : in  std_logic;
         i_vsyn  : in  std_logic;
         i_hcnt  : in  std_logic_vector(12 - 1 downto 0);
-        i_vcnt  : in  std_logic_vector(12 - 1 downto 0);
+        i_vcnt  : in  std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
         i_data  : in  std_logic_vector(64 - 1 downto 0);
         i_mdata : in  std_logic_vector(64 - 1 downto 0);
 
         o_avg_wen   : out std_logic;
         o_avg_waddr : out std_logic_vector(12 - 1 downto 0); --# hcnt
-        o_avg_wvcnt : out std_logic_vector(12 - 1 downto 0); --# vcnt
+        o_avg_wvcnt : out std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
         o_avg_winfo : out std_logic_vector(64 - 1 downto 0)
     );
 end AVG_PROC_PARA4;
@@ -57,6 +57,7 @@ architecture Behavioral_AVG_PROC_PARA4 of AVG_PROC_PARA4 is
     type type_reg_shf16b is array (SHF_REG_NUM - 1 downto 0) of std_logic_vector(16 - 1 downto 0);
 
     type type_vid_shf12b is array (SHF_VID_NUM - 1 downto 0) of std_logic_vector(12 - 1 downto 0);
+    type type_vid_shf13b is array (SHF_VID_NUM - 1 downto 0) of std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
     type type_vid_shf64b is array (SHF_VID_NUM - 1 downto 0) of std_logic_vector(64 - 1 downto 0);
 
     signal shf_reg_avg_en : std_logic_vector(SHF_REG_NUM - 1 downto 0);
@@ -65,7 +66,7 @@ architecture Behavioral_AVG_PROC_PARA4 of AVG_PROC_PARA4 is
     signal shf_ihsyn : std_logic_vector(SHF_VID_NUM - 1 downto 0);
     signal shf_ivsyn : std_logic_vector(SHF_VID_NUM - 1 downto 0);
     signal shf_ihcnt : type_vid_shf12b;
-    signal shf_ivcnt : type_vid_shf12b;
+    signal shf_ivcnt : type_vid_shf13b; --# 2604231608 Expand V-axis 12->13bit
     signal shf_idata : type_vid_shf64b;
     signal shf_mdata : type_vid_shf64b;
 
@@ -85,7 +86,7 @@ architecture Behavioral_AVG_PROC_PARA4 of AVG_PROC_PARA4 is
 
     signal avg_wen   : std_logic;
     signal avg_waddr : std_logic_vector(12 - 1 downto 0);
-    signal avg_wvcnt : std_logic_vector(12 - 1 downto 0);
+    signal avg_wvcnt : std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal avg_winfo : std_logic_vector(64 - 1 downto 0);
 
     signal acc_i_en : std_logic;
@@ -228,7 +229,7 @@ begin
 --          avg_wen   <= shf_ihsyn(shf_ihsyn'left); --and acc_en;
             avg_wen   <= acc_en(0);
             avg_waddr <= shf_ihcnt(shf_ihcnt'left)(12 - 1 downto 0);
-            avg_wvcnt <= shf_ivcnt(shf_ivcnt'left)(12 - 1 downto 0);
+            avg_wvcnt <= shf_ivcnt(shf_ivcnt'left)(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
             avg_winfo <= acc_data;
             ---- 6bit(gainoffset) + 10bit(offset) --# fail
 --          avg_winfo <= shf_mdata(1+38)(16*(3+1)-1 downto 16*3+10) & acc_data(16*3+10-1 downto 16*3) &

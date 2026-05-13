@@ -147,6 +147,7 @@ u8 UART_CMD_grab (u8 num, u32* data);
 u8 UART_CMD_fstat(u8 num, u32* data);
 u8 UART_CMD_finit(u8 num, u32* data);
 u8 UART_CMD_fclr(u8 num, u32* data);
+u8 UART_CMD_fov(u8 num, u32* data);   //# 2605081100 framebuf OVFLW one-line summary
 u8 UART_CMD_pdbg(u8 num, u32* data);
 u8 UART_CMD_prev(u8 num, u32* data);
 u8 UART_CMD_flash(u8 num, u32* data);
@@ -159,6 +160,12 @@ u8 UART_CMD_rddr(u8 num, u32* data);
 u8 UART_CMD_tempbcal(u8 num, u32* data);
 u8 UART_CMD_bcal1(u8 num, u32* data);
 u8 UART_CMD_bcal(u8 num, u32* data);
+u8 UART_CMD_bcalfw(u8 num, u32* data); // 2604242200 FW-driven bit-align with verbose trace
+// 2604250010 step-separated commands
+u8 UART_CMD_bcalfwi(u8 num, u32* data); // FW bcal init (enter fw_mode)
+u8 UART_CMD_bcalfwx(u8 num, u32* data); // FW bcal exit (leave fw_mode)
+u8 UART_CMD_bcalfws(u8 num, u32* data); // FW bcal bit_stable [ch]: no arg = all ROIC_NUM
+u8 UART_CMD_bcalfww(u8 num, u32* data); // FW bcal word_align [ch]: no arg = all ROIC_NUM
 u8 UART_CMD_gcal(u8 num, u32* data);
 u8 UART_CMD_ucal(u8 num, u32* data);
 u8 UART_CMD_dcal(u8 num, u32* data);
@@ -230,5 +237,9 @@ u8 UART_CMD_able  (u8 num, u32* data); //# 230926
 u8 UART_CMD_romdiag  (u8 num, u32* data); //# 231017
 u8 UART_CMD_romread  (u8 num, u32* data); //# 231017
 u8 UART_CMD_ropertime  (u8 num, u32* data); //# 231121
+u8 UART_CMD_port  (u8 num, u32* data); //# 260421 Select PHY port (0:Marvell 1:SFP)
+u8 UART_CMD_doc	(u8 num, u32* data);
+u8 UART_CMD_apm   (u8 num, u32* data); //# 2605062100 APM bandwidth on axi_crossbar_0_M00_AXI (R/W Gbps + %)
+u8 UART_CMD_ddrburst (u8 num, u32* data); //# 2605071529 DDR AXI burst limit (32/64/128/256, runtime register)
 
 #endif /* SRC_UART_CMD_H_ */

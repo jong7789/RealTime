@@ -18,19 +18,19 @@ port (
     ireg_tp_value  : in  std_logic_vector(15 downto 0); --# 230717
 
     ireg_width     : in  std_logic_vector(11 downto 0);
-    ireg_height    : in  std_logic_vector(11 downto 0);
+    ireg_height    : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     id2m_dark      : in  std_logic;
 
     ihsync         : in  std_logic;
     ivsync         : in  std_logic;
     ihcnt          : in  std_logic_vector(9 downto 0);
-    ivcnt          : in  std_logic_vector(11 downto 0);
+    ivcnt          : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     idata          : in  std_logic_vector(63 downto 0);
 
     ohsync         : out std_logic;
     ovsync         : out std_logic;
     ohcnt          : out std_logic_vector(9 downto 0);
-    ovcnt          : out std_logic_vector(11 downto 0);
+    ovcnt          : out std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     odata          : out std_logic_vector(63 downto 0);
     ostate_data    : out tstate_data_tpat
 );
@@ -64,12 +64,14 @@ architecture Behavioral of TEST_PATTERN is
     signal sreg_tp_dtime       : std_logic_vector(15 downto 0);
 
     signal sreg_width          : std_logic_vector(9 downto 0);
-    signal sreg_height         : std_logic_vector(11 downto 0);
+--  signal sreg_height         : std_logic_vector(11 downto 0);
+    signal sreg_height         : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
     signal shsync2             : std_logic;
     signal svsync2             : std_logic;
     signal shcnt2              : std_logic_vector(9 downto 0);
-    signal svcnt2              : std_logic_vector(11 downto 0);
+--  signal svcnt2              : std_logic_vector(11 downto 0);
+    signal svcnt2              : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal svsync_trig         : std_logic;
 
     signal swait_cnt           : std_logic_vector(15 downto 0);
@@ -79,7 +81,8 @@ architecture Behavioral of TEST_PATTERN is
     signal shsync              : std_logic;
     signal svsync              : std_logic;
     signal shcnt               : std_logic_vector(9 downto 0);
-    signal svcnt               : std_logic_vector(11 downto 0);
+--  signal svcnt               : std_logic_vector(11 downto 0);
+    signal svcnt               : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sramp_data0         : std_logic_vector(63 downto 0);
     signal sramp_data1         : std_logic_vector(63 downto 0);
     signal sramp_data2         : std_logic_vector(63 downto 0);
@@ -95,12 +98,14 @@ architecture Behavioral of TEST_PATTERN is
     signal shsync_1d           : std_logic;
     signal svsync_1d           : std_logic;
     signal shcnt_1d            : std_logic_vector(9 downto 0);
-    signal svcnt_1d            : std_logic_vector(11 downto 0);
+--  signal svcnt_1d            : std_logic_vector(11 downto 0);
+    signal svcnt_1d            : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sdata_1d            : std_logic_vector(63 downto 0);
     signal shsync_2d           : std_logic;
     signal svsync_2d           : std_logic;
     signal shcnt_2d            : std_logic_vector(9 downto 0);
-    signal svcnt_2d            : std_logic_vector(11 downto 0);
+--  signal svcnt_2d            : std_logic_vector(11 downto 0);
+    signal svcnt_2d            : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sdata_2d            : std_logic_vector(63 downto 0);
     signal svsync_3d           : std_logic;
     signal sreg_grab_en_1d     : std_logic;
@@ -312,10 +317,14 @@ begin
                 sramp_data4 <= (others => '0');
                 sramp_data5 <= (others => '0');
             else
-                sramp_data0 <= (("0000" & svcnt) + ("00" & shcnt & "11"))
-                             & (("0000" & svcnt) + ("00" & shcnt & "10"))
-                             & (("0000" & svcnt) + ("00" & shcnt & "01"))
-                             & (("0000" & svcnt) + ("00" & shcnt & "00"));
+--              sramp_data0 <= (("0000" & svcnt) + ("00" & shcnt & "11"))
+--                           & (("0000" & svcnt) + ("00" & shcnt & "10"))
+--                           & (("0000" & svcnt) + ("00" & shcnt & "01"))
+--                           & (("0000" & svcnt) + ("00" & shcnt & "00"));
+                sramp_data0 <= (("000" & svcnt) + ("00" & shcnt & "11")) --# 2604231608 svcnt 12->13bit, pad 4->3 to keep 16bit lane
+                             & (("000" & svcnt) + ("00" & shcnt & "10"))
+                             & (("000" & svcnt) + ("00" & shcnt & "01"))
+                             & (("000" & svcnt) + ("00" & shcnt & "00"));
 
                 sramp_data1 <= (shcnt(7 downto 0) & "11" & "000000")
                              & (shcnt(7 downto 0) & "10" & "000000")

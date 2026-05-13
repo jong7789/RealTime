@@ -308,11 +308,40 @@ create_clock -period 2.778 -name ROIC_DCLK_P3 [get_ports {ROIC_DCLK_P[3]}]
 create_clock -period 2.778 -name ROIC_DCLK_P4 [get_ports {ROIC_DCLK_P[4]}]
 
 set_clock_groups -asynchronous -group [get_clocks ROIC_DCLK_P0] -group [get_clocks ROIC_DCLK_P1] -group [get_clocks ROIC_DCLK_P2] -group [get_clocks ROIC_DCLK_P3] -group [get_clocks ROIC_DCLK_P4]
-
+set_clock_groups -asynchronous -group [get_clocks GEV_RXAUI/U1/U0/rxaui_block_i/gt0_wrapper_i/gtxe2_i/TXOUTCLK] -group [get_clocks {sfp_ref_clk_p[0]}]; #async 26042211
 
 ##########################################
 #set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets sroic_dclk_0]
 # set input delay (per-DCLK, rising + falling edge, P + N)
+
+#--# 2604231520 Add source-synchronous input_delay for ROIC_DOUT to fix ch9 alignment
+#  UI = 1/(2*360MHz) = 1.389 ns, center-aligned DDR
+#  valid window ~0.65*UI (~900 ps), board skew ~100 ps => +/- 0.35 ns
+# ch 0-2 captured by ROIC_DCLK_P[0]
+set_input_delay -clock ROIC_DCLK_P0             -max  0.35 -add_delay [get_ports {ROIC_DOUT_P[0] ROIC_DOUT_P[1] ROIC_DOUT_P[2] ROIC_DOUT_N[0] ROIC_DOUT_N[1] ROIC_DOUT_N[2]}]
+set_input_delay -clock ROIC_DCLK_P0             -min -0.35 -add_delay [get_ports {ROIC_DOUT_P[0] ROIC_DOUT_P[1] ROIC_DOUT_P[2] ROIC_DOUT_N[0] ROIC_DOUT_N[1] ROIC_DOUT_N[2]}]
+set_input_delay -clock ROIC_DCLK_P0 -clock_fall -max  0.35 -add_delay [get_ports {ROIC_DOUT_P[0] ROIC_DOUT_P[1] ROIC_DOUT_P[2] ROIC_DOUT_N[0] ROIC_DOUT_N[1] ROIC_DOUT_N[2]}]
+set_input_delay -clock ROIC_DCLK_P0 -clock_fall -min -0.35 -add_delay [get_ports {ROIC_DOUT_P[0] ROIC_DOUT_P[1] ROIC_DOUT_P[2] ROIC_DOUT_N[0] ROIC_DOUT_N[1] ROIC_DOUT_N[2]}]
+# ch 3-5 captured by ROIC_DCLK_P[1]
+set_input_delay -clock ROIC_DCLK_P1             -max  0.35 -add_delay [get_ports {ROIC_DOUT_P[3] ROIC_DOUT_P[4] ROIC_DOUT_P[5] ROIC_DOUT_N[3] ROIC_DOUT_N[4] ROIC_DOUT_N[5]}]
+set_input_delay -clock ROIC_DCLK_P1             -min -0.35 -add_delay [get_ports {ROIC_DOUT_P[3] ROIC_DOUT_P[4] ROIC_DOUT_P[5] ROIC_DOUT_N[3] ROIC_DOUT_N[4] ROIC_DOUT_N[5]}]
+set_input_delay -clock ROIC_DCLK_P1 -clock_fall -max  0.35 -add_delay [get_ports {ROIC_DOUT_P[3] ROIC_DOUT_P[4] ROIC_DOUT_P[5] ROIC_DOUT_N[3] ROIC_DOUT_N[4] ROIC_DOUT_N[5]}]
+set_input_delay -clock ROIC_DCLK_P1 -clock_fall -min -0.35 -add_delay [get_ports {ROIC_DOUT_P[3] ROIC_DOUT_P[4] ROIC_DOUT_P[5] ROIC_DOUT_N[3] ROIC_DOUT_N[4] ROIC_DOUT_N[5]}]
+# ch 6-8 captured by ROIC_DCLK_P[2]
+set_input_delay -clock ROIC_DCLK_P2             -max  0.35 -add_delay [get_ports {ROIC_DOUT_P[6] ROIC_DOUT_P[7] ROIC_DOUT_P[8] ROIC_DOUT_N[6] ROIC_DOUT_N[7] ROIC_DOUT_N[8]}]
+set_input_delay -clock ROIC_DCLK_P2             -min -0.35 -add_delay [get_ports {ROIC_DOUT_P[6] ROIC_DOUT_P[7] ROIC_DOUT_P[8] ROIC_DOUT_N[6] ROIC_DOUT_N[7] ROIC_DOUT_N[8]}]
+set_input_delay -clock ROIC_DCLK_P2 -clock_fall -max  0.35 -add_delay [get_ports {ROIC_DOUT_P[6] ROIC_DOUT_P[7] ROIC_DOUT_P[8] ROIC_DOUT_N[6] ROIC_DOUT_N[7] ROIC_DOUT_N[8]}]
+set_input_delay -clock ROIC_DCLK_P2 -clock_fall -min -0.35 -add_delay [get_ports {ROIC_DOUT_P[6] ROIC_DOUT_P[7] ROIC_DOUT_P[8] ROIC_DOUT_N[6] ROIC_DOUT_N[7] ROIC_DOUT_N[8]}]
+# ch 9-11 captured by ROIC_DCLK_P[3]  (includes problematic ch9)
+set_input_delay -clock ROIC_DCLK_P3             -max  0.35 -add_delay [get_ports {ROIC_DOUT_P[9] ROIC_DOUT_P[10] ROIC_DOUT_P[11] ROIC_DOUT_N[9] ROIC_DOUT_N[10] ROIC_DOUT_N[11]}]
+set_input_delay -clock ROIC_DCLK_P3             -min -0.35 -add_delay [get_ports {ROIC_DOUT_P[9] ROIC_DOUT_P[10] ROIC_DOUT_P[11] ROIC_DOUT_N[9] ROIC_DOUT_N[10] ROIC_DOUT_N[11]}]
+set_input_delay -clock ROIC_DCLK_P3 -clock_fall -max  0.35 -add_delay [get_ports {ROIC_DOUT_P[9] ROIC_DOUT_P[10] ROIC_DOUT_P[11] ROIC_DOUT_N[9] ROIC_DOUT_N[10] ROIC_DOUT_N[11]}]
+set_input_delay -clock ROIC_DCLK_P3 -clock_fall -min -0.35 -add_delay [get_ports {ROIC_DOUT_P[9] ROIC_DOUT_P[10] ROIC_DOUT_P[11] ROIC_DOUT_N[9] ROIC_DOUT_N[10] ROIC_DOUT_N[11]}]
+# ch 12-13 captured by ROIC_DCLK_P[4]
+set_input_delay -clock ROIC_DCLK_P4             -max  0.35 -add_delay [get_ports {ROIC_DOUT_P[12] ROIC_DOUT_P[13] ROIC_DOUT_N[12] ROIC_DOUT_N[13]}]
+set_input_delay -clock ROIC_DCLK_P4             -min -0.35 -add_delay [get_ports {ROIC_DOUT_P[12] ROIC_DOUT_P[13] ROIC_DOUT_N[12] ROIC_DOUT_N[13]}]
+set_input_delay -clock ROIC_DCLK_P4 -clock_fall -max  0.35 -add_delay [get_ports {ROIC_DOUT_P[12] ROIC_DOUT_P[13] ROIC_DOUT_N[12] ROIC_DOUT_N[13]}]
+set_input_delay -clock ROIC_DCLK_P4 -clock_fall -min -0.35 -add_delay [get_ports {ROIC_DOUT_P[12] ROIC_DOUT_P[13] ROIC_DOUT_N[12] ROIC_DOUT_N[13]}]
 
 # RXAUI bridge asynchronous paths
 # set_false_path

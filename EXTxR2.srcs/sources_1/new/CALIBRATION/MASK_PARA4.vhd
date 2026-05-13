@@ -11,18 +11,18 @@ port (
     rstn         : in  std_logic;
 
     i_reg_width  : in  std_logic_vector(12 - 1 downto 0);
-    i_reg_height : in  std_logic_vector(12 - 1 downto 0);
+    i_reg_height : in  std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
     i_hsyn       : in  std_logic;
     i_vsyn       : in  std_logic;
-    i_vcnt       : in  std_logic_vector(12 - 1 downto 0);
+    i_vcnt       : in  std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
     i_hcnt       : in  std_logic_vector(12 - 1 downto 0);
     i_data       : in  std_logic_vector(64 - 1 downto 0);
 
     o_hsyn_2x2   : out std_logic;
     o_vsyn_2x2   : out std_logic;
     o_hcnt_2x2   : out std_logic_vector(12 - 1 downto 0);
-    o_vcnt_2x2   : out std_logic_vector(12 - 1 downto 0);
+    o_vcnt_2x2   : out std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
     o_data_1x1   : out std_logic_vector(64 - 1 downto 0);
     o_data_1x2   : out std_logic_vector(64 - 1 downto 0);
@@ -56,8 +56,9 @@ architecture Behavioral of MASK_PARA4 is
     constant SHF_REG_NUM : integer := 3;
 
     type ty_reg_shf12b is array (SHF_REG_NUM - 1 downto 0) of std_logic_vector(12 - 1 downto 0);
+    type ty_reg_shf13b is array (SHF_REG_NUM - 1 downto 0) of std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal shf_reg_width : ty_reg_shf12b;
-    signal shf_reg_heigh : ty_reg_shf12b;
+    signal shf_reg_heigh : ty_reg_shf13b; --# 2604231608 Expand V-axis 12->13bit
 
     constant SHF_VID_NUM : integer := 8;
 
@@ -65,7 +66,8 @@ architecture Behavioral of MASK_PARA4 is
     signal shf_hsyn : std_logic_vector(SHF_VID_NUM - 1 downto 0) := (others => '0');
 
     type ty_vid_shf12b is array (SHF_VID_NUM - 1 downto 0) of std_logic_vector(12 - 1 downto 0);
-    signal shf_vcnt : ty_vid_shf12b;
+    type ty_vid_shf13b is array (SHF_VID_NUM - 1 downto 0) of std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal shf_vcnt : ty_vid_shf13b; --# 2604231608 Expand V-axis 12->13bit
     signal shf_hcnt : ty_vid_shf12b;
 
     type ty_vid_shf64b is array (SHF_VID_NUM - 1 downto 0) of std_logic_vector(64 - 1 downto 0);
@@ -75,18 +77,18 @@ architecture Behavioral of MASK_PARA4 is
 
     signal shf_gvsyn : std_logic_vector(SHF_VID_NUM - 1 downto 0) := (others => '0');
     signal shf_ghsyn : std_logic_vector(SHF_VID_NUM - 1 downto 0) := (others => '0');
-    signal shf_gvcnt : ty_vid_shf12b;
+    signal shf_gvcnt : ty_vid_shf13b; --# 2604231608 Expand V-axis 12->13bit
     signal shf_ghcnt : ty_vid_shf12b;
 
     signal width     : std_logic_vector(12 - 1 downto 0) := (others => '0');
-    signal heigh     : std_logic_vector(12 - 1 downto 0) := (others => '0');
+    signal heigh     : std_logic_vector(13 - 1 downto 0) := (others => '0'); --# 2604231608 Expand V-axis 12->13bit
     signal hcnt      : std_logic_vector(12 - 1 downto 0) := (others => '0');
-    signal vcnt      : std_logic_vector(12 - 1 downto 0) := (others => '0');
+    signal vcnt      : std_logic_vector(13 - 1 downto 0) := (others => '0'); --# 2604231608 Expand V-axis 12->13bit
     signal gen_hsyn  : std_logic;
     signal gen_hsyn0 : std_logic;
     signal gen_vsyn  : std_logic;
     signal gen_hcnt  : std_logic_vector(12 - 1 downto 0) := (others => '0');
-    signal gen_vcnt  : std_logic_vector(12 - 1 downto 0) := (others => '0');
+    signal gen_vcnt  : std_logic_vector(13 - 1 downto 0) := (others => '0'); --# 2604231608 Expand V-axis 12->13bit
 
     signal wea0 : std_logic;
     signal wea1 : std_logic;
@@ -108,7 +110,7 @@ architecture Behavioral of MASK_PARA4 is
     signal hsyn_2x2 : std_logic;
     signal vsyn_2x2 : std_logic;
     signal hcnt_2x2 : std_logic_vector(12 - 1 downto 0);
-    signal vcnt_2x2 : std_logic_vector(12 - 1 downto 0);
+    signal vcnt_2x2 : std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
     signal data_1x1 : std_logic_vector(64 - 1 downto 0);
     signal data_1x2 : std_logic_vector(64 - 1 downto 0);

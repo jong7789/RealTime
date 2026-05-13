@@ -95,7 +95,7 @@ int m88x33xx_deinit()
 int m88x33xx_initx(phy_if_mode if_mode)
 {
 	func_printf("Ethernet IC reInit...");
-
+    mtdAutonegDisable(&mtd_dev, mtd_port); //# add Eth diable 2604231016
     mtdAutonegRestart(&mtd_dev, mtd_port);
 	func_printf("\tDone\r\n");
 
@@ -149,6 +149,27 @@ int m88x33xx_inity(phy_if_mode if_mode)
     }
 
     return 0;
+}
+
+// 2604231030 Poll mtdDidPhyAppCodeStart until appStarted=TRUE or timeout (ms)
+//            Returns 0 on ready, 0x1001 on timeout
+int m88x33xx_wait_app_ready(u32 max_ms)
+{
+    MTD_STATUS ret;
+    MTD_BOOL   appStarted = MTD_FALSE;
+    u32 elapsed = 0;
+
+    while (elapsed < max_ms) {
+        ret = mtdDidPhyAppCodeStart(&mtd_dev, mtd_port, &appStarted);
+        if (ret == MTD_OK && appStarted == MTD_TRUE) {
+            func_printf("[m88x] app code ready after %u ms\r\n", elapsed);
+            return 0;
+        }
+        usleep(10000);   // 10 ms
+        elapsed += 10;
+    }
+    func_printf("[m88x] app code NOT ready after %u ms (timeout)\r\n", max_ms);
+    return 0x1001;
 }
 
 int m88x33xx_init(phy_if_mode if_mode)

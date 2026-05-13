@@ -62,7 +62,7 @@ void load_calib_def(void)
 
 void calib_init(void) 
 {
-    REG(ADDR_DDR_CH_EN)     = 0b00000000;
+    REG(ADDR_DDR_CH_EN)     = DDR_CH_ALL_OFF; //# 2605081700 force all DDR channels off at calib_init
 
     REG(ADDR_DDR_BASE_ADDR) = FPGA_DDR_BASEADDR;
     REG(ADDR_DDR_CH0_WADDR) = ADDR_RAW_IMAGE;
@@ -119,10 +119,11 @@ void get_calib_init(void)
 //  set_roic_data(11, 0);
 //  if(func_gain_cal)   REG(ADDR_DDR_CH_EN) = 0b01110001; // read ch 0,1,2 On 210302
 //  else                REG(ADDR_DDR_CH_EN) = 0b01010001;
-    REG(ADDR_DDR_CH_EN) = 0b01010001;
-    if(func_gain_cal)             REG(ADDR_DDR_CH_EN)   = 0b01110001; // read ch 0,1,2 On 210302
-    if(func_d2m)                  REG(ADDR_DDR_CH_EN)   = 0b11010101; // d2m on write ch2 avg for ref minus 210729
-    if(func_gain_cal && func_d2m) REG(ADDR_DDR_CH_EN)   = 0b11110101; // d2m on write ch2 avg for ref minus 210729
+//  REG(ADDR_DDR_CH_EN) = 0b01010001;
+//  if(func_gain_cal)             REG(ADDR_DDR_CH_EN)   = 0b01110001; // read ch 0,1,2 On 210302
+//  if(func_d2m)                  REG(ADDR_DDR_CH_EN)   = 0b11010101; // d2m on write ch2 avg for ref minus 210729
+//  if(func_gain_cal && func_d2m) REG(ADDR_DDR_CH_EN)   = 0b11110101; // d2m on write ch2 avg for ref minus 210729
+    //# 2605081700 set_ddr_ch_en() removed; main loop now owns ADDR_DDR_CH_EN
     msdelay(100);
 
     REG(ADDR_OUT_EN) = 1;
@@ -635,7 +636,7 @@ void get_nuc_param(void) {
     func_printf("Process |                                |");
     for(i = 0; i < 33; i ++) func_printf("\b");
 
-    REG(ADDR_DDR_CH_EN) = 0b00000000;
+    REG(ADDR_DDR_CH_EN) = DDR_CH_ALL_OFF; //# 2605081700 force all DDR channels off during Make NUC param
     msdelay(100);
 
     for (i = 0; i < func_height; i++) {
@@ -721,10 +722,11 @@ void get_nuc_param(void) {
 //  if(func_gain_cal)   REG(ADDR_DDR_CH_EN) = 0b01110001;
 //  else                REG(ADDR_DDR_CH_EN) = 0b01010001;
 
-    REG(ADDR_DDR_CH_EN) = 0b01010001;
-if(func_gain_cal)             REG(ADDR_DDR_CH_EN)   = 0b01110001; // read ch 0,1,2 On 210302
-if(func_d2m)                  REG(ADDR_DDR_CH_EN)   = 0b11010101; // d2m on write ch2 avg for ref minus 210729
-if(func_gain_cal && func_d2m) REG(ADDR_DDR_CH_EN)   = 0b11110101; // d2m on write ch2 avg for ref minus 210729
+//  REG(ADDR_DDR_CH_EN) = 0b01010001;
+//if(func_gain_cal)             REG(ADDR_DDR_CH_EN)   = 0b01110001; // read ch 0,1,2 On 210302
+//if(func_d2m)                  REG(ADDR_DDR_CH_EN)   = 0b11010101; // d2m on write ch2 avg for ref minus 210729
+//if(func_gain_cal && func_d2m) REG(ADDR_DDR_CH_EN)   = 0b11110101; // d2m on write ch2 avg for ref minus 210729
+    //# 2605081700 set_ddr_ch_en() removed; main loop now owns ADDR_DDR_CH_EN
 
     func_printf("\r\nFinished!\r\n");
 }
@@ -769,7 +771,7 @@ void get_nuc_para4(void) {
     avgdose1 = func_img_avg_dose1;
     u32 gaintarget = (avgdose1-avgdose0) << 12;
 
-    REG(ADDR_DDR_CH_EN) = 0b00000000;
+    REG(ADDR_DDR_CH_EN) = DDR_CH_ALL_OFF; //# 2605081700 force all DDR channels off during get_nuc_para4
     msdelay(100);
     for (i = 0; i < func_height; i++) {
 
@@ -813,10 +815,11 @@ void get_nuc_para4(void) {
 
 
 
-    REG(ADDR_DDR_CH_EN) = 0b01010001;
-if(func_gain_cal)             REG(ADDR_DDR_CH_EN)   = 0b01110001; // read ch 0,1,2 On 210302
-if(func_d2m)                  REG(ADDR_DDR_CH_EN)   = 0b11010101; // d2m on write ch2 avg for ref minus 210729
-if(func_gain_cal && func_d2m) REG(ADDR_DDR_CH_EN)   = 0b11110101; // d2m on write ch2 avg for ref minus 210729
+//  REG(ADDR_DDR_CH_EN) = 0b01010001;
+//if(func_gain_cal)             REG(ADDR_DDR_CH_EN)   = 0b01110001; // read ch 0,1,2 On 210302
+//if(func_d2m)                  REG(ADDR_DDR_CH_EN)   = 0b11010101; // d2m on write ch2 avg for ref minus 210729
+//if(func_gain_cal && func_d2m) REG(ADDR_DDR_CH_EN)   = 0b11110101; // d2m on write ch2 avg for ref minus 210729
+    //# 2605081700 set_ddr_ch_en() removed; main loop now owns ADDR_DDR_CH_EN
 
     func_printf("\r\nFinished!\r\n");
 }
@@ -924,10 +927,11 @@ void get_nuc_para4x(void) {
 
 
 
-    REG(ADDR_DDR_CH_EN) = 0b01010001;
-if(func_gain_cal)             REG(ADDR_DDR_CH_EN)   = 0b01110001; // read ch 0,1,2 On 210302
-if(func_d2m)                  REG(ADDR_DDR_CH_EN)   = 0b11010101; // d2m on write ch2 avg for ref minus 210729
-if(func_gain_cal && func_d2m) REG(ADDR_DDR_CH_EN)   = 0b11110101; // d2m on write ch2 avg for ref minus 210729
+//  REG(ADDR_DDR_CH_EN) = 0b01010001;
+//if(func_gain_cal)             REG(ADDR_DDR_CH_EN)   = 0b01110001; // read ch 0,1,2 On 210302
+//if(func_d2m)                  REG(ADDR_DDR_CH_EN)   = 0b11010101; // d2m on write ch2 avg for ref minus 210729
+//if(func_gain_cal && func_d2m) REG(ADDR_DDR_CH_EN)   = 0b11110101; // d2m on write ch2 avg for ref minus 210729
+    set_ddr_ch_en(); //$ 2604301700 Refactor DDR_CH_EN to flag-based bit composer
 
     func_printf("\r\nFinished!\r\n");
 }
@@ -952,7 +956,7 @@ void update_nuc_param(void) {
     func_printf("Process |                                |");
     for(i = 0; i < 33; i ++) func_printf("\b");
 
-    REG(ADDR_DDR_CH_EN) = 0b00000000;
+    REG(ADDR_DDR_CH_EN) = DDR_CH_ALL_OFF; //# 2605081700 force all DDR channels off during update_nuc_param
     msdelay(100);
 
     for (i = 0; i < func_height; i++) {
@@ -1027,10 +1031,11 @@ void update_nuc_param(void) {
 //  if(func_gain_cal)   REG(ADDR_DDR_CH_EN) = 0b01110001;
 //  else                REG(ADDR_DDR_CH_EN) = 0b01010001;
 
-    REG(ADDR_DDR_CH_EN) = 0b01010001;
-if(func_gain_cal)             REG(ADDR_DDR_CH_EN)   = 0b01110001; // read ch 0,1,2 On 210302
-if(func_d2m)                  REG(ADDR_DDR_CH_EN)   = 0b11010101; // d2m on write ch2 avg for ref minus 210729
-if(func_gain_cal && func_d2m) REG(ADDR_DDR_CH_EN)   = 0b11110101; // d2m on write ch2 avg for ref minus 210729
+//  REG(ADDR_DDR_CH_EN) = 0b01010001;
+//if(func_gain_cal)             REG(ADDR_DDR_CH_EN)   = 0b01110001; // read ch 0,1,2 On 210302
+//if(func_d2m)                  REG(ADDR_DDR_CH_EN)   = 0b11010101; // d2m on write ch2 avg for ref minus 210729
+//if(func_gain_cal && func_d2m) REG(ADDR_DDR_CH_EN)   = 0b11110101; // d2m on write ch2 avg for ref minus 210729
+    //# 2605081700 set_ddr_ch_en() removed; main loop now owns ADDR_DDR_CH_EN
 
     func_printf("\r\nFinished!\r\n");
 }
@@ -1050,7 +1055,7 @@ void recover_offset_param(void) {
     func_printf("Process |                                |");
     for(i = 0; i < 33; i ++) func_printf("\b");
 
-    REG(ADDR_DDR_CH_EN) = 0b00000000;
+    REG(ADDR_DDR_CH_EN) = DDR_CH_ALL_OFF; //# 2605081700 force all DDR channels off during recover_offset_param
     msdelay(100);
 
     for (i = 0; i < func_height; i++) {
@@ -1075,10 +1080,11 @@ void recover_offset_param(void) {
 //  if(func_gain_cal)   REG(ADDR_DDR_CH_EN) = 0b01110001;
 //  else                REG(ADDR_DDR_CH_EN) = 0b01010001;
 
-    REG(ADDR_DDR_CH_EN) = 0b01010001;
-if(func_gain_cal)             REG(ADDR_DDR_CH_EN)   = 0b01110001; // read ch 0,1,2 On 210302
-if(func_d2m)                  REG(ADDR_DDR_CH_EN)   = 0b11010101; // d2m on write ch2 avg for ref minus 210729
-if(func_gain_cal && func_d2m) REG(ADDR_DDR_CH_EN)   = 0b11110101; // d2m on write ch2 avg for ref minus 210729
+//  REG(ADDR_DDR_CH_EN) = 0b01010001;
+//if(func_gain_cal)             REG(ADDR_DDR_CH_EN)   = 0b01110001; // read ch 0,1,2 On 210302
+//if(func_d2m)                  REG(ADDR_DDR_CH_EN)   = 0b11010101; // d2m on write ch2 avg for ref minus 210729
+//if(func_gain_cal && func_d2m) REG(ADDR_DDR_CH_EN)   = 0b11110101; // d2m on write ch2 avg for ref minus 210729
+    //# 2605081700 set_ddr_ch_en() removed; main loop now owns ADDR_DDR_CH_EN
 
     func_printf("\r\nFinished!\r\n");
 }

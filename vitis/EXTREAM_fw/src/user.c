@@ -1540,6 +1540,14 @@ void user_callback(void)
     {
         if (REG(ADDR_OUT_EN) & 0x00000001) {
             execute_cmd_op_acq_start();
+            //# 2605081100 Reset framebuf state before each acq start. fstat dump on stuck showed
+            //# 0 OVFLW but reader stalled (RD_ACT 1->0, IF_EMPTY=1) with 168 dropped blocks /
+            //# 170 "no space in FB". INIT resets writer/reader pointers (kicks reader FSM);
+            //# CLRSTAT clears stat counters.
+            //# 2605081330 Re-applied (the prior "cannot connect" regression was caused by the
+            //# 192MB buffer escalation overrunning into other memory regions, not by INIT here).
+            //# See docs/CHANGE_2605081100_FBUF_ACQ_RESET.md.
+            framebuf_control |= (FRAMEBUF_C_INIT | FRAMEBUF_C_CLRSTAT);
             gige_send_message4(GEV_EVENT_START_OF_TRANSFER, 0, 0, NULL);
             execute_cmd_grab(1);
             switch (func_hw_debug) {
@@ -1569,7 +1577,8 @@ void user_callback(void)
 //        func_printf("user_callback func_ether_conn=%d curr=%d\r\n", func_ether_conn, curr);
         switch(curr) {
             case 0 :    func_printf("\r\nStatus = Physical Link Disconnected\r\n");
-                        REG(ADDR_DDR_CH_EN)        = 0b00010001;
+//                      REG(ADDR_DDR_CH_EN)        = 0b00010001;
+                        REG(ADDR_DDR_CH_EN) = DDR_CH_ALL_OFF; //# 2605081700 disable all DDR channels on disconnect
                         REG(ADDR_LED_CTRL) = LED_CTRL_ON; // fault LED 221018 mbh
                         break;
             case 1 :
@@ -1582,24 +1591,44 @@ void user_callback(void)
                         }
                         //
                         func_printf("\r\nStatus = No Device Discovery\r\n");
-                        REG(ADDR_DDR_CH_EN)        = 0b00010001;
+//                      REG(ADDR_DDR_CH_EN)        = 0b00010001;
+                        REG(ADDR_DDR_CH_EN) = DDR_CH_ALL_OFF; //# 2605081700 disable all DDR channels on no-discovery
                         REG(ADDR_LED_CTRL) = LED_CTRL_OFF; // fault LED 221018 mbh
                         break;
             case 2 :    func_printf("\r\nStatus = Physical Link Disconnected\r\n");
-                        REG(ADDR_DDR_CH_EN)        = 0b00010001;
+//                      REG(ADDR_DDR_CH_EN)        = 0b00010001;
+                        REG(ADDR_DDR_CH_EN) = DDR_CH_ALL_OFF; //# 2605081700 disable all DDR channels on disconnect
                         REG(ADDR_LED_CTRL) = LED_CTRL_ON; // fault LED 221018 mbh
                         break;
             case 3 :    func_printf("\r\nStatus = Device Discovery Success\r\n");
-                        REG(ADDR_DDR_CH_EN)    = 0b01010001;
-                        if(func_gain_cal)              REG(ADDR_DDR_CH_EN)    = 0b01110001; // read ch 0,1,2 On 210302
-                        if(func_d2m)                  REG(ADDR_DDR_CH_EN)    = 0b11010101; // d2m on write ch2 avg for ref minus 210729
-                        if(func_gain_cal && func_d2m) REG(ADDR_DDR_CH_EN)    = 0b11110101; // d2m on write ch2 avg for ref minus 210729
+//                      REG(ADDR_DDR_CH_EN)    = 0b01010001;
+//                      if(func_gain_cal)              REG(ADDR_DDR_CH_EN)    = 0b01110001; // read ch 0,1,2 On 210302
+//                      if(func_d2m)                  REG(ADDR_DDR_CH_EN)    = 0b11010101; // d2m on write ch2 avg for ref minus 210729
+//                      if(func_gain_cal && func_d2m) REG(ADDR_DDR_CH_EN)    = 0b11110101; // d2m on write ch2 avg for ref minus 210729
+                        //# 2605081700 set_ddr_ch_en() removed; main loop reapplies composer next iteration
                         REG(ADDR_LED_CTRL) = LED_CTRL_OFF; // fault LED 221018 mbh
 //                        func_grabbcal = 1; //# bcal after ethernet connected. 220321mbh
                         break;
         }
     }
     prev = curr;
+
+    //# 2605081100 Diagnostic: log framebuf OVFLW edges (D=desc, R=resend, I=img, T=tx FIFO).
+    //# Quiet UART = no overflow fired. Remove or #ifdef DEBUG_FBOV after verification.
+    {
+        static u32 last_ovflw = 0;
+        u32 ovflw_now = framebuf_status & (FRAMEBUF_S_DF_OVFLW | FRAMEBUF_S_RF_OVFLW |
+                                           FRAMEBUF_S_IF_OVFLW | FRAMEBUF_S_TF_OVFLW);
+        if (ovflw_now != last_ovflw) {
+            func_printf("[FBOV] framebuf_status=0x%08X (DF/RF/IF/TF=%c%c%c%c)\r\n",
+                        (u32)framebuf_status,
+                        (ovflw_now & FRAMEBUF_S_DF_OVFLW) ? 'D' : '-',
+                        (ovflw_now & FRAMEBUF_S_RF_OVFLW) ? 'R' : '-',
+                        (ovflw_now & FRAMEBUF_S_IF_OVFLW) ? 'I' : '-',
+                        (ovflw_now & FRAMEBUF_S_TF_OVFLW) ? 'T' : '-');
+            last_ovflw = ovflw_now;
+        }
+    }
 
     return;
 }

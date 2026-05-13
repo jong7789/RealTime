@@ -16,26 +16,26 @@ entity ACC_PROC is
         i_clk : in std_logic;
 
         i_reg_width  : in  std_logic_vector(11 downto 0);
-        i_reg_height : in  std_logic_vector(11 downto 0);
+        i_reg_height : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
         i_regAccCtrl : in  std_logic_vector(16 - 1 downto 0);
         o_regAccStat : out std_logic_vector(16 - 1 downto 0);
 
         i_MmrHsyn : in std_logic;
         i_MmrVsyn : in std_logic;
         i_MmrHcnt : in std_logic_vector(12 - 1 downto 0);
-        i_MmrVcnt : in std_logic_vector(12 - 1 downto 0);
+        i_MmrVcnt : in std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
         i_MmrData : in std_logic_vector(16 - 1 downto 0);
 
         i_LivHsyn : in std_logic;
         i_LivVsyn : in std_logic;
         i_LivHcnt : in std_logic_vector(12 - 1 downto 0);
-        i_LivVcnt : in std_logic_vector(12 - 1 downto 0);
+        i_LivVcnt : in std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
         i_LivData : in std_logic_vector(16 - 1 downto 0);
 
         oacc_wen   : out std_logic;
         oacc_waddr : out std_logic_vector(11 downto 0);
         oacc_wdata : out std_logic_vector(15 downto 0);
-        oacc_wvcnt : out std_logic_vector(11 downto 0);
+        oacc_wvcnt : out std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
         o_chgdet_osd_en : out std_logic;
         o_chgdet_osd_da : out std_logic_vector(16 - 1 downto 0);
@@ -43,7 +43,7 @@ entity ACC_PROC is
         o_hsyn : out std_logic;
         o_vsyn : out std_logic;
         o_hcnt : out std_logic_vector(12 - 1 downto 0);
-        o_vcnt : out std_logic_vector(12 - 1 downto 0);
+        o_vcnt : out std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
         o_data : out std_logic_vector(16 - 1 downto 0)
     );
 end entity acc_proc;
@@ -54,7 +54,7 @@ architecture behavioral of acc_proc is
         port (
             clk              : in  std_logic;
             i_reg_width      : in  std_logic_vector(11 downto 0);
-            i_reg_height     : in  std_logic_vector(11 downto 0);
+            i_reg_height     : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             i_reg_chgdet_en  : in  std_logic;
             i_reg_chgdet_md  : in  std_logic;
             i_reg_chgSense   : in  std_logic_vector(4 - 1 downto 0);

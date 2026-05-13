@@ -11,18 +11,18 @@ port (
     idata_rstn  : in  std_logic;
 
     ireg_width  : in  std_logic_vector(11 downto 0);
-    ireg_height : in  std_logic_vector(11 downto 0);
+    ireg_height : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
     ihsync      : in  std_logic;
     ivsync      : in  std_logic;
-    ivcnt       : in  std_logic_vector(11 downto 0);
+    ivcnt       : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     ihcnt       : in  std_logic_vector(11 downto 0);
     idata       : in  std_logic_vector(15 downto 0);
 
     ohsync_2x2  : out std_logic;
     ovsync_2x2  : out std_logic;
     ohcnt_2x2   : out std_logic_vector(11 downto 0);
-    ovcnt_2x2   : out std_logic_vector(11 downto 0);
+    ovcnt_2x2   : out std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
     odata_1x1   : out std_logic_vector(15 downto 0);
     odata_1x2   : out std_logic_vector(15 downto 0);
@@ -64,7 +64,7 @@ architecture Behavioral of MASK_OUT is
     signal state_dpram2 : tstate_dpram;
 
     signal swidth  : std_logic_vector(11 downto 0);
-    signal sheight : std_logic_vector(11 downto 0);
+    signal sheight : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
     signal sena   : std_logic;
     signal saddra : std_logic_vector(11 downto 0);
@@ -81,10 +81,10 @@ architecture Behavioral of MASK_OUT is
     signal sdoutb2 : std_logic_vector(15 downto 0);
 
     signal svsync : std_logic;
-    signal svcnt  : std_logic_vector(11 downto 0);
+    signal svcnt  : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sdata  : std_logic_vector(15 downto 0);
 
-    signal svcnt2     : std_logic_vector(11 downto 0);
+    signal svcnt2     : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal swait_cnt  : std_logic_vector(31 downto 0);
     signal swait_cnt2 : std_logic_vector(31 downto 0);
 
@@ -102,9 +102,9 @@ architecture Behavioral of MASK_OUT is
     signal svsync_2d : std_logic;
     signal svsync_3d : std_logic;
 
-    signal svcnt_1d : std_logic_vector(11 downto 0);
-    signal svcnt_2d : std_logic_vector(11 downto 0);
-    signal svcnt_3d : std_logic_vector(11 downto 0);
+    signal svcnt_1d : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal svcnt_2d : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal svcnt_3d : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
     signal saddrb_1d : std_logic_vector(11 downto 0);
     signal saddrb_2d : std_logic_vector(11 downto 0);
@@ -126,10 +126,10 @@ architecture Behavioral of MASK_OUT is
     signal sreg_width_2d : std_logic_vector(11 downto 0);
     signal sreg_width_3d : std_logic_vector(11 downto 0);
 
-    signal sreg_height    : std_logic_vector(11 downto 0);
-    signal sreg_height_1d : std_logic_vector(11 downto 0);
-    signal sreg_height_2d : std_logic_vector(11 downto 0);
-    signal sreg_height_3d : std_logic_vector(11 downto 0);
+    signal sreg_height    : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal sreg_height_1d : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal sreg_height_2d : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal sreg_height_3d : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
 begin
 

@@ -31,11 +31,11 @@ entity BritCont_master is
         i_hsync        : in  std_logic;
         i_vsync        : in  std_logic;
         i_hcnt         : in  std_logic_vector(12-1 downto 0);
-        i_vcnt         : in  std_logic_vector(12-1 downto 0);
+        i_vcnt         : in  std_logic_vector(13-1 downto 0); --# 2604231608 Expand V-axis 12->13bit
         i_data         : in  std_logic_vector(16-1 downto 0);
 
         i_reg_width    : in  std_logic_vector(12-1 downto 0);
-        i_reg_height   : in  std_logic_vector(12-1 downto 0);
+        i_reg_height   : in  std_logic_vector(13-1 downto 0); --# 2604231608 Expand V-axis 12->13bit
         i_reg_BNC_high : in  std_logic_vector(16-1 downto 0);
 
         o_brit         : out std_logic_vector(17-1 downto 0);
@@ -109,13 +109,13 @@ constant MAX16B : std_logic_vector(16-1 downto 0) := (others => '1');
 signal hsyn : std_logic;
 signal vsyn : std_logic;
 signal hcnt : std_logic_vector(12-1 downto 0);
-signal vcnt : std_logic_vector(12-1 downto 0);
+signal vcnt : std_logic_vector(13-1 downto 0); --# 2604231608 Expand V-axis 12->13bit
 signal data : std_logic_vector(16-1 downto 0);
 
 signal hsyn0 : std_logic;
 signal vsyn0 : std_logic;
 signal hcnt0 : std_logic_vector(12-1 downto 0);
-signal vcnt0 : std_logic_vector(12-1 downto 0);
+signal vcnt0 : std_logic_vector(13-1 downto 0); --# 2604231608 Expand V-axis 12->13bit
 signal data0 : std_logic_vector(16-1 downto 0);
 
 signal max      : std_logic_vector(16-1 downto 0);
@@ -144,24 +144,25 @@ signal brit : std_logic_vector(17-1 downto 0);
 signal cont : std_logic_vector(16-1 downto 0);
 
 signal reg_width  : std_logic_vector(12-1 downto 0);
-signal reg_height : std_logic_vector(12-1 downto 0);
+signal reg_height : std_logic_vector(13-1 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
 --# quarter 25%
 signal qtr_width  : std_logic_vector(12-1 downto 0);
-signal qtr_height : std_logic_vector(12-1 downto 0);
+signal qtr_height : std_logic_vector(13-1 downto 0); --# 2604231608 Expand V-axis 12->13bit
 signal str_width  : std_logic_vector(12-1 downto 0);
 signal end_width  : std_logic_vector(12-1 downto 0);
-signal str_height : std_logic_vector(12-1 downto 0);
-signal end_height : std_logic_vector(12-1 downto 0);
+signal str_height : std_logic_vector(13-1 downto 0); --# 2604231608 Expand V-axis 12->13bit
+signal end_height : std_logic_vector(13-1 downto 0); --# 2604231608 Expand V-axis 12->13bit
 signal active_en  : std_logic;
 
 type t_10shift_12b is array(10-1 downto 0) of std_logic_vector(12-1 downto 0);
+type t_10shift_13b is array(10-1 downto 0) of std_logic_vector(13-1 downto 0); --# 2604231608 Expand V-axis 12->13bit
 type t_10shift_16b is array(10-1 downto 0) of std_logic_vector(16-1 downto 0);
 
 signal hsyn_array : std_logic_vector(10-1 downto 0);
 signal vsyn_array : std_logic_vector(10-1 downto 0);
 signal hcnt_array : t_10shift_12b;
-signal vcnt_array : t_10shift_12b;
+signal vcnt_array : t_10shift_13b; --# 2604231608 Expand V-axis 12->13bit
 signal data_array : t_10shift_16b;
 
 signal data_sum : std_logic_vector(16+3-1 downto 0);
@@ -229,8 +230,8 @@ begin
         --qtr_height <= "000"&reg_height(12-1 downto 3);
         str_width  <= x"000" + reg_width(12-1 downto 3);                                       --12.5 %
         end_width  <= x"000" + reg_width(12-1 downto 1) + reg_width(12-1 downto 2) + reg_width(12-1 downto 3);  --87.5 %
-        str_height <= x"000" + reg_height(12-1 downto 3);                                      --12.5 %
-        end_height <= x"000" + reg_height(12-1 downto 1) + reg_height(12-1 downto 2) + reg_height(12-1 downto 3); --87.5 %
+        str_height <= b"0" & x"000" + reg_height(13-1 downto 3);                                      --# 2604231608 Expand V-axis 12->13bit (12.5%)
+        end_height <= b"0" & x"000" + reg_height(13-1 downto 1) + reg_height(13-1 downto 2) + reg_height(13-1 downto 3); --# 2604231608 Expand V-axis 12->13bit (87.5%)
 
         if  str_width  < hcnt0 and hcnt0 < end_width and
             str_height < vcnt0 and vcnt0 < end_height then

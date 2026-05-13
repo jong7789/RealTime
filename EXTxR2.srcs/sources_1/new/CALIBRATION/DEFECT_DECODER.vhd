@@ -13,7 +13,7 @@ entity DEFECT_DECODER is
         ihsync       : in  std_logic;
         ivsync       : in  std_logic;
         ihcnt        : in  std_logic_vector(11 downto 0);
-        ivcnt        : in  std_logic_vector(11 downto 0);
+        ivcnt        : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
         idata_1x1    : in  std_logic_vector(15 downto 0);
         idata_1x2    : in  std_logic_vector(15 downto 0);
         idata_1x3    : in  std_logic_vector(15 downto 0);
@@ -27,7 +27,7 @@ entity DEFECT_DECODER is
         ohsync       : out std_logic;
         ovsync       : out std_logic;
         ohcnt        : out std_logic_vector(11 downto 0);
-        ovcnt        : out std_logic_vector(11 downto 0);
+        ovcnt        : out std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
         odata        : out std_logic_vector(15 downto 0);
 
         odata_sum    : out std_logic_vector(18 downto 0);
@@ -50,7 +50,7 @@ architecture Behavioral of DEFECT_DECODER is
 
     signal shsync_out    : std_logic;
     signal svsync_out    : std_logic;
-    signal svcnt_out     : std_logic_vector(11 downto 0);
+    signal svcnt_out     : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal shcnt_out     : std_logic_vector(11 downto 0);
     signal sdata_out     : std_logic_vector(15 downto 0);
     signal sdata_sum     : std_logic_vector(18 downto 0);
@@ -58,7 +58,7 @@ architecture Behavioral of DEFECT_DECODER is
 
     signal shsync_1d     : std_logic;
     signal svsync_1d     : std_logic;
-    signal svcnt_1d      : std_logic_vector(11 downto 0);
+    signal svcnt_1d      : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal shcnt_1d      : std_logic_vector(11 downto 0);
     signal sdata_2x2_1d  : std_logic_vector(15 downto 0);
 

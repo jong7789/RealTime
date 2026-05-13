@@ -31,6 +31,11 @@
 // Fixed start address of the static buffer (not dynamically allocated)
 // TODO: Uncomment and set appropriate address for static buffer!
 //#define _FRAMEBUF_DEDICATED_RAM_ 0x0000000000000000
+//# 2605081100 EXT3643R needs >5 frames margin in framebuf (33 MB/frame), but heap is 112 MB
+//# (ld _HEAP_SIZE = 0x7000000) and can only hold 3 frames @ 96 MB. Use a dedicated DDR
+//# region at 0xB0000000-0xC0000000 (256 MB, last 256 MB of the 1 GB sdram_0). Below the
+//# region are FPGA calibration buffers ending around 0x9B900000, leaving a 325 MB margin.
+#define _FRAMEBUF_DEDICATED_RAM_ 0x00000000B0000000ULL
 
 
 // ---- Global variables -------------------------------------------------------
@@ -179,6 +184,7 @@ void framebuf_padding(uint32_t pixel_format, uint32_t size_x, uint32_t size_y, u
     framebuf_blk_max_h = (uint32_t)((framebuf_bpb + (uint64_t)burst) >> 32);
     framebuf_blk_max_l = (uint32_t)((framebuf_bpb + (uint64_t)burst) & 0xFFFFFFFF);
 
+    if(DBG_fbPadding)func_printf("[DBG_fbPadding] burst=%d\r\n",burst);
     if(DBG_fbPadding)func_printf("[DBG_fbPadding] size_x=%d\r\n",size_x);
     if(DBG_fbPadding)func_printf("[DBG_fbPadding] bpp=%d\r\n",bpp);
     if(DBG_fbPadding)func_printf("[DBG_fbPadding] framebuf_pad_x=%d\r\n",framebuf_pad_x);

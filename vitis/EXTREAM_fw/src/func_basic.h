@@ -48,9 +48,13 @@ void load_fw_ver(void);
 //void load_fpga_model(void);
 void load_flash(void);
 void fpga_init(void);
+//$ 2604291730 Boot-time ROI register init to apply BASE_OFFSETX/Y
+void roi_init(void);
 void ddr_init(void);
+void set_ddr_ch_en(void);                                   //$ 2604301700 ADDR_DDR_CH_EN composer
 void pwr_init(void);
-void roic_3256_init(Profile_Def *profile);
+void roic_3256_init(void);
+void roic_3256_settingprofile(Profile_Def *profile);
 void roic_init(void);
 //void roic_settimingprofile(u32 mclk, u32 str, u32 tirst, u32 tshr_lpf1, u32 tshs_lpf2, u32 tgate);
 void roic_settimingfilter(Profile_Def *profile);
@@ -61,6 +65,79 @@ void phy_temp_init(void);
 void xadc_init(void);
 void bw_align(void);
 void bw_align_fpga(u32 *bcalmid);
+// 2604242200 FW-driven bit-align (separated bit_stable + word_align stages)
+// 2604250030 DBG_BCALFW compile-time switch: 0=quiet (only user-friendly lines)
+//                                            1=verbose (low-level dbg traces)
+#ifndef DBG_BCALFW
+#define DBG_BCALFW 0
+#endif
+
+#if DBG_BCALFW
+#define BCALFW_DBG(...) func_printf(__VA_ARGS__)
+#else
+#define BCALFW_DBG(...) ((void)0)
+#endif
+
+// 2604250600 Boot/temp-triggered alignment selector (in update_image()):
+//             0 = legacy HW FSM (bw_align)
+//             1 = FW-driven (bw_align_fw_run_all)
+#ifndef BOOT_BCAL_USE_FW
+#define BOOT_BCAL_USE_FW 1
+#endif
+
+// 2604251000 Double-pass mode for bcalfw run_all:
+//             0 = single sweep (uses BCAL_FW_STABLE_WAIT_US_FAST = 1us)
+//             1 = run twice (FAST then SLOW) for stable_map comparison
+#ifndef BCAL_FW_DOUBLE_PASS
+#define BCAL_FW_DOUBLE_PASS 0
+#endif
+
+// per-tap settle time options (us). Runtime variable bcalfw_wait_us picks one.
+#define BCAL_FW_STABLE_WAIT_US_FAST 1
+#define BCAL_FW_STABLE_WAIT_US_SLOW 10000
+
+extern u32 bcalfw_wait_us;   // current per-tap wait (set by run_all/cmds)
+
+typedef enum {
+    BCAL_FW_PULSE_CE = 0,
+    BCAL_FW_PULSE_RST,
+    BCAL_FW_PULSE_BS,
+    BCAL_FW_PULSE_PROBE
+} bcal_fw_pulse_t;
+
+typedef struct {
+    int  eye_start;        // -1 if not found
+    int  eye_end;          // -1 if not found
+    int  eye_mid;          // -1 if not found
+    int  eye_width;
+    u32  par_log[32];      // sdata_par snapshot per tap
+    u8   stable_map[32];   // 1=stable, 0=unstable
+    u8   ff00_map[32];     // 1=ff00 detected on this tap
+    int  status;           // 0=ok, -1=fail
+} bcal_fw_stable_result_t;
+
+typedef struct {
+    int  bitslip_count;    // 0..95, -1 if fail
+    u32  par_at_match;
+    int  status;           // 0=ok, -1=fail
+} bcal_fw_word_result_t;
+
+typedef struct {
+    bcal_fw_stable_result_t stable;
+    bcal_fw_word_result_t   word;
+    int                     overall_status; // 0=ok, 1=stable_fail, 2=word_fail
+} bcal_fw_full_result_t;
+
+void bw_align_fw_init(void);
+void bw_align_fw_exit(void);
+void bw_align_fw_set_ch(u8 ch);
+void bw_align_fw_pulse(bcal_fw_pulse_t type);
+u32  bw_align_fw_read_par(void);
+u32  bw_align_fw_read_status(void);
+int  bw_align_fw_bit_stable(u8 ch, bcal_fw_stable_result_t *res, u8 verbose);
+int  bw_align_fw_word_align(u8 ch, bcal_fw_word_result_t *res, u8 verbose);
+int  bw_align_fw_run_one_ch(u8 ch, bcal_fw_full_result_t *res, u8 verbose);
+void bw_align_fw_run_all(u8 verbose);
 void tft_set(void);
 void ext_trig_set(void);
 u32 set_str_data(u8 *data);
@@ -81,6 +158,7 @@ void update_fwtrig(void);
 void update_hwload(void);
 void checker_rom(void);
 void update_defect(void);
+void check_sfp_stat(void);   // 2604221600 SFP/RXAUI auto-switch polling
 u32 atoi2(u8* arr);
 void get_register(void);
 void set_register(void);

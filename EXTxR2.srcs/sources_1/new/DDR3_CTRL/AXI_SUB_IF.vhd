@@ -32,7 +32,7 @@ generic ( GNR_MODEL : string := "EXT1616R" );
         ireg_ddr_ch4_raddr : in    std_logic_vector(29 downto 0);
 
         ireg_width  : in    std_logic_vector(11 downto 0);
-        ireg_height : in    std_logic_vector(11 downto 0);
+        ireg_height : in    std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
         iaxi_wready : in    std_logic;
         iaxi_wvalid : in    std_logic; --$ 260413
@@ -40,28 +40,28 @@ generic ( GNR_MODEL : string := "EXT1616R" );
 
         iconv_rlast : in    std_logic;
         iconv_hsync : in    std_logic;
-        iconv_vcnt  : in    std_logic_vector(11 downto 0);
+        iconv_vcnt  : in    std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
         ich0_wen   : in    std_logic;
         ich0_waddr : in    std_logic_vector(11 downto 0);
-        ich0_wvcnt : in    std_logic_vector(11 downto 0);
+        ich0_wvcnt : in    std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
         ich0_wdata : in    std_logic_vector(DDR_BIT_W0((GNR_MODEL)) - 1 downto 0);
         ich1_wen   : in    std_logic;
         ich1_waddr : in    std_logic_vector(11 downto 0);
-        ich1_wvcnt : in    std_logic_vector(11 downto 0);
+        ich1_wvcnt : in    std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
         ich1_wdata : in    std_logic_vector(DDR_BIT_W1((GNR_MODEL)) - 1 downto 0);
         ich2_wen   : in    std_logic;
         ich2_waddr : in    std_logic_vector(11 downto 0);
-        ich2_wvcnt : in    std_logic_vector(11 downto 0);
+        ich2_wvcnt : in    std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
         ich2_wdata : in    std_logic_vector(DDR_BIT_W2((GNR_MODEL)) - 1 downto 0);
         id2m_xray  : in    std_logic;
         ich3_wen   : in    std_logic;
         ich3_waddr : in    std_logic_vector(11 downto 0);
-        ich3_wvcnt : in    std_logic_vector(11 downto 0);
+        ich3_wvcnt : in    std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
         ich3_wdata : in    std_logic_vector(DDR_BIT_W3((GNR_MODEL)) - 1 downto 0);
         ich4_wen   : in    std_logic;
         ich4_waddr : in    std_logic_vector(11 downto 0);
-        ich4_wvcnt : in    std_logic_vector(11 downto 0);
+        ich4_wvcnt : in    std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
         ich4_wdata : in    std_logic_vector(DDR_BIT_W4((GNR_MODEL)) - 1 downto 0);
 
         och0_wtrig     : out   std_logic;
@@ -81,34 +81,35 @@ generic ( GNR_MODEL : string := "EXT1616R" );
         och4_wdata     : out   std_logic_vector(511 downto 0);
         och0_rtrig     : out   std_logic;
         och0_raddr     : out   std_logic_vector(31 downto 0);
-        och0_rvcnt     : out   std_logic_vector(11 downto 0);
+        och0_rvcnt     : out   std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
         och1_rtrig     : out   std_logic;
         och1_raddr     : out   std_logic_vector(31 downto 0);
-        och1_rvcnt     : out   std_logic_vector(11 downto 0);
+        och1_rvcnt     : out   std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
         och2_rtrig     : out   std_logic;
         och2_raddr     : out   std_logic_vector(31 downto 0);
-        och2_rvcnt     : out   std_logic_vector(11 downto 0);
+        och2_rvcnt     : out   std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
         och3_rtrig     : out   std_logic;
         och3_raddr     : out   std_logic_vector(31 downto 0);
-        och3_rvcnt     : out   std_logic_vector(11 downto 0);
+        och3_rvcnt     : out   std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
         och4_rtrig     : out   std_logic;
         och4_raddr     : out   std_logic_vector(31 downto 0);
-        och4_rvcnt     : out   std_logic_vector(11 downto 0);
+        och4_rvcnt     : out   std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
         ostate_ddr_sub : out   tstate_ddr_sub
     );
 end entity axi_sub_if;
 
 architecture behavioral of axi_sub_if is
 
-    component MULTI_13x12 -- 3 Delay
-        port (
-            clk : in  std_logic;
-            ce  : in  std_logic;
-            a   : in  std_logic_vector(12 downto 0);
-            b   : in  std_logic_vector(11 downto 0);
-            p   : out std_logic_vector(24 downto 0)
-        );
-    end component;
+--  component MULTI_13x12 -- 3 Delay
+--      port (
+--          clk : in  std_logic;
+--          ce  : in  std_logic;
+--          a   : in  std_logic_vector(12 downto 0);
+--          b   : in  std_logic_vector(11 downto 0);
+--          p   : out std_logic_vector(24 downto 0)
+--      );
+--  end component;
+--# 2604231608 Replaced MULTI_13x12 IP with inline "*" (DSP48 inferred, no pipeline) to allow b=13bit for EXT3643R H=4302
 
     component AXI_WDATA_CONV
         generic (
@@ -120,7 +121,7 @@ architecture behavioral of axi_sub_if is
 
             iwr_en   : in  std_logic;
             iwr_addr : in  std_logic_vector(11 downto 0);
-            iwr_vcnt : in  std_logic_vector(11 downto 0);
+            iwr_vcnt : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             iwr_data : in  std_logic_vector(DATA_DEPTH - 1 downto 0);
 
             ird_clk  : in  std_logic;
@@ -128,7 +129,7 @@ architecture behavioral of axi_sub_if is
 
             ird_en   : in  std_logic;
             ird_addr : in  std_logic_vector(11 downto 0);
-            ird_vcnt : in  std_logic_vector(11 downto 0);
+            ird_vcnt : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             ord_data : out std_logic_vector(511 downto 0)
         );
     end component;
@@ -172,9 +173,12 @@ architecture behavioral of axi_sub_if is
 
     signal sch0_waddr_top : std_logic_vector(31 downto 0);
     signal sch0_waddr_bot : std_logic_vector(31 downto 0);
-    signal simg_size1     : std_logic_vector(24 downto 0);
-    signal simg_size2     : std_logic_vector(24 downto 0);
-    signal simg_size3     : std_logic_vector(25 downto 0);
+--  signal simg_size1     : std_logic_vector(24 downto 0);
+--  signal simg_size2     : std_logic_vector(24 downto 0);
+--  signal simg_size3     : std_logic_vector(25 downto 0);
+    signal simg_size1     : std_logic_vector(25 downto 0); --# 2604231608 Expand 25->26bit (13x13 product)
+    signal simg_size2     : std_logic_vector(25 downto 0); --# 2604231608 Expand 25->26bit
+    signal simg_size3     : std_logic_vector(26 downto 0); --# 2604231608 Expand 26->27bit ((smulti_p & '0') - ...)
 
     signal sch0_wlen : std_logic_vector(11 downto 0);
     signal sch1_wlen : std_logic_vector(11 downto 0);
@@ -205,30 +209,30 @@ architecture behavioral of axi_sub_if is
 
     signal sddr_ch0_wen   : std_logic;
     signal sddr_ch0_waddr : std_logic_vector(11 downto 0);
-    signal sddr_ch0_wvcnt : std_logic_vector(11 downto 0);
+    signal sddr_ch0_wvcnt : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sddr_ch0_wdata : std_logic_vector(511 downto 0);
     signal sddr_ch1_wen   : std_logic;
     signal sddr_ch1_waddr : std_logic_vector(11 downto 0);
-    signal sddr_ch1_wvcnt : std_logic_vector(11 downto 0);
+    signal sddr_ch1_wvcnt : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sddr_ch1_wdata : std_logic_vector(511 downto 0);
     signal sddr_ch2_wen   : std_logic;
     signal sddr_ch2_waddr : std_logic_vector(11 downto 0);
-    signal sddr_ch2_wvcnt : std_logic_vector(11 downto 0);
+    signal sddr_ch2_wvcnt : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sddr_ch2_wdata : std_logic_vector(511 downto 0);
     signal sddr_ch3_wen   : std_logic;
     signal sddr_ch3_waddr : std_logic_vector(11 downto 0);
-    signal sddr_ch3_wvcnt : std_logic_vector(11 downto 0);
+    signal sddr_ch3_wvcnt : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sddr_ch3_wdata : std_logic_vector(511 downto 0);
     signal sddr_ch4_wen   : std_logic;
     signal sddr_ch4_waddr : std_logic_vector(11 downto 0);
-    signal sddr_ch4_wvcnt : std_logic_vector(11 downto 0);
+    signal sddr_ch4_wvcnt : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sddr_ch4_wdata : std_logic_vector(511 downto 0);
 
-    signal sddr_ch0_rvcnt : std_logic_vector(11 downto 0);
-    signal sddr_ch1_rvcnt : std_logic_vector(11 downto 0);
-    signal sddr_ch2_rvcnt : std_logic_vector(11 downto 0);
-    signal sddr_ch3_rvcnt : std_logic_vector(11 downto 0);
-    signal sddr_ch4_rvcnt : std_logic_vector(11 downto 0);
+    signal sddr_ch0_rvcnt : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal sddr_ch1_rvcnt : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal sddr_ch2_rvcnt : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal sddr_ch3_rvcnt : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal sddr_ch4_rvcnt : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
     signal sddr_ch         : integer range 0 to 4;
     signal sdual_roic_cnt  : integer range 0 to ROIC_DUAL_BY_MODEL(GNR_MODEL) - 1;
@@ -250,29 +254,29 @@ architecture behavioral of axi_sub_if is
     signal sch4_wen_1d     : std_logic;
     signal sch4_wen_2d     : std_logic;
     signal sch4_wen_3d     : std_logic;
-    signal sch0_wvcnt_1d   : std_logic_vector(11 downto 0);
-    signal sch0_wvcnt_2d   : std_logic_vector(11 downto 0);
-    signal sch0_wvcnt_3d   : std_logic_vector(11 downto 0);
-    signal sch1_wvcnt_1d   : std_logic_vector(11 downto 0);
-    signal sch1_wvcnt_2d   : std_logic_vector(11 downto 0);
-    signal sch1_wvcnt_3d   : std_logic_vector(11 downto 0);
-    signal sch2_wvcnt_1d   : std_logic_vector(11 downto 0);
-    signal sch2_wvcnt_2d   : std_logic_vector(11 downto 0);
-    signal sch2_wvcnt_3d   : std_logic_vector(11 downto 0);
-    signal sch3_wvcnt_1d   : std_logic_vector(11 downto 0);
-    signal sch3_wvcnt_2d   : std_logic_vector(11 downto 0);
-    signal sch3_wvcnt_3d   : std_logic_vector(11 downto 0);
-    signal sch4_wvcnt_1d   : std_logic_vector(11 downto 0);
-    signal sch4_wvcnt_2d   : std_logic_vector(11 downto 0);
-    signal sch4_wvcnt_3d   : std_logic_vector(11 downto 0);
+    signal sch0_wvcnt_1d   : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal sch0_wvcnt_2d   : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal sch0_wvcnt_3d   : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal sch1_wvcnt_1d   : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal sch1_wvcnt_2d   : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal sch1_wvcnt_3d   : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal sch2_wvcnt_1d   : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal sch2_wvcnt_2d   : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal sch2_wvcnt_3d   : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal sch3_wvcnt_1d   : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal sch3_wvcnt_2d   : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal sch3_wvcnt_3d   : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal sch4_wvcnt_1d   : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal sch4_wvcnt_2d   : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal sch4_wvcnt_3d   : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
     signal sconv_hsync_1d  : std_logic;
     signal sconv_hsync_2d  : std_logic;
     signal sconv_hsync_3d  : std_logic;
-    signal sconv_vcnt_1d   : std_logic_vector(11 downto 0);
-    signal sconv_vcnt_2d   : std_logic_vector(11 downto 0);
-    signal sconv_vcnt_3d   : std_logic_vector(11 downto 0);
-    signal sconv_vcnt_4d   : std_logic_vector(11 downto 0);
+    signal sconv_vcnt_1d   : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal sconv_vcnt_2d   : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal sconv_vcnt_3d   : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal sconv_vcnt_4d   : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sconv_vcnt_sum  : std_logic_vector(15 downto 0);
     signal sconv_vcnt_cut  : std_logic_vector(15 downto 0);
 
@@ -280,8 +284,10 @@ architecture behavioral of axi_sub_if is
     signal sconv_vcnt_cutw : std_logic_vector(15 downto 0);
 
     signal smulti_a : std_logic_vector(12 downto 0);
-    signal smulti_b : std_logic_vector(11 downto 0);
-    signal smulti_p : std_logic_vector(24 downto 0);
+--  signal smulti_b : std_logic_vector(11 downto 0);
+--  signal smulti_p : std_logic_vector(24 downto 0);
+    signal smulti_b : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
+    signal smulti_p : std_logic_vector(25 downto 0); --# 2604231608 13x13=26bit product
 
     -- signal ireg0_ddr_base_addr : std_logic_vector(31 downto 0);
     -- signal ireg0_ddr_ch0_waddr : std_logic_vector(27 downto 0);
@@ -323,25 +329,25 @@ architecture behavioral of axi_sub_if is
     signal vsynctrig  : std_logic;
     signal sch0_wdata : std_logic_vector(512 - 1 downto 0);
 
-    signal w0ireg_height : std_logic_vector(11 downto 0);
+    signal w0ireg_height : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal w0ireg_width  : std_logic_vector(11 downto 0);
-    signal w1ireg_height : std_logic_vector(11 downto 0);
+    signal w1ireg_height : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal w1ireg_width  : std_logic_vector(11 downto 0);
-    signal w2ireg_height : std_logic_vector(11 downto 0);
+    signal w2ireg_height : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal w2ireg_width  : std_logic_vector(11 downto 0);
-    signal w3ireg_height : std_logic_vector(11 downto 0);
+    signal w3ireg_height : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal w3ireg_width  : std_logic_vector(11 downto 0);
-    signal w4ireg_height : std_logic_vector(11 downto 0);
+    signal w4ireg_height : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal w4ireg_width  : std_logic_vector(11 downto 0);
-    signal r0ireg_height : std_logic_vector(11 downto 0);
+    signal r0ireg_height : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal r0ireg_width  : std_logic_vector(11 downto 0);
-    signal r1ireg_height : std_logic_vector(11 downto 0);
+    signal r1ireg_height : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal r1ireg_width  : std_logic_vector(11 downto 0);
-    signal r2ireg_height : std_logic_vector(11 downto 0);
+    signal r2ireg_height : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal r2ireg_width  : std_logic_vector(11 downto 0);
-    signal r3ireg_height : std_logic_vector(11 downto 0);
+    signal r3ireg_height : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal r3ireg_width  : std_logic_vector(11 downto 0);
-    signal r4ireg_height : std_logic_vector(11 downto 0);
+    signal r4ireg_height : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal r4ireg_width  : std_logic_vector(11 downto 0);
 
     signal stimeoutcnt  : std_logic_vector(15 downto 0) := (others => '0');
@@ -399,14 +405,15 @@ begin
     sch4_wlen <= "00000" & ireg_width(11 downto 5); -- 512 / 16 bit = 2^5
 end generate GEN_2p5G_LEN;
 
-    U0_MULTI_13x12 : MULTI_13x12 -- 3 Delay
-        port map (
-            clk => iaxi_clk,
-            ce  => iaxi_rstn,
-            a   => smulti_a,
-            b   => smulti_b,
-            p   => smulti_p
-        );
+--  U0_MULTI_13x12 : MULTI_13x12 -- 3 Delay
+--      port map (
+--          clk => iaxi_clk,
+--          ce  => iaxi_rstn,
+--          a   => smulti_a,
+--          b   => smulti_b,
+--          p   => smulti_p
+--      );
+    smulti_p <= smulti_a * smulti_b; --# 2604231608 Inline 13x13 mult (DSP48 inferred, IP replaced for 13bit height support)
 
 --    smulti_a   <= (ireg_width & '0');
 --    smulti_b   <= ireg_height;
@@ -1011,7 +1018,8 @@ end generate GEN_2p5G_LEN;
                             if (sddr_ch = 0) then
 --                        if(sddr_ch0_wvcnt = w0ireg_height - 1) then
                                 if (sddr_ch0_wvcnt >= w0ireg_height - 1) then -- preventing ddr pointer overflow :mbh211213
-                                    sddr_ch0_wvcnt <= sconv_vcnt_cutw(12 - 1 downto 0); -- ivcnt synchronize (others => '0');
+--                                  sddr_ch0_wvcnt <= sconv_vcnt_cutw(12 - 1 downto 0); -- ivcnt synchronize (others => '0');
+                                    sddr_ch0_wvcnt <= sconv_vcnt_cutw(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
 
                                     sdual_roic_cnt <= 0;
 
@@ -1080,7 +1088,8 @@ end generate GEN_2p5G_LEN;
                             if (sddr_ch = 0) then
 --                        if(sddr_ch0_wvcnt = w0ireg_height - 1) then
                                 if (sddr_ch0_wvcnt >= w0ireg_height - 1) then -- preventing ddr pointer overflow :mbh211213
-                                    sddr_ch0_wvcnt <= sconv_vcnt_cutw(12 - 1 downto 0); -- ivcnt synchronize (others => '0');
+--                                  sddr_ch0_wvcnt <= sconv_vcnt_cutw(12 - 1 downto 0); -- ivcnt synchronize (others => '0');
+                                    sddr_ch0_wvcnt <= sconv_vcnt_cutw(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
 
                                     sdual_roic_cnt <= 0;
 
@@ -1151,7 +1160,7 @@ end generate GEN_2p5G_LEN;
                         if (GEV_SPEED_BY_MODEL(GNR_MODEL) = "10G ") then
                             if (sddr_ch = 0) then
                                 if (sddr_ch0_rvcnt >= r0ireg_height - 1) then
-                                    sddr_ch0_rvcnt <= sconv_vcnt_cut(12 - 1 downto 0); -- vcnt synchronize (others => '0');
+                                    sddr_ch0_rvcnt <= sconv_vcnt_cut(13 - 1 downto 0); --# 2604231608 V-axis 12->13bit -- vcnt synchronize (others => '0');
 
 --                            if(sch0_rarea = '0') then
 --                                if(sch0_warea = '1') then -- rarea sync with warea , 210713 mbh
@@ -1168,7 +1177,7 @@ end generate GEN_2p5G_LEN;
                                 end if;
                             elsif (sddr_ch = 1) then
                                 if (sddr_ch1_rvcnt >= r1ireg_height - 1) then
-                                    sddr_ch1_rvcnt <= sconv_vcnt_cut(12 - 1 downto 0); -- (others => '0');
+                                    sddr_ch1_rvcnt <= sconv_vcnt_cut(13 - 1 downto 0); --# 2604231608 V-axis 12->13bit -- (others => '0');
                                     sch1_raddr     <= sch1_base_raddr;
                                 else
                                     sddr_ch1_rvcnt <= sddr_ch1_rvcnt + '1';
@@ -1177,7 +1186,7 @@ end generate GEN_2p5G_LEN;
                                 end if;
                             elsif (sddr_ch = 2) then
                                 if (sddr_ch2_rvcnt >= r2ireg_height - 1) then
-                                    sddr_ch2_rvcnt <= sconv_vcnt_cut(12 - 1 downto 0); -- (others => '0');
+                                    sddr_ch2_rvcnt <= sconv_vcnt_cut(13 - 1 downto 0); --# 2604231608 V-axis 12->13bit -- (others => '0');
                                     sch2_raddr     <= sch2_base_raddr;
                                 else
                                     sddr_ch2_rvcnt <= sddr_ch2_rvcnt + '1';
@@ -1186,7 +1195,7 @@ end generate GEN_2p5G_LEN;
 
                             elsif (sddr_ch = 3) then --# read ch3
                                 if (sddr_ch3_rvcnt >= r3ireg_height - 1) then
-                                    sddr_ch3_rvcnt <= sconv_vcnt_cut(12 - 1 downto 0); -- (others => '0');
+                                    sddr_ch3_rvcnt <= sconv_vcnt_cut(13 - 1 downto 0); --# 2604231608 V-axis 12->13bit -- (others => '0');
                                     sch3_raddr     <= sch3_base_raddr;
                                 else
                                     sddr_ch3_rvcnt <= sddr_ch3_rvcnt + '1';
@@ -1194,7 +1203,7 @@ end generate GEN_2p5G_LEN;
                                 end if;
                             elsif (sddr_ch = 4) then --# read ch4
                                 if (sddr_ch4_rvcnt >= r4ireg_height - 1) then
-                                    sddr_ch4_rvcnt <= sconv_vcnt_cut(12 - 1 downto 0); -- (others => '0');
+                                    sddr_ch4_rvcnt <= sconv_vcnt_cut(13 - 1 downto 0); --# 2604231608 V-axis 12->13bit -- (others => '0');
                                     sch4_raddr     <= sch4_base_raddr;
                                 else
                                     sddr_ch4_rvcnt <= sddr_ch4_rvcnt + '1';
@@ -1206,7 +1215,7 @@ end generate GEN_2p5G_LEN;
                         else --##### 2.5G #####
                             if (sddr_ch = 0) then
                                 if (sddr_ch0_rvcnt >= r0ireg_height - 1) then
-                                    sddr_ch0_rvcnt <= sconv_vcnt_cut(12 - 1 downto 0); -- vcnt synchronize (others => '0');
+                                    sddr_ch0_rvcnt <= sconv_vcnt_cut(13 - 1 downto 0); --# 2604231608 V-axis 12->13bit -- vcnt synchronize (others => '0');
 
 --                            if(sch0_rarea = '0') then
                                     if (sch0_warea = '1') then -- rarea sync with warea , 210713 mbh
@@ -1222,7 +1231,7 @@ end generate GEN_2p5G_LEN;
                                 end if;
                             elsif (sddr_ch = 1) then
                                 if (sddr_ch1_rvcnt >= r1ireg_height - 1) then
-                                    sddr_ch1_rvcnt <= sconv_vcnt_cut(12 - 1 downto 0); -- (others => '0');
+                                    sddr_ch1_rvcnt <= sconv_vcnt_cut(13 - 1 downto 0); --# 2604231608 V-axis 12->13bit -- (others => '0');
                                     sch1_raddr     <= sch1_base_raddr;
                                 else
                                     sddr_ch1_rvcnt <= sddr_ch1_rvcnt + '1';
@@ -1230,7 +1239,7 @@ end generate GEN_2p5G_LEN;
                                 end if;
                             elsif (sddr_ch = 2) then
                                 if (sddr_ch2_rvcnt >= r2ireg_height - 1) then
-                                    sddr_ch2_rvcnt <= sconv_vcnt_cut(12 - 1 downto 0); -- (others => '0');
+                                    sddr_ch2_rvcnt <= sconv_vcnt_cut(13 - 1 downto 0); --# 2604231608 V-axis 12->13bit -- (others => '0');
                                     sch2_raddr     <= sch2_base_raddr;
                                 else
                                     sddr_ch2_rvcnt <= sddr_ch2_rvcnt + '1';
@@ -1239,7 +1248,7 @@ end generate GEN_2p5G_LEN;
 
                             elsif (sddr_ch = 3) then --# read ch3
                                 if (sddr_ch3_rvcnt >= r3ireg_height - 1) then
-                                    sddr_ch3_rvcnt <= sconv_vcnt_cut(12 - 1 downto 0); -- (others => '0');
+                                    sddr_ch3_rvcnt <= sconv_vcnt_cut(13 - 1 downto 0); --# 2604231608 V-axis 12->13bit -- (others => '0');
                                     sch3_raddr     <= sch3_base_raddr;
                                 else
                                     sddr_ch3_rvcnt <= sddr_ch3_rvcnt + '1';
@@ -1247,7 +1256,7 @@ end generate GEN_2p5G_LEN;
                                 end if;
                             elsif (sddr_ch = 4) then --# read ch4
                                 if (sddr_ch4_rvcnt >= r4ireg_height - 1) then
-                                    sddr_ch4_rvcnt <= sconv_vcnt_cut(12 - 1 downto 0); -- (others => '0');
+                                    sddr_ch4_rvcnt <= sconv_vcnt_cut(13 - 1 downto 0); --# 2604231608 V-axis 12->13bit -- (others => '0');
                                     sch4_raddr     <= sch4_base_raddr;
                                 else
                                     sddr_ch4_rvcnt <= sddr_ch4_rvcnt + '1';
@@ -1371,7 +1380,8 @@ end generate GEN_2p5G_LEN;
 
     -- ###########################
     -- ### write counter fixed ###
-    sconv_vcnt_sumw <= x"0" & sch0_wvcnt_3d;
+--    sconv_vcnt_sumw <= x"0" & sch0_wvcnt_3d;
+    sconv_vcnt_sumw <= "000" & sch0_wvcnt_3d; --# 2604231853
     sconv_vcnt_cutw <=
         sconv_vcnt_sumw - ireg_height when ireg_height <= sconv_vcnt_sumw else
         sconv_vcnt_sumw;
@@ -1381,7 +1391,8 @@ end generate GEN_2p5G_LEN;
     -- ### for sync with  sconv_vcnt_3d & sddr_ch2_rvcnt. input conv_sync & made ddr_sync.
     -- ### conv_sync faster 2vcnt then ddr_sync
     -- ### cut cnt at height
-    sconv_vcnt_sum <= x"0" & sconv_vcnt_4d + 2;
+--  sconv_vcnt_sum <= x"0" & sconv_vcnt_4d + 2;
+    sconv_vcnt_sum <= "000" & sconv_vcnt_4d + 2; --# 2604231608 V-axis 12->13bit, pad 4->3 to keep 16bit (match sumw pattern at L1384)
     sconv_vcnt_cut <=
         sconv_vcnt_sum - ireg_height when ireg_height <= sconv_vcnt_sum else
         sconv_vcnt_sum;

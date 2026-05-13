@@ -135,6 +135,22 @@ void disp_cmd_auth(void) {
     }
 }
 
+//# 260421 show selected PHY port (Marvell / SFP)
+void disp_cmd_port(void) {
+    if(sys_state.only_comment) {
+        switch (g_port_sel) {
+            case 0  : func_printf("[Marvell PHY]\r\n");     break;
+            case 1  : func_printf("[SFP AEL2005]\r\n");     break;
+        }
+    }
+    else {
+        switch (g_port_sel) {
+            case 0  : func_printf("0 [Marvell PHY]\r\n");   break;
+            case 1  : func_printf("1 [SFP AEL2005]\r\n");   break;
+        }
+    }
+}
+
 void disp_cmd_stat(void) {
     sys_state.only_comment = 1;
 
@@ -248,6 +264,11 @@ void disp_cmd_gmode(void) {
 
 void disp_cmd_roi(void) {
     func_printf("X:%04d Y:%04d W:%04d H:%04d\r\n", func_offsetx, func_offsety, func_width, func_height);
+    func_printf("MAX_WIDTH= %04d \r\n", MAX_WIDTH);
+    func_printf("MAX_HEIGHT= %04d \r\n", MAX_HEIGHT);
+    func_printf("MIN_WIDTH= %04d \r\n", MIN_WIDTH);
+    func_printf("MIN_HEIGHT= %04d \r\n", MIN_HEIGHT);
+    func_printf("func_binning_mode= %04d \r\n", func_binning_mode);
 }
 
 void disp_cmd_bmode(void) {
@@ -1166,6 +1187,14 @@ void disp_cmd_wtp(void){
 													  ,profile.init.tgate/100);
 
 }
+
+void disp_cmd_doc(void) {
+    switch (func_doc) {
+        case 0: func_printf("0 [OFF]\r\n");     break;
+        case 1: func_printf("1 [ON]\r\n");      break;
+    }
+}
+
 
 //void disp_cmd_pixpos(void){
 //  u32 readreg = REG(ADDR_SYNCCHECKPOS);

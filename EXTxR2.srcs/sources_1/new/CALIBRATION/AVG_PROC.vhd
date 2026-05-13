@@ -25,7 +25,7 @@ entity AVG_PROC is
         ihsync             : in std_logic;
         ivsync             : in std_logic;
         ihcnt              : in std_logic_vector(11 downto 0);
-        ivcnt              : in std_logic_vector(11 downto 0);
+        ivcnt              : in std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
         idata              : in std_logic_vector(15 downto 0);
 
         ostate_avg         : out tstate_avg;
@@ -34,7 +34,7 @@ entity AVG_PROC is
         oavg_wen           : out std_logic;
         oavg_waddr         : out std_logic_vector(11 downto 0);
         oavg_winfo         : out std_logic_vector(31 downto 0);
-        oavg_wvcnt         : out std_logic_vector(11 downto 0)
+        oavg_wvcnt         : out std_logic_vector(12 downto 0) --# 2604231608 Expand V-axis 12->13bit
     );
 end entity AVG_PROC;
 
@@ -100,13 +100,13 @@ architecture Behavioral of AVG_PROC is
     signal shsync_5d : std_logic;
     signal shsync_6d : std_logic;
     signal shsync_7d : std_logic;
-    signal svcnt_1d  : std_logic_vector(11 downto 0);
-    signal svcnt_2d  : std_logic_vector(11 downto 0);
-    signal svcnt_3d  : std_logic_vector(11 downto 0);
-    signal svcnt_4d  : std_logic_vector(11 downto 0);
-    signal svcnt_5d  : std_logic_vector(11 downto 0);
-    signal svcnt_6d  : std_logic_vector(11 downto 0);
-    signal svcnt_7d  : std_logic_vector(11 downto 0);
+    signal svcnt_1d  : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal svcnt_2d  : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal svcnt_3d  : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal svcnt_4d  : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal svcnt_5d  : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal svcnt_6d  : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal svcnt_7d  : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal svsync_1d : std_logic;
     signal svsync_2d : std_logic;
     signal svsync_3d : std_logic;

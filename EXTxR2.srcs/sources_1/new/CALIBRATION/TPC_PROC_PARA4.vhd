@@ -34,14 +34,14 @@ entity TPC_PROC_PARA4 is
         --* FROM. DDR3_SYNC
         ihsync : in  std_logic;
         ivsync : in  std_logic;
-        ivcnt  : in  std_logic_vector(12 - 1 downto 0);
+        ivcnt  : in  std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
         ihcnt  : in  std_logic_vector(12 - 1 downto 0);
         idata  : in  std_logic_vector(64 - 1 downto 0);
 
         --* TO. DGAIN_PROC
         ohsync : out std_logic;
         ovsync : out std_logic;
-        ovcnt  : out std_logic_vector(12 - 1 downto 0);
+        ovcnt  : out std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
         ohcnt  : out std_logic_vector(12 - 1 downto 0);
         odata  : out std_logic_vector(64 - 1 downto 0)
     );
@@ -125,9 +125,10 @@ architecture behavioral of TPC_PROC_PARA4 is
     signal shsync_shft : std_logic_vector(SHIFT downto 1);
     signal svsync_shft : std_logic_vector(SHIFT downto 1);
 
-    type   ty_cnt_shft is array (SHIFT downto 1) of std_logic_vector(12 - 1 downto 0);
+    type   ty_cnt_shft  is array (SHIFT downto 1) of std_logic_vector(12 - 1 downto 0);
+    type   ty_vcnt_shft is array (SHIFT downto 1) of std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal shcnt_shft : ty_cnt_shft;
-    signal svcnt_shft : ty_cnt_shft;
+    signal svcnt_shft : ty_vcnt_shft; --# 2604231608 Expand V-axis 12->13bit
 
     type   ty_data_shft is array (SHIFT downto 1) of std_logic_vector(64 - 1 downto 0);
     signal sdata_shft : ty_data_shft;
@@ -163,7 +164,7 @@ architecture behavioral of TPC_PROC_PARA4 is
     -- ### out ###
     signal shsync_out : std_logic;
     signal svsync_out : std_logic;
-    signal svcnt_out  : std_logic_vector(12 - 1 downto 0);
+    signal svcnt_out  : std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal shcnt_out  : std_logic_vector(12 - 1 downto 0);
     signal sdata_out  : std_logic_vector(64 - 1 downto 0);
 

@@ -14,16 +14,16 @@ entity TI_HORIZONTAL_FLIP is
         ihsync      : in    std_logic;
         ivsync      : in    std_logic;
         ihcnt       : in    std_logic_vector(9 downto 0);
-        ivcnt       : in    std_logic_vector(11 downto 0);
+        ivcnt       : in    std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
         idata       : in    std_logic_vector(63 downto 0);
 
         ireg_width  : in    std_logic_vector(11 downto 0);
-        ireg_height : in    std_logic_vector(11 downto 0);
+        ireg_height : in    std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
         ohsync      : out   std_logic;
         ovsync      : out   std_logic;
         ohcnt       : out   std_logic_vector(9 downto 0);
-        ovcnt       : out   std_logic_vector(11 downto 0);
+        ovcnt       : out   std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
         odata       : out   std_logic_vector(63 downto 0)
     );
 end TI_HORIZONTAL_FLIP;
@@ -70,28 +70,33 @@ architecture Behavioral of TI_HORIZONTAL_FLIP is
     signal shsync : std_logic;
     signal svsync : std_logic;
     signal shcnt  : std_logic_vector(9 downto 0);
-    signal svcnt  : std_logic_vector(11 downto 0);
+--  signal svcnt  : std_logic_vector(11 downto 0);
+    signal svcnt  : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
     signal sreg_width  : std_logic_vector(9 downto 0);
-    signal sreg_height : std_logic_vector(11 downto 0);
+--  signal sreg_height : std_logic_vector(11 downto 0);
+    signal sreg_height : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
     signal shsync_out : std_logic;
     signal svsync_out : std_logic;
     signal shcnt_out  : std_logic_vector(9 downto 0);
-    signal svcnt_out  : std_logic_vector(11 downto 0);
+--  signal svcnt_out  : std_logic_vector(11 downto 0);
+    signal svcnt_out  : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sdata_out  : std_logic_vector(63 downto 0);
 
     signal sena_1d   : std_logic;
     signal shsync_1d : std_logic;
     signal svsync_1d : std_logic;
     signal shcnt_1d  : std_logic_vector(9 downto 0);
-    signal svcnt_1d  : std_logic_vector(11 downto 0);
+--  signal svcnt_1d  : std_logic_vector(11 downto 0);
+    signal svcnt_1d  : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
     signal sena_2d   : std_logic;
     signal shsync_2d : std_logic;
     signal svsync_2d : std_logic;
     signal shcnt_2d  : std_logic_vector(9 downto 0);
-    signal svcnt_2d  : std_logic_vector(11 downto 0);
+--  signal svcnt_2d  : std_logic_vector(11 downto 0);
+    signal svcnt_2d  : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
     --### addr reverse ### 201231 mbh
 --    constant MODE_LOWER_NORMAL : std_logic := '1';

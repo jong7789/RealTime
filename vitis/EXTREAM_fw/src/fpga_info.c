@@ -54,6 +54,9 @@ u32 ROIC_CH        ;
 u32 GATE_CH        ;
 u32 GATE_MAX_CH    ;
 u32 GATE_DUMMY_LINE;
+//$ 2604291608 Add EXT3643R sensor base offset (cropped border)
+u32 BASE_OFFSETX;
+u32 BASE_OFFSETY;
 
 u32 ROIC_DUMMY_LINE;
 u32 ROIC_DUMMY_CH  ;
@@ -246,6 +249,9 @@ void load_fpga_model(void) {
 
 //    █▀ █ ▀█ █▀▀ ▄▄ █▀█ █▀█ █ █▀▀ ▄▄ █▀▀ ▄▀█ ▀█▀ █▀▀
 //    ▄█ █ █▄ ██▄ ░░ █▀▄ █▄█ █ █▄▄ ░░ █▄█ █▀█ ░█░ ██▄
+    //$ 2604291608 Default base offset for non-EXT3643R models
+    BASE_OFFSETX = 0;
+    BASE_OFFSETY = 0;
     if( (msame(mEXT1616R  )) ||
     		(msame(mEXT1616RL )) )
     {
@@ -374,16 +380,18 @@ void load_fpga_model(void) {
     }
     else if( (msame(mEXT3643R )))
     {
-        MAX_WIDTH       = 3584;
-        MAX_WIDTH_x32   = 3584;
-        MAX_HEIGHT      = 4302;
+        MAX_WIDTH       = 3532; //# 3584->3584-26-26=3532
+        MAX_WIDTH_x32   = 3532; //# 3584->3584-26-26=3532;
+        MAX_HEIGHT      = 4302; //# 4608-153-153=4302
         PIXEL_WIDTH     =   16;
         ROIC_DUAL       =    1;
         ROIC_MAX_CH     =  256;
         ROIC_CH         =  256;
-        GATE_CH         =  478;
+        GATE_CH         =  512;
         GATE_MAX_CH     =  512;
-        GATE_DUMMY_LINE =   34;
+        GATE_DUMMY_LINE =    0;
+        BASE_OFFSETX    =   26;
+        BASE_OFFSETY    =  153;
     }
 //    █▄░█ ▄▀█ █▀▄▀█ █▀▀ ▄▄ █░█ █░█░█
 //    █░▀█ █▀█ █░▀░█ ██▄ ░░ █▀█ ▀▄▀▄▀

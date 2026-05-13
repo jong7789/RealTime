@@ -22,18 +22,24 @@ entity TI_LVDS_RX is
         iroic_data     : in std_logic_vector(ROIC_NUM(GNR_MODEL)-1 downto 0);
 
         ireg_width     : in std_logic_vector(11 downto 0);
-        ireg_height    : in std_logic_vector(11 downto 0);
+        ireg_height    : in std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
         ireg_bcal_ctrl : in  std_logic_vector(31 downto 0);
         oreg_bcal_data : out std_logic_vector(31 downto 0);
+
+        --# 2604242200 FW-driven bit-align ports (sys_clk side, REG_TOP <-> here)
+        ireg_bcal_fw_ctrl   : in  std_logic_vector(31 downto 0);
+        ireg_bcal_fw_rsv    : in  std_logic_vector(31 downto 0);
+        oreg_bcal_fw_par    : out std_logic_vector(31 downto 0);
+        oreg_bcal_fw_status : out std_logic_vector(31 downto 0);
 
         oen_array      : out std_logic_vector(ROIC_NUM(GNR_MODEL)-1 downto 0);
         odata_array    : out std_logic_vector(ROIC_NUM(GNR_MODEL)*16-1 downto 0);
         oalign_done    : out std_logic;
         oroic_clk_sel  : out std_logic_vector(ROIC_NUM(GNR_MODEL)-1 downto 0);
 
-        irefvcnt       : in  std_logic_vector(11 downto 0);
-        ovcnt          : out std_logic_vector(12 - 1 downto 0)
+        irefvcnt       : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+        ovcnt          : out std_logic_vector(13 - 1 downto 0) --# 2604231608 Expand V-axis 12->13bit
     );
 end entity TI_LVDS_RX;
 
@@ -145,9 +151,11 @@ architecture behavioral of TI_LVDS_RX is
     signal salign_success : std_logic_vector(ROIC_NUM(GNR_MODEL)-1 downto 0);
     signal sdvalid        : std_logic_vector(ROIC_NUM(GNR_MODEL)-1 downto 0);
 
-    type   tcnt_array is array (0 to ROIC_NUM(GNR_MODEL)-1) of std_logic_vector(11 downto 0);
+--  type   tcnt_array is array (0 to ROIC_NUM(GNR_MODEL)-1) of std_logic_vector(11 downto 0);
+    type   tcnt_array  is array (0 to ROIC_NUM(GNR_MODEL)-1) of std_logic_vector(11 downto 0);
+    type   tvcnt_array is array (0 to ROIC_NUM(GNR_MODEL)-1) of std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal shcnt     : tcnt_array;
-    signal svcnt     : tcnt_array;
+    signal svcnt     : tvcnt_array; --# 2604231608 Expand V-axis 12->13bit
     signal svcnt_all : std_logic_vector(ROIC_NUM(GNR_MODEL)-1 downto 0);
 
     signal sreg_req_align_1d : std_logic;
@@ -156,9 +164,12 @@ architecture behavioral of TI_LVDS_RX is
     signal sroic_dvalid_1d   : std_logic;
     signal sroic_dvalid_2d   : std_logic;
     signal sroic_dvalid_3d   : std_logic;
-    signal sreg_height_1d    : std_logic_vector(11 downto 0);
-    signal sreg_height_2d    : std_logic_vector(11 downto 0);
-    signal sreg_height_3d    : std_logic_vector(11 downto 0);
+--  signal sreg_height_1d    : std_logic_vector(11 downto 0);
+--  signal sreg_height_2d    : std_logic_vector(11 downto 0);
+--  signal sreg_height_3d    : std_logic_vector(11 downto 0);
+    signal sreg_height_1d    : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal sreg_height_2d    : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal sreg_height_3d    : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
     signal ireg_bcal_ctrl_1d : std_logic_vector(31 downto 0);
     signal ireg_bcal_ctrl_2d : std_logic_vector(31 downto 0);
@@ -226,7 +237,42 @@ architecture behavioral of TI_LVDS_RX is
     signal sdata_ff00_ch0 : std_logic;
     signal sdata_ff00_ch1 : std_logic;
     signal sdata_ff00_ch  : std_logic;
-    
+
+    --# 2604242200 FW bit-align signals
+    --# sticky latch in rclk_ch domain (auto-reset on any FW pulse)
+    signal sdata_diff_lat : std_logic_vector(ROIC_NUM(GNR_MODEL)-1 downto 0);
+    signal sdata_ff00_lat : std_logic_vector(ROIC_NUM(GNR_MODEL)-1 downto 0);
+    --# sys_clk side fw mode/ctrl decode
+    signal sfw_mode_en    : std_logic;
+    signal sfw_ce         : std_logic;
+    signal sfw_rst        : std_logic;
+    signal sfw_bitslip    : std_logic;
+    signal sfw_probe_rst  : std_logic;
+    signal sfw_ch_sel     : std_logic_vector(7 downto 0);
+    --# pulse stretch (sys_clk side, 3-FF OR -> 30 ns wide)
+    signal sfw_ce_0,        sfw_ce_1,        sfw_ce_2        : std_logic_vector(ROIC_NUM(GNR_MODEL)-1 downto 0);
+    signal sfw_rst_0,       sfw_rst_1,       sfw_rst_2       : std_logic_vector(ROIC_NUM(GNR_MODEL)-1 downto 0);
+    signal sfw_bitslip_0,   sfw_bitslip_1,   sfw_bitslip_2   : std_logic_vector(ROIC_NUM(GNR_MODEL)-1 downto 0);
+    signal sfw_probe_rst_0, sfw_probe_rst_1, sfw_probe_rst_2 : std_logic_vector(ROIC_NUM(GNR_MODEL)-1 downto 0);
+    signal sfw_ce_or, sfw_rst_or, sfw_bitslip_or, sfw_probe_rst_or : std_logic_vector(ROIC_NUM(GNR_MODEL)-1 downto 0);
+    --# rclk_ch side rising-edge detected pulses (1 rclk_ch cycle wide)
+    signal fwd_ce0,  fwd_ce1,  fwd_ce2,  sd_fw_ce       : std_logic_vector(ROIC_NUM(GNR_MODEL)-1 downto 0);
+    signal fwd_rst0, fwd_rst1, fwd_rst2, sd_fw_rst      : std_logic_vector(ROIC_NUM(GNR_MODEL)-1 downto 0);
+    signal fwd_bs0,  fwd_bs1,  fwd_bs2,  sd_fw_bitslip  : std_logic_vector(ROIC_NUM(GNR_MODEL)-1 downto 0);
+    signal fwd_pr0,  fwd_pr1,  fwd_pr2,  sd_fw_probe    : std_logic_vector(ROIC_NUM(GNR_MODEL)-1 downto 0);
+    signal sd_fw_action_pulse : std_logic_vector(ROIC_NUM(GNR_MODEL)-1 downto 0);
+    --# ch_sel mux (sys_clk side, 3-FF sync of latched single-bit signals)
+    signal sfw_diff_lat_mux,   sfw_diff_lat_1d,   sfw_diff_lat_2d,   sfw_diff_lat_3d   : std_logic;
+    signal sfw_ff00_lat_mux,   sfw_ff00_lat_1d,   sfw_ff00_lat_2d,   sfw_ff00_lat_3d   : std_logic;
+    signal sfw_val_mux,        sfw_val_1d,        sfw_val_2d,        sfw_val_3d        : std_logic;
+    signal sfw_bsmode_mux,     sfw_bsmode_1d,     sfw_bsmode_2d,     sfw_bsmode_3d     : std_logic;
+    --# 24-bit sdata_par mux (slow-changing relative to isys_clk; 3-FF sync OK as quasi-static)
+    signal sfw_par_mux,        sfw_par_1d,        sfw_par_2d,        sfw_par_3d        : std_logic_vector(23 downto 0);
+    --# 5-bit status mux (per-channel SERDES outputs already in this file)
+    signal sfw_ocnt_mux,       sfw_ocnt_1d,       sfw_ocnt_2d,       sfw_ocnt_3d       : std_logic_vector(4 downto 0);
+    signal sfw_oser_mux,       sfw_oser_1d,       sfw_oser_2d,       sfw_oser_3d       : std_logic_vector(4 downto 0);
+    signal sfw_obs_mux,        sfw_obs_1d,        sfw_obs_2d,        sfw_obs_3d        : std_logic_vector(4 downto 0);
+
     signal clk_mux_a : std_logic;
     signal clk_mux_b : std_logic;
 
@@ -477,9 +523,14 @@ serdes : for i in 0 to ROIC_NUM(GNR_MODEL) - 1 generate
         sroic_dvalid_3d => sroic_dvalid_3d --# to inside ila
     );
 
-    idle_ce_or(i)  <= (sd_ser_dly(i));
-    idle_rst_or(i) <= (sd_ser_rst(i));
-    ibitslip_or(i) <= (sd_ser_bit(i));
+--  idle_ce_or(i)  <= (sd_ser_dly(i));  --# 2604242200 fw_mode mux below
+--  idle_rst_or(i) <= (sd_ser_rst(i));
+--  ibitslip_or(i) <= (sd_ser_bit(i));
+    --# 2604242200 fw_mode_en=1 -> FW pulses, =0 -> HW FSM (preserves legacy behavior)
+    --# probe_rst affects only sticky latch (handled in latch process), not SERDES delay/bitslip
+    idle_ce_or(i)  <= sd_fw_ce(i)      when sfw_mode_en = '1' else sd_ser_dly(i);
+    idle_rst_or(i) <= sd_fw_rst(i)     when sfw_mode_en = '1' else sd_ser_rst(i);
+    ibitslip_or(i) <= sd_fw_bitslip(i) when sfw_mode_en = '1' else sd_ser_bit(i);
 
     --# serdes ctrl 3width -> rising edge
     process (rclk_ch(i))
@@ -516,6 +567,49 @@ serdes : for i in 0 to ROIC_NUM(GNR_MODEL) - 1 generate
                 vio_data(i) <= sdata_par(i)(23 downto 8);
             end if;
 
+        end if;
+    end process;
+
+    --# 2604242200 FW pulse rising-edge detector in rclk_ch domain (per channel)
+    process (rclk_ch(i))
+    begin
+        if (rclk_ch(i)'event and rclk_ch(i) = '1') then
+            if (iroic_rstn = '0') then
+                fwd_ce0(i)  <= '0'; fwd_ce1(i)  <= '0'; fwd_ce2(i)  <= '0'; sd_fw_ce(i)      <= '0';
+                fwd_rst0(i) <= '0'; fwd_rst1(i) <= '0'; fwd_rst2(i) <= '0'; sd_fw_rst(i)     <= '0';
+                fwd_bs0(i)  <= '0'; fwd_bs1(i)  <= '0'; fwd_bs2(i)  <= '0'; sd_fw_bitslip(i) <= '0';
+                fwd_pr0(i)  <= '0'; fwd_pr1(i)  <= '0'; fwd_pr2(i)  <= '0'; sd_fw_probe(i)   <= '0';
+            else
+                fwd_ce0(i)  <= sfw_ce_or(i);     fwd_ce1(i)  <= fwd_ce0(i);  fwd_ce2(i)  <= fwd_ce1(i);
+                fwd_rst0(i) <= sfw_rst_or(i);    fwd_rst1(i) <= fwd_rst0(i); fwd_rst2(i) <= fwd_rst1(i);
+                fwd_bs0(i)  <= sfw_bitslip_or(i);fwd_bs1(i)  <= fwd_bs0(i);  fwd_bs2(i)  <= fwd_bs1(i);
+                fwd_pr0(i)  <= sfw_probe_rst_or(i); fwd_pr1(i) <= fwd_pr0(i); fwd_pr2(i) <= fwd_pr1(i);
+
+                if (fwd_ce2(i)  = '0' and fwd_ce1(i)  = '1') then sd_fw_ce(i)      <= '1'; else sd_fw_ce(i)      <= '0'; end if;
+                if (fwd_rst2(i) = '0' and fwd_rst1(i) = '1') then sd_fw_rst(i)     <= '1'; else sd_fw_rst(i)     <= '0'; end if;
+                if (fwd_bs2(i)  = '0' and fwd_bs1(i)  = '1') then sd_fw_bitslip(i) <= '1'; else sd_fw_bitslip(i) <= '0'; end if;
+                if (fwd_pr2(i)  = '0' and fwd_pr1(i)  = '1') then sd_fw_probe(i)   <= '1'; else sd_fw_probe(i)   <= '0'; end if;
+            end if;
+        end if;
+    end process;
+
+    sd_fw_action_pulse(i) <= sd_fw_ce(i) or sd_fw_rst(i) or sd_fw_bitslip(i) or sd_fw_probe(i);
+
+    --# 2604242200 sticky latch for sdata_diff/ff00 in rclk_ch domain
+    --# auto-reset on any FW action pulse (ce/rst/bitslip/probe_rst)
+    process (rclk_ch(i))
+    begin
+        if (rclk_ch(i)'event and rclk_ch(i) = '1') then
+            if (iroic_rstn = '0') then
+                sdata_diff_lat(i) <= '0';
+                sdata_ff00_lat(i) <= '0';
+            elsif (sd_fw_action_pulse(i) = '1') then
+                sdata_diff_lat(i) <= '0';
+                sdata_ff00_lat(i) <= '0';
+            else
+                if (sdata_diff(i) = '1') then sdata_diff_lat(i) <= '1'; end if;
+                if (sdata_ff00(i) = '1') then sdata_ff00_lat(i) <= '1'; end if;
+            end if;
         end if;
     end process;
 
@@ -974,6 +1068,99 @@ end generate gen_out;
             end if;
         end if;
     end process;
+
+-- █▀ █▀▄▀█ ▄▄ █▀▀ █░█░█
+-- ▄█ █░▀░█ ░░ █▀░ ▀▄▀▄▀ %fw
+    --# 2604242200 FW ctrl decode (sys_clk side; ireg_bcal_fw_ctrl is already 3-FF synced upstream by REG_TOP via ireg_bcal_data pipeline)
+    sfw_mode_en   <= ireg_bcal_fw_ctrl(0);
+    sfw_ce        <= ireg_bcal_fw_ctrl(4);
+    sfw_rst       <= ireg_bcal_fw_ctrl(5);
+    sfw_bitslip   <= ireg_bcal_fw_ctrl(6);
+    sfw_probe_rst <= ireg_bcal_fw_ctrl(7);
+    sfw_ch_sel    <= ireg_bcal_fw_ctrl(15 downto 8);
+
+    --# 2604242200 FW pulse stretch (sys_clk -> 30 ns wide) for CDC into rclk_ch
+    --# fan-out to all channels but only sfw_ch_sel-th channel will see action via ch_sel mux on input
+    process (isys_clk)
+    begin
+        if (isys_clk'event and isys_clk = '1') then
+            if (iroic_rstn = '0') then
+                sfw_ce_0  <= (others => '0'); sfw_ce_1  <= (others => '0'); sfw_ce_2  <= (others => '0');
+                sfw_rst_0 <= (others => '0'); sfw_rst_1 <= (others => '0'); sfw_rst_2 <= (others => '0');
+                sfw_bitslip_0   <= (others => '0'); sfw_bitslip_1   <= (others => '0'); sfw_bitslip_2   <= (others => '0');
+                sfw_probe_rst_0 <= (others => '0'); sfw_probe_rst_1 <= (others => '0'); sfw_probe_rst_2 <= (others => '0');
+            else
+                for i in 0 to ROIC_NUM(GNR_MODEL)-1 loop
+                    if (sfw_mode_en = '1' and conv_integer(sfw_ch_sel) = i) then
+                        sfw_ce_0(i)        <= sfw_ce;
+                        sfw_rst_0(i)       <= sfw_rst;
+                        sfw_bitslip_0(i)   <= sfw_bitslip;
+                        sfw_probe_rst_0(i) <= sfw_probe_rst;
+                    else
+                        sfw_ce_0(i)        <= '0';
+                        sfw_rst_0(i)       <= '0';
+                        sfw_bitslip_0(i)   <= '0';
+                        sfw_probe_rst_0(i) <= '0';
+                    end if;
+                end loop;
+                sfw_ce_1        <= sfw_ce_0;        sfw_ce_2        <= sfw_ce_1;
+                sfw_rst_1       <= sfw_rst_0;       sfw_rst_2       <= sfw_rst_1;
+                sfw_bitslip_1   <= sfw_bitslip_0;   sfw_bitslip_2   <= sfw_bitslip_1;
+                sfw_probe_rst_1 <= sfw_probe_rst_0; sfw_probe_rst_2 <= sfw_probe_rst_1;
+            end if;
+        end if;
+    end process;
+
+    sfw_ce_or        <= sfw_ce_2        or sfw_ce_1        or sfw_ce_0;
+    sfw_rst_or       <= sfw_rst_2       or sfw_rst_1       or sfw_rst_0;
+    sfw_bitslip_or   <= sfw_bitslip_2   or sfw_bitslip_1   or sfw_bitslip_0;
+    sfw_probe_rst_or <= sfw_probe_rst_2 or sfw_probe_rst_1 or sfw_probe_rst_0;
+
+    --# 2604242200 ch_sel mux + 3-FF sync (rclk_ch -> sys_clk)
+    --# diff_lat / ff00_lat are sticky in rclk_ch domain; mux+sync of 1-bit is safe
+    --# sdata_par 24-bit treated as quasi-static (same value per stable tap), 3-FF sync acceptable
+    process (isys_clk)
+    begin
+        if (isys_clk'event and isys_clk = '1') then
+            if (iroic_rstn = '0') then
+                sfw_diff_lat_mux <= '0'; sfw_diff_lat_1d <= '0'; sfw_diff_lat_2d <= '0'; sfw_diff_lat_3d <= '0';
+                sfw_ff00_lat_mux <= '0'; sfw_ff00_lat_1d <= '0'; sfw_ff00_lat_2d <= '0'; sfw_ff00_lat_3d <= '0';
+                sfw_val_mux      <= '0'; sfw_val_1d      <= '0'; sfw_val_2d      <= '0'; sfw_val_3d      <= '0';
+                sfw_bsmode_mux   <= '0'; sfw_bsmode_1d   <= '0'; sfw_bsmode_2d   <= '0'; sfw_bsmode_3d   <= '0';
+                sfw_par_mux  <= (others => '0'); sfw_par_1d  <= (others => '0'); sfw_par_2d  <= (others => '0'); sfw_par_3d  <= (others => '0');
+                sfw_ocnt_mux <= (others => '0'); sfw_ocnt_1d <= (others => '0'); sfw_ocnt_2d <= (others => '0'); sfw_ocnt_3d <= (others => '0');
+                sfw_oser_mux <= (others => '0'); sfw_oser_1d <= (others => '0'); sfw_oser_2d <= (others => '0'); sfw_oser_3d <= (others => '0');
+                sfw_obs_mux  <= (others => '0'); sfw_obs_1d  <= (others => '0'); sfw_obs_2d  <= (others => '0'); sfw_obs_3d  <= (others => '0');
+            else
+                if (conv_integer(sfw_ch_sel) < ROIC_NUM(GNR_MODEL)) then
+                    sfw_diff_lat_mux <= sdata_diff_lat(conv_integer(sfw_ch_sel));
+                    sfw_ff00_lat_mux <= sdata_ff00_lat(conv_integer(sfw_ch_sel));
+                    sfw_val_mux      <= sdata_val(conv_integer(sfw_ch_sel));
+                    sfw_bsmode_mux   <= obitslipm(conv_integer(sfw_ch_sel));
+                    sfw_par_mux      <= sdata_par(conv_integer(sfw_ch_sel));
+                    sfw_ocnt_mux     <= ocntvalue(conv_integer(sfw_ch_sel));
+                    sfw_oser_mux     <= oser_cnt(conv_integer(sfw_ch_sel));
+                    sfw_obs_mux      <= obitslipc(conv_integer(sfw_ch_sel));
+                end if;
+                sfw_diff_lat_1d <= sfw_diff_lat_mux; sfw_diff_lat_2d <= sfw_diff_lat_1d; sfw_diff_lat_3d <= sfw_diff_lat_2d;
+                sfw_ff00_lat_1d <= sfw_ff00_lat_mux; sfw_ff00_lat_2d <= sfw_ff00_lat_1d; sfw_ff00_lat_3d <= sfw_ff00_lat_2d;
+                sfw_val_1d      <= sfw_val_mux;      sfw_val_2d      <= sfw_val_1d;      sfw_val_3d      <= sfw_val_2d;
+                sfw_bsmode_1d   <= sfw_bsmode_mux;   sfw_bsmode_2d   <= sfw_bsmode_1d;   sfw_bsmode_3d   <= sfw_bsmode_2d;
+                sfw_par_1d      <= sfw_par_mux;      sfw_par_2d      <= sfw_par_1d;      sfw_par_3d      <= sfw_par_2d;
+                sfw_ocnt_1d     <= sfw_ocnt_mux;     sfw_ocnt_2d     <= sfw_ocnt_1d;     sfw_ocnt_3d     <= sfw_ocnt_2d;
+                sfw_oser_1d     <= sfw_oser_mux;     sfw_oser_2d     <= sfw_oser_1d;     sfw_oser_3d     <= sfw_oser_2d;
+                sfw_obs_1d      <= sfw_obs_mux;      sfw_obs_2d      <= sfw_obs_1d;      sfw_obs_3d      <= sfw_obs_2d;
+            end if;
+        end if;
+    end process;
+
+    --# 2604242200 FW PAR/STATUS register pack (sys_clk side, idelayctrl rdy hardwired '1' since not exposed)
+    oreg_bcal_fw_par <=
+        b"0000" & sfw_bsmode_3d & sfw_val_3d & sfw_ff00_lat_3d & sfw_diff_lat_3d & sfw_par_3d;
+    --# bit map: [31:17]rsv(15b) [16]rdy(tied'0' here) [15]rsv [14:10]obs [9:5]oser [4:0]ocnt = 32b
+    oreg_bcal_fw_status <=
+--        b"000_0000_0000_000" & '0' & '0' & sfw_obs_3d & sfw_oser_3d & sfw_ocnt_3d; --# 31bit error
+        b"0000_0000_0000_0000" & '0' & sfw_obs_3d & sfw_oser_3d & sfw_ocnt_3d; 
 
 --# dvalid/height shift register (sync reset)
 --    process (rclk_sel, iroic_rstn)

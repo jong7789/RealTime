@@ -30,18 +30,21 @@ port (
     o_reg_col_defect_rdata : out std_logic_vector(15 downto 0);
 
     i_reg_width  : in  std_logic_vector(12 - 1 downto 0);
-    i_reg_height : in  std_logic_vector(12 - 1 downto 0);
+--  i_reg_height : in  std_logic_vector(12 - 1 downto 0);
+    i_reg_height : in  std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
 
     i_hsyn : in  std_logic;
     i_vsyn : in  std_logic;
     i_hcnt : in  std_logic_vector(12 - 1 downto 0);
-    i_vcnt : in  std_logic_vector(12 - 1 downto 0);
+--  i_vcnt : in  std_logic_vector(12 - 1 downto 0);
+    i_vcnt : in  std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
     i_data : in  std_logic_vector(64 - 1 downto 0);
 
     o_hsyn : out std_logic;
     o_vsyn : out std_logic;
     o_hcnt : out std_logic_vector(12 - 1 downto 0);
-    o_vcnt : out std_logic_vector(12 - 1 downto 0);
+--  o_vcnt : out std_logic_vector(12 - 1 downto 0);
+    o_vcnt : out std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
     o_data : out std_logic_vector(64 - 1 downto 0)
 );
 end DEFECT_PROC_PARA4;
@@ -54,18 +57,21 @@ architecture Behavioral of DEFECT_PROC_PARA4 is
         rstn         : in  std_logic;
 
         i_reg_width  : in  std_logic_vector(12 - 1 downto 0);
-        i_reg_height : in  std_logic_vector(12 - 1 downto 0);
+--      i_reg_height : in  std_logic_vector(12 - 1 downto 0);
+        i_reg_height : in  std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
         i_hsyn       : in  std_logic;
         i_vsyn       : in  std_logic;
         i_hcnt       : in  std_logic_vector(12 - 1 downto 0);
-        i_vcnt       : in  std_logic_vector(12 - 1 downto 0);
+--      i_vcnt       : in  std_logic_vector(12 - 1 downto 0);
+        i_vcnt       : in  std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
         i_data       : in  std_logic_vector(64 - 1 downto 0);
 
         o_hsyn_2x2   : out std_logic;
         o_vsyn_2x2   : out std_logic;
         o_hcnt_2x2   : out std_logic_vector(12 - 1 downto 0);
-        o_vcnt_2x2   : out std_logic_vector(12 - 1 downto 0);
+--      o_vcnt_2x2   : out std_logic_vector(12 - 1 downto 0);
+        o_vcnt_2x2   : out std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
         o_data_1x1   : out std_logic_vector(64 - 1 downto 0);
         o_data_1x2   : out std_logic_vector(64 - 1 downto 0);
@@ -118,7 +124,7 @@ architecture Behavioral of DEFECT_PROC_PARA4 is
         ihsync       : in  std_logic;
         ivsync       : in  std_logic;
         ihcnt        : in  std_logic_vector(11 downto 0);
-        ivcnt        : in  std_logic_vector(11 downto 0);
+        ivcnt        : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
         idata_1x1    : in  std_logic_vector(15 downto 0);
         idata_1x2    : in  std_logic_vector(15 downto 0);
@@ -133,7 +139,7 @@ architecture Behavioral of DEFECT_PROC_PARA4 is
         ohsync       : out std_logic;
         ovsync       : out std_logic;
         ohcnt        : out std_logic_vector(11 downto 0);
-        ovcnt        : out std_logic_vector(11 downto 0);
+        ovcnt        : out std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
         odata        : out std_logic_vector(15 downto 0);
 
         odata_sum    : out std_logic_vector(18 downto 0);
@@ -199,6 +205,7 @@ architecture Behavioral of DEFECT_PROC_PARA4 is
     type ty_para4_shf8b  is array (PARA4 - 1 downto 0) of std_logic_vector(8 - 1 downto 0);
     type ty_para4_shf10b is array (PARA4 - 1 downto 0) of std_logic_vector(10 - 1 downto 0);
     type ty_para4_shf12b is array (PARA4 - 1 downto 0) of std_logic_vector(12 - 1 downto 0);
+    type ty_para4_shf13b is array (PARA4 - 1 downto 0) of std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
     type ty_para4_shf16b is array (PARA4 - 1 downto 0) of std_logic_vector(16 - 1 downto 0);
     type ty_para4_shf18b is array (PARA4 - 1 downto 0) of std_logic_vector(18 - 1 downto 0);
     type ty_para4_shf19b is array (PARA4 - 1 downto 0) of std_logic_vector(19 - 1 downto 0);
@@ -219,7 +226,8 @@ architecture Behavioral of DEFECT_PROC_PARA4 is
     signal decd_hsyn   : std_logic_vector(PARA4 - 1 downto 0);
     signal decd_vsyn   : std_logic_vector(PARA4 - 1 downto 0);
     signal decd_hcnt   : ty_para4_shf12b;
-    signal decd_vcnt   : ty_para4_shf12b;
+--  signal decd_vcnt   : ty_para4_shf12b;
+    signal decd_vcnt   : ty_para4_shf13b; --# 2604231608 V-axis 12->13bit
     signal decd_data   : ty_para4_shf16b;
     signal decd_data64 : std_logic_vector(64 - 1 downto 0);
 
@@ -234,12 +242,14 @@ architecture Behavioral of DEFECT_PROC_PARA4 is
     constant SHF_VID_NUM : integer := 8;
     type ty_vid_shf4b  is array (SHF_VID_NUM - 1 downto 0) of std_logic_vector( 4 - 1 downto 0);
     type ty_vid_shf12b is array (SHF_VID_NUM - 1 downto 0) of std_logic_vector(12 - 1 downto 0);
+    type ty_vid_shf13b is array (SHF_VID_NUM - 1 downto 0) of std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
     type ty_vid_shf64b is array (SHF_VID_NUM - 1 downto 0) of std_logic_vector(64 - 1 downto 0);
     type ty_vid_shf96b is array (SHF_VID_NUM - 1 downto 0) of std_logic_vector(96 - 1 downto 0);
 
     signal shf_decd_vsyn : std_logic_vector(SHF_VID_NUM - 1 downto 0);
     signal shf_decd_hsyn : std_logic_vector(SHF_VID_NUM - 1 downto 0);
-    signal shf_decd_vcnt : ty_vid_shf12b;
+--  signal shf_decd_vcnt : ty_vid_shf12b;
+    signal shf_decd_vcnt : ty_vid_shf13b; --# 2604231608 V-axis 12->13bit
     signal shf_decd_hcnt : ty_vid_shf12b;
     signal shf_decd_data : ty_vid_shf64b;
     signal shf_defpoint  : ty_vid_shf96b;
@@ -256,7 +266,8 @@ architecture Behavioral of DEFECT_PROC_PARA4 is
     signal al_hsyn : std_logic;
     signal al_vsyn : std_logic;
     signal al_hcnt : std_logic_vector(12 - 1 downto 0);
-    signal al_vcnt : std_logic_vector(12 - 1 downto 0);
+--  signal al_vcnt : std_logic_vector(12 - 1 downto 0);
+    signal al_vcnt : std_logic_vector(13 - 1 downto 0); --# 2604231608 V-axis 12->13bit
     signal al_data : std_logic_vector(64 - 1 downto 0);
     signal defpoint : std_logic_vector(96 - 1 downto 0);
 
@@ -296,7 +307,8 @@ architecture Behavioral of DEFECT_PROC_PARA4 is
     signal mask_hsyn_2x2 : std_logic;
     signal mask_vsyn_2x2 : std_logic;
     signal mask_hcnt_2x2 : std_logic_vector(12 - 1 downto 0);
-    signal mask_vcnt_2x2 : std_logic_vector(12 - 1 downto 0);
+--  signal mask_vcnt_2x2 : std_logic_vector(12 - 1 downto 0);
+    signal mask_vcnt_2x2 : std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal mask_data_1x1 : std_logic_vector(64 - 1 downto 0);
     signal mask_data_1x2 : std_logic_vector(64 - 1 downto 0);
     signal mask_data_1x3 : std_logic_vector(64 - 1 downto 0);

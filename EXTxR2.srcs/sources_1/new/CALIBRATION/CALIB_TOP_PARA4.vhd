@@ -51,7 +51,7 @@ entity CALIB_TOP_PARA4 is
         oreg_avg_end          : out std_logic_vector(15 downto 0);
 
         ireg_width            : in std_logic_vector(11 downto 0);
-        ireg_height           : in std_logic_vector(11 downto 0);
+        ireg_height           : in std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
         ireg_AccCtrl          : in std_logic_vector(15 downto 0);
         oreg_AccStat          : out std_logic_vector(16 - 1 downto 0);
@@ -70,12 +70,12 @@ entity CALIB_TOP_PARA4 is
         oavg_wen              : out std_logic;
         oavg_waddr            : out std_logic_vector(11 downto 0);
         oavg_winfo            : out std_logic_vector(64 - 1 downto 0);
-        oavg_wvcnt            : out std_logic_vector(11 downto 0);
+        oavg_wvcnt            : out std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
         oacc_wen              : out std_logic;
         oacc_waddr            : out std_logic_vector(11 downto 0);
         oacc_wdata            : out std_logic_vector(64 - 1 downto 0);
-        oacc_wvcnt            : out std_logic_vector(11 downto 0);
+        oacc_wvcnt            : out std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
         o_chgdet_osd_en       : out std_logic;
         o_chgdet_osd_da       : out std_logic_vector(16 - 1 downto 0);
@@ -97,13 +97,13 @@ entity CALIB_TOP_PARA4 is
         ihsync                : in std_logic;
         ivsync                : in std_logic;
         ihcnt                 : in std_logic_vector(11 downto 0);
-        ivcnt                 : in std_logic_vector(11 downto 0);
+        ivcnt                 : in std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
         idata                 : in std_logic_vector(64 - 1 downto 0);
 
         ohsync                : out std_logic;
         ovsync                : out std_logic;
         ohcnt                 : out std_logic_vector(11 downto 0);
-        ovcnt                 : out std_logic_vector(11 downto 0);
+        ovcnt                 : out std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
         odata                 : out std_logic_vector(64 - 1 downto 0)
     );
 end entity CALIB_TOP_PARA4;
@@ -122,13 +122,13 @@ architecture behavioral of CALIB_TOP_PARA4 is
             i_hsyn        : in  std_logic;
             i_vsyn        : in  std_logic;
             i_hcnt        : in  std_logic_vector(12 - 1 downto 0);
-            i_vcnt        : in  std_logic_vector(12 - 1 downto 0);
+            i_vcnt        : in  std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
             i_data        : in  std_logic_vector(64 - 1 downto 0);
             i_mdata       : in  std_logic_vector(64 - 1 downto 0);
 
             o_avg_wen     : out std_logic;
             o_avg_waddr   : out std_logic_vector(12 - 1 downto 0); --# hcnt
-            o_avg_wvcnt   : out std_logic_vector(12 - 1 downto 0); --# vcnt
+            o_avg_wvcnt   : out std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
             o_avg_winfo   : out std_logic_vector(64 - 1 downto 0)
         );
     end component;
@@ -154,13 +154,13 @@ architecture behavioral of CALIB_TOP_PARA4 is
             ihsync          : in std_logic;
             ivsync          : in std_logic;
             ihcnt           : in std_logic_vector(11 downto 0);
-            ivcnt           : in std_logic_vector(11 downto 0);
+            ivcnt           : in std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             idata           : in std_logic_vector(15 downto 0);
 
             ohsync          : out std_logic;
             ovsync          : out std_logic;
             ohcnt           : out std_logic_vector(11 downto 0);
-            ovcnt           : out std_logic_vector(11 downto 0);
+            ovcnt           : out std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             odata           : out std_logic_vector(23 downto 0)
         );
     end component;
@@ -190,13 +190,13 @@ architecture behavioral of CALIB_TOP_PARA4 is
             ihsync             : in std_logic;
             ivsync             : in std_logic;
             ihcnt              : in std_logic_vector(11 downto 0);
-            ivcnt              : in std_logic_vector(11 downto 0);
+            ivcnt              : in std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             idata              : in std_logic_vector(15 downto 0);
 
             ohsync             : out std_logic;
             ovsync             : out std_logic;
             ohcnt              : out std_logic_vector(11 downto 0);
-            ovcnt              : out std_logic_vector(11 downto 0);
+            ovcnt              : out std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             odata              : out std_logic_vector(23 downto 0)
         );
     end component;
@@ -229,14 +229,14 @@ architecture behavioral of CALIB_TOP_PARA4 is
             --* FROM. DDR3_SYNC
             ihsync : in  std_logic;
             ivsync : in  std_logic;
-            ivcnt  : in  std_logic_vector(12 - 1 downto 0);
+            ivcnt  : in  std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
             ihcnt  : in  std_logic_vector(12 - 1 downto 0);
             idata  : in  std_logic_vector(64 - 1 downto 0);
 
             --* TO. DGAIN_PROC
             ohsync : out std_logic;
             ovsync : out std_logic;
-            ovcnt  : out std_logic_vector(12 - 1 downto 0);
+            ovcnt  : out std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
             ohcnt  : out std_logic_vector(12 - 1 downto 0);
             odata  : out std_logic_vector(64 - 1 downto 0)
         );
@@ -247,33 +247,33 @@ architecture behavioral of CALIB_TOP_PARA4 is
             i_clk            : in std_logic;
 
             i_reg_width      : in std_logic_vector(11 downto 0);
-            i_reg_height     : in std_logic_vector(11 downto 0);
+            i_reg_height     : in std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             i_regAccCtrl     : in std_logic_vector(16 - 1 downto 0);
             o_regAccStat     : out std_logic_vector(16 - 1 downto 0);
 
             i_MmrHsyn        : in std_logic;
             i_MmrVsyn        : in std_logic;
-            i_MmrVcnt        : in std_logic_vector(12 - 1 downto 0);
+            i_MmrVcnt        : in std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
             i_MmrHcnt        : in std_logic_vector(12 - 1 downto 0);
             i_MmrData        : in std_logic_vector(16 - 1 downto 0);
 
             i_LivHsyn        : in std_logic;
             i_LivVsyn        : in std_logic;
-            i_LivVcnt        : in std_logic_vector(12 - 1 downto 0);
+            i_LivVcnt        : in std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
             i_LivHcnt        : in std_logic_vector(12 - 1 downto 0);
             i_LivData        : in std_logic_vector(16 - 1 downto 0);
 
             oacc_wen         : out std_logic;
             oacc_waddr       : out std_logic_vector(11 downto 0);
             oacc_wdata       : out std_logic_vector(15 downto 0);
-            oacc_wvcnt       : out std_logic_vector(11 downto 0);
+            oacc_wvcnt       : out std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
             o_chgdet_osd_en  : out std_logic;
             o_chgdet_osd_da  : out std_logic_vector(16 - 1 downto 0);
 
             o_hsyn           : out std_logic;
             o_vsyn           : out std_logic;
-            o_vcnt           : out std_logic_vector(12 - 1 downto 0);
+            o_vcnt           : out std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
             o_hcnt           : out std_logic_vector(12 - 1 downto 0);
             o_data           : out std_logic_vector(16 - 1 downto 0)
         );
@@ -289,13 +289,13 @@ architecture behavioral of CALIB_TOP_PARA4 is
             ihsync     : in std_logic;
             ivsync     : in std_logic;
             ihcnt      : in std_logic_vector(11 downto 0);
-            ivcnt      : in std_logic_vector(11 downto 0);
+            ivcnt      : in std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             idata      : in std_logic_vector(23 downto 0);
 
             ohsync     : out std_logic;
             ovsync     : out std_logic;
             ohcnt      : out std_logic_vector(11 downto 0);
-            ovcnt      : out std_logic_vector(11 downto 0);
+            ovcnt      : out std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             odata      : out std_logic_vector(15 downto 0)
         );
     end component;
@@ -315,18 +315,18 @@ architecture behavioral of CALIB_TOP_PARA4 is
             oreg_defect_rdata : out std_logic_vector(31 downto 0);
 
             ireg_width        : in std_logic_vector(11 downto 0);
-            ireg_height       : in std_logic_vector(11 downto 0);
+            ireg_height       : in std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
             ihsync            : in std_logic;
             ivsync            : in std_logic;
             ihcnt             : in std_logic_vector(11 downto 0);
-            ivcnt             : in std_logic_vector(11 downto 0);
+            ivcnt             : in std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             idata             : in std_logic_vector(15 downto 0);
 
             ohsync            : out std_logic;
             ovsync            : out std_logic;
             ohcnt             : out std_logic_vector(11 downto 0);
-            ovcnt             : out std_logic_vector(11 downto 0);
+            ovcnt             : out std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             odata             : out std_logic_vector(15 downto 0)
         );
     end component;
@@ -356,18 +356,18 @@ architecture behavioral of CALIB_TOP_PARA4 is
             o_reg_col_defect_rdata : out std_logic_vector(15 downto 0);
 
             i_reg_width  : in  std_logic_vector(12 - 1 downto 0);
-            i_reg_height : in  std_logic_vector(12 - 1 downto 0);
+            i_reg_height : in  std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
             i_hsyn       : in  std_logic;
             i_vsyn       : in  std_logic;
             i_hcnt       : in  std_logic_vector(12 - 1 downto 0);
-            i_vcnt       : in  std_logic_vector(12 - 1 downto 0);
+            i_vcnt       : in  std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
             i_data       : in  std_logic_vector(64 - 1 downto 0);
 
             o_hsyn       : out std_logic;
             o_vsyn       : out std_logic;
             o_hcnt       : out std_logic_vector(12 - 1 downto 0);
-            o_vcnt       : out std_logic_vector(12 - 1 downto 0);
+            o_vcnt       : out std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
             o_data       : out std_logic_vector(64 - 1 downto 0)
         );
     end component;
@@ -390,55 +390,56 @@ architecture behavioral of CALIB_TOP_PARA4 is
             oreg_ldefect_rdata : out std_logic_vector(15 downto 0);
 
             ireg_width         : in std_logic_vector(11 downto 0);
-            ireg_height        : in std_logic_vector(11 downto 0);
+            ireg_height        : in std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
             ihsync             : in std_logic;
             ivsync             : in std_logic;
             ihcnt              : in std_logic_vector(11 downto 0);
-            ivcnt              : in std_logic_vector(11 downto 0);
+            ivcnt              : in std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             idata              : in std_logic_vector(15 downto 0);
 
             ohsync             : out std_logic;
             ovsync             : out std_logic;
             ohcnt              : out std_logic_vector(11 downto 0);
-            ovcnt              : out std_logic_vector(11 downto 0);
+            ovcnt              : out std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             odata              : out std_logic_vector(15 downto 0)
         );
     end component;
 
     constant PARA : integer := 4;
     type ty_para_12b is array (PARA - 1 downto 0) of std_logic_vector(12 - 1 downto 0);
+    type ty_para_13b is array (PARA - 1 downto 0) of std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
     type ty_para_16b is array (PARA - 1 downto 0) of std_logic_vector(16 - 1 downto 0);
     type ty_para_24b is array (PARA - 1 downto 0) of std_logic_vector(24 - 1 downto 0);
 
     signal shsync_tpc : std_logic;
     signal svsync_tpc : std_logic;
     signal shcnt_tpc  : std_logic_vector(11 downto 0);
-    signal svcnt_tpc  : std_logic_vector(11 downto 0);
+    signal svcnt_tpc  : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sdata_tpc  : std_logic_vector(64 - 1 downto 0);
 
     signal shsync_dgain_tmp : std_logic;
     signal svsync_dgain_tmp : std_logic;
     signal shcnt_dgain_tmp  : std_logic_vector(11 downto 0);
-    signal svcnt_dgain_tmp  : std_logic_vector(11 downto 0);
+    signal svcnt_dgain_tmp  : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sdata_dgain_tmp  : std_logic_vector(64 - 1 downto 0);
 
     signal shsync_dgain : std_logic;
     signal svsync_dgain : std_logic;
     signal shcnt_dgain  : std_logic_vector(11 downto 0);
-    signal svcnt_dgain  : std_logic_vector(11 downto 0);
+    signal svcnt_dgain  : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sdata_dgain  : std_logic_vector(64 - 1 downto 0);
 
     signal shsyn_defect : std_logic;
     signal svsyn_defect : std_logic;
     signal shcnt_defect : std_logic_vector(11 downto 0);
-    signal svcnt_defect : std_logic_vector(11 downto 0);
+    signal svcnt_defect : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sdata_defect : std_logic_vector(64 - 1 downto 0);
 
     signal shsync_cdefect : std_logic;
     signal svsync_cdefect : std_logic;
     signal shcnt_cdefect  : std_logic_vector(11 downto 0);
-    signal svcnt_cdefect  : std_logic_vector(11 downto 0);
+    signal svcnt_cdefect  : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sdata_cdefect  : std_logic_vector(64 - 1 downto 0);
 
     signal sdefect_map        : std_logic;
@@ -449,19 +450,19 @@ architecture behavioral of CALIB_TOP_PARA4 is
     signal itpc_hsync : std_logic;
     signal itpc_vsync : std_logic;
     signal itpc_hcnt  : std_logic_vector(11 downto 0);
-    signal itpc_vcnt  : std_logic_vector(11 downto 0);
+    signal itpc_vcnt  : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal itpc_data  : std_logic_vector(64 - 1 downto 0);
 
     signal iavg_hsync : std_logic;
     signal iavg_vsync : std_logic;
     signal iavg_hcnt  : std_logic_vector(11 downto 0);
-    signal iavg_vcnt  : std_logic_vector(11 downto 0);
+    signal iavg_vcnt  : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal iavg_data  : std_logic_vector(64 - 1 downto 0);
 
     signal ihsync_d1 : std_logic;
     signal ivsync_d1 : std_logic;
     signal ihcnt_d1  : std_logic_vector(11 downto 0);
-    signal ivcnt_d1  : std_logic_vector(11 downto 0);
+    signal ivcnt_d1  : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal idata_d1  : std_logic_vector(64 - 1 downto 0);
 
 --    signal itpc_rdata_d1 : std_logic_vector(64-1 downto 0);
@@ -494,14 +495,16 @@ architecture behavioral of CALIB_TOP_PARA4 is
     signal oacc_wen_p4        : std_logic_vector(PARA - 1 downto 0);
     signal oacc_waddr_p4      : ty_para_12b;
     signal oacc_wdata_p4      : ty_para_16b;
-    signal oacc_wvcnt_p4      : ty_para_12b;
+--  signal oacc_wvcnt_p4      : ty_para_12b;
+    signal oacc_wvcnt_p4      : ty_para_13b; --# 2604231608 V-axis 12->13bit
 
     signal o_chgdet_osd_en_p4 : std_logic_vector(PARA - 1 downto 0);
     signal o_chgdet_osd_da_p4 : ty_para_16b;
 
     signal sAcc_hsyn_p4 : std_logic_vector(PARA - 1 downto 0);
     signal sAcc_vsyn_p4 : std_logic_vector(PARA - 1 downto 0);
-    signal sAcc_vcnt_p4 : ty_para_12b;
+--  signal sAcc_vcnt_p4 : ty_para_12b;
+    signal sAcc_vcnt_p4 : ty_para_13b; --# 2604231608 V-axis 12->13bit
     signal sAcc_hcnt_p4 : ty_para_12b;
     signal sAcc_data_p4 : ty_para_16b;
 
@@ -510,7 +513,8 @@ architecture behavioral of CALIB_TOP_PARA4 is
     signal shsync_dgain_tmp_p4 : std_logic_vector(4 - 1 downto 0);
     signal svsync_dgain_tmp_p4 : std_logic_vector(4 - 1 downto 0);
     signal shcnt_dgain_tmp_p4  : ty_para_12b;
-    signal svcnt_dgain_tmp_p4  : ty_para_12b;
+--  signal svcnt_dgain_tmp_p4  : ty_para_12b;
+    signal svcnt_dgain_tmp_p4  : ty_para_13b; --# 2604231608 V-axis 12->13bit
     signal sdata_dgain_tmp_p4  : ty_para_16b;
 
 -- █▄▄ █▀▀ █▀▀ █ █▄░█
@@ -1144,27 +1148,17 @@ begin
 
         component ila_calib_top0
             port (
-                clk     : in std_logic;
-                probe0  : in std_logic;
-                probe1  : in std_logic;
-                probe2  : in std_logic_vector(11 downto 0);
-                probe3  : in std_logic_vector(11 downto 0);
-                probe4  : in std_logic_vector(63 downto 0);
-                probe5  : in std_logic;
-                probe6  : in std_logic;
-                probe7  : in std_logic_vector(11 downto 0);
-                probe8  : in std_logic_vector(11 downto 0);
-                probe9  : in std_logic_vector(63 downto 0);
-                probe10 : in std_logic;
-                probe11 : in std_logic;
-                probe12 : in std_logic_vector(11 downto 0);
-                probe13 : in std_logic_vector(11 downto 0);
-                probe14 : in std_logic_vector(63 downto 0);
-                probe15 : in std_logic;
-                probe16 : in std_logic;
-                probe17 : in std_logic_vector(11 downto 0);
-                probe18 : in std_logic_vector(11 downto 0);
-                probe19 : in std_logic_vector(63 downto 0)
+                clk    : in std_logic;
+                probe0 : in std_logic; -- _vector(0 downto 0);
+                probe1 : in std_logic; -- _vector(0 downto 0);
+                probe2 : in std_logic_vector(11 downto 0);
+                probe3 : in std_logic_vector(11 downto 0);
+                probe4 : in std_logic_vector(15 downto 0);
+                probe5 : in std_logic; -- _vector(0 downto 0);
+                probe6 : in std_logic; -- _vector(0 downto 0);
+                probe7 : in std_logic_vector(11 downto 0);
+                probe8 : in std_logic_vector(11 downto 0);
+                probe9 : in std_logic_vector(15 downto 0)
             );
         end component;
 
@@ -1173,26 +1167,16 @@ begin
         u_ila_calib_top0 : ila_calib_top0
         port map (
             clk    => idata_clk,
-            probe0 => ihsync,               -- 1
-            probe1 => ivsync,               -- 1
-            probe2 => ihcnt,                -- 12
-            probe3 => ivcnt,                -- 12
-            probe4 => idata,                -- 64
-            probe5 => shsync_tpc,           -- 1
-            probe6 => svsync_tpc,           -- 1
-            probe7 => shcnt_tpc,            -- 12
-            probe8 => svcnt_tpc,            -- 12
-            probe9 => sdata_tpc,            -- 64
-            probe10 => shsync_dgain,        -- 1
-            probe11 => svsync_dgain,        -- 1
-            probe12 => shcnt_dgain,         -- 12
-            probe13 => svcnt_dgain,         -- 12
-            probe14 => sdata_dgain,         -- 64
-            probe15 => shsync_cdefect,      -- 1
-            probe16 => svsync_cdefect,      -- 1
-            probe17 => shcnt_cdefect,       -- 12
-            probe18 => svcnt_cdefect,       -- 12
-            probe19 => sdata_cdefect        -- 64
+            probe0 => ihsync,         -- 1
+            probe1 => ivsync,         -- 1
+            probe2 => ihcnt,          -- 12
+            probe3 => ivcnt,          -- 12
+            probe4 => idata,          -- 16
+            probe5 => shsync_cdefect, -- 1
+            probe6 => svsync_cdefect, -- 1
+            probe7 => shcnt_cdefect,  -- 12
+            probe8 => svcnt_cdefect,  -- 12
+            probe9 => sdata_cdefect   -- 16
         );
 
     end generate ila_debug;

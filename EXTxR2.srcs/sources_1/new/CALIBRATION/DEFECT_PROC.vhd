@@ -25,18 +25,18 @@ entity DEFECT_PROC is
         oreg_defect_rdata : out std_logic_vector(31 downto 0);
 
         ireg_width        : in  std_logic_vector(11 downto 0);
-        ireg_height       : in  std_logic_vector(11 downto 0);
+        ireg_height       : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
         ihsync            : in  std_logic;
         ivsync            : in  std_logic;
         ihcnt             : in  std_logic_vector(11 downto 0);
-        ivcnt             : in  std_logic_vector(11 downto 0);
+        ivcnt             : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
         idata             : in  std_logic_vector(15 downto 0);
 
         ohsync            : out std_logic;
         ovsync            : out std_logic;
         ohcnt             : out std_logic_vector(11 downto 0);
-        ovcnt             : out std_logic_vector(11 downto 0);
+        ovcnt             : out std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
         odata             : out std_logic_vector(15 downto 0)
     );
 end DEFECT_PROC;
@@ -74,18 +74,18 @@ architecture Behavioral of DEFECT_PROC is
             idata_rstn : in  std_logic;
 
             ireg_width  : in  std_logic_vector(11 downto 0);
-            ireg_height : in  std_logic_vector(11 downto 0);
+            ireg_height : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
             ihsync : in  std_logic;
             ivsync : in  std_logic;
             ihcnt  : in  std_logic_vector(11 downto 0);
-            ivcnt  : in  std_logic_vector(11 downto 0);
+            ivcnt  : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             idata  : in  std_logic_vector(15 downto 0);
 
             ohsync_2x2 : out std_logic;
             ovsync_2x2 : out std_logic;
             ohcnt_2x2  : out std_logic_vector(11 downto 0);
-            ovcnt_2x2  : out std_logic_vector(11 downto 0);
+            ovcnt_2x2  : out std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
             odata_1x1 : out std_logic_vector(15 downto 0);
             odata_1x2 : out std_logic_vector(15 downto 0);
@@ -109,7 +109,7 @@ architecture Behavioral of DEFECT_PROC is
             ihsync : in  std_logic;
             ivsync : in  std_logic;
             ihcnt  : in  std_logic_vector(11 downto 0);
-            ivcnt  : in  std_logic_vector(11 downto 0);
+            ivcnt  : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
             idata_1x1 : in  std_logic_vector(15 downto 0);
             idata_1x2 : in  std_logic_vector(15 downto 0);
@@ -124,7 +124,7 @@ architecture Behavioral of DEFECT_PROC is
             ohsync : out std_logic;
             ovsync : out std_logic;
             ohcnt  : out std_logic_vector(11 downto 0);
-            ovcnt  : out std_logic_vector(11 downto 0);
+            ovcnt  : out std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             odata  : out std_logic_vector(15 downto 0);
 
             odata_sum : out std_logic_vector(18 downto 0);
@@ -155,7 +155,7 @@ architecture Behavioral of DEFECT_PROC is
     signal shsync_2x2        : std_logic;
     signal svsync_2x2        : std_logic;
     signal shcnt_2x2         : std_logic_vector(11 downto 0);
-    signal svcnt_2x2         : std_logic_vector(11 downto 0);
+    signal svcnt_2x2         : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sdata_1x1         : std_logic_vector(15 downto 0);
     signal sdata_1x2         : std_logic_vector(15 downto 0);
     signal sdata_1x3         : std_logic_vector(15 downto 0);
@@ -169,7 +169,7 @@ architecture Behavioral of DEFECT_PROC is
     signal shsync_decoder    : std_logic;
     signal svsync_decoder    : std_logic;
     signal shcnt_decoder     : std_logic_vector(11 downto 0);
-    signal svcnt_decoder     : std_logic_vector(11 downto 0);
+    signal svcnt_decoder     : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sdata_decoder     : std_logic_vector(15 downto 0);
     signal sdata_sum_decoder : std_logic_vector(18 downto 0);
     signal sdata_mul_decoder : std_logic_vector(17 downto 0);
@@ -179,13 +179,13 @@ architecture Behavioral of DEFECT_PROC is
     signal shsync_defect     : std_logic;
     signal svsync_defect     : std_logic;
     signal shcnt_defect      : std_logic_vector(11 downto 0);
-    signal svcnt_defect      : std_logic_vector(11 downto 0);
+    signal svcnt_defect      : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sdata_defect      : std_logic_vector(15 downto 0);
 
     signal shsync_out        : std_logic;
     signal svsync_out        : std_logic;
     signal shcnt_out         : std_logic_vector(11 downto 0);
-    signal svcnt_out         : std_logic_vector(11 downto 0);
+    signal svcnt_out         : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sdata_out         : std_logic_vector(15 downto 0);
 
     signal sreg_debug_mode      : std_logic;
@@ -215,17 +215,17 @@ architecture Behavioral of DEFECT_PROC is
 
     signal shsync_decoder_1d : std_logic;
     signal svsync_decoder_1d : std_logic;
-    signal svcnt_decoder_1d  : std_logic_vector(11 downto 0);
+    signal svcnt_decoder_1d  : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal shcnt_decoder_1d  : std_logic_vector(11 downto 0);
     signal sdata_decoder_1d  : std_logic_vector(15 downto 0);
     signal shsync_decoder_2d : std_logic;
     signal svsync_decoder_2d : std_logic;
-    signal svcnt_decoder_2d  : std_logic_vector(11 downto 0);
+    signal svcnt_decoder_2d  : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal shcnt_decoder_2d  : std_logic_vector(11 downto 0);
     signal sdata_decoder_2d  : std_logic_vector(15 downto 0);
     signal shsync_decoder_3d : std_logic;
     signal svsync_decoder_3d : std_logic;
-    signal svcnt_decoder_3d  : std_logic_vector(11 downto 0);
+    signal svcnt_decoder_3d  : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal shcnt_decoder_3d  : std_logic_vector(11 downto 0);
     signal sdata_decoder_3d  : std_logic_vector(15 downto 0);
     signal sdata_decoder_4d  : std_logic_vector(15 downto 0);
@@ -370,10 +370,12 @@ begin
                         same <= '0';
                     else
                         if (shsync_2x2 = '1') then
-                            if (sdefect_rdata(23 downto 12) = svcnt_2x2 and sdefect_rdata(11 downto 0) = shcnt_2x2) then
+--                          if (sdefect_rdata(23 downto 12) = svcnt_2x2 and sdefect_rdata(11 downto 0) = shcnt_2x2) then
+                            if (sdefect_rdata(23 downto 12) = svcnt_2x2(11 downto 0) and sdefect_rdata(11 downto 0) = shcnt_2x2) then --# 2604231608 Slice V to 12bit for RAM compare
                                 sdefect_addr <= sdefect_addr + '1';
                                 same <= '1';
-                            elsif (snext_rdata(23 downto 12) = svcnt_2x2 and snext_rdata(11 downto 0) = shcnt_2x2) and same = '1' then
+--                          elsif (snext_rdata(23 downto 12) = svcnt_2x2 and snext_rdata(11 downto 0) = shcnt_2x2) and same = '1' then
+                            elsif (snext_rdata(23 downto 12) = svcnt_2x2(11 downto 0) and snext_rdata(11 downto 0) = shcnt_2x2) and same = '1' then --# 2604231608 Slice V to 12bit for RAM compare
                                 sdefect_addr <= sdefect_addr + '1';
                                 same <= '1';
                             else
@@ -408,7 +410,8 @@ begin
 
                 if (shsync_decoder_3d = '1') then
                     if (sdefect_map = '0') then
-                        if (sdefect_rdata_5d(23 downto 12) = svcnt_decoder_3d and sdefect_rdata_5d(11 downto 0) = shcnt_decoder_3d) then
+--                      if (sdefect_rdata_5d(23 downto 12) = svcnt_decoder_3d and sdefect_rdata_5d(11 downto 0) = shcnt_decoder_3d) then
+                        if (sdefect_rdata_5d(23 downto 12) = svcnt_decoder_3d(11 downto 0) and sdefect_rdata_5d(11 downto 0) = shcnt_decoder_3d) then --# 2604231608 Slice V to 12bit for RAM compare
                             if (sdata_p(35 downto 32) > 0) then
                                 sdata_defect <= x"FFFF";
                             else
@@ -418,7 +421,8 @@ begin
                             sdata_defect <= sdata_decoder_3d;
                         end if;
                     else
-                        if (sdefect_rdata_5d(23 downto 12) = svcnt_decoder_3d and sdefect_rdata_5d(11 downto 0) = shcnt_decoder_3d) then
+--                      if (sdefect_rdata_5d(23 downto 12) = svcnt_decoder_3d and sdefect_rdata_5d(11 downto 0) = shcnt_decoder_3d) then
+                        if (sdefect_rdata_5d(23 downto 12) = svcnt_decoder_3d(11 downto 0) and sdefect_rdata_5d(11 downto 0) = shcnt_decoder_3d) then --# 2604231608 Slice V to 12bit for RAM compare
                             sdata_defect <= x"FFFF";
                         else
                             if (sdata_decoder_3d = x"FFFF") then

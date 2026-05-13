@@ -6,6 +6,7 @@
  */
 
 #include "command.h"
+#include <xparameters.h> //$ 260421 For XPAR_M1_AXI_GEV_BASEADDR
 #include "func_printf.h"
 #include "math.h"
 
@@ -19,6 +20,7 @@
 #include "user.h"
 
 #include "clk_wiz_header.h" //mbh
+#include "xaxipmon.h"      //# 2605062100 APM driver for 'apm' command
 
 const CMD_STRUCT CMD_MAT[MAX_CMD_NUM] = {
     {"h"        , UART_CMD_h            , "Display All of Command Descriptions"        , 0 },
@@ -88,6 +90,11 @@ const CMD_STRUCT CMD_MAT[MAX_CMD_NUM] = {
 	{"romdiag"  , UART_CMD_romdiag      , "rom diagnosis"                              , 0 }, // mbh 231017
 	{"romread"  , UART_CMD_romread      , "rom read"                                   , 0 }, // mbh 231017
 	{"ropertime", UART_CMD_ropertime    , "read operation time"                        , 0 }, // mbh 231121
+	{"port"     , UART_CMD_port         , "Select PHY Port (0:Marvell 1:SFP)"          , 0 }, //# 260421 add port cmd
+//	{"apm"      , UART_CMD_apm          , "APM bandwidth [ms/dir] (default 200)"       , 0 }, //# 2605062100 APM bandwidth (Gbps + %)
+//	{"apm"      , UART_CMD_apm          , "APM BW+stall [ms] (default 200, parallel)"  , 0 }, //# 2605071100 8-counter parallel: bytes+tran+avgLat+idle
+	{"apm"      , UART_CMD_apm          , "APM 3-slot BW [ms] (default 200, seq)"      , 0 }, //# 2605071158 3 slots sequential: M00/GEV/Sensor
+	{"ddrburst" , UART_CMD_ddrburst     , "DDR AXI burst [N] (32/64/128/256, runtime)" , 0 }, //# 2605071529 quantize-down then map to mode 0..3
 
     {"tser"     , UART_CMD_tser         , "Access TFT Serial Number"                   , 0 },
     {"pser"     , UART_CMD_pser         , "Access Panel Serial Number"                 , 0 },
@@ -105,9 +112,14 @@ const CMD_STRUCT CMD_MAT[MAX_CMD_NUM] = {
     {"cddr"     , UART_CMD_cddr         , "Check DDR3 Data"                            , 0 },
     {"wddr"     , UART_CMD_wddr         , "Write Image to DDR3"                        , 0 },
     {"rddr"     , UART_CMD_rddr         , "read Image value from DDR3"                 , 0 },
-//  {"bcal"     , UART_CMD_bcal         , "Bit align calibration repeater"             , 0 },
-    {"bcal"     , UART_CMD_bcal1        , "Bit align calibration repeater"             , 0 },
-    {"bcal1"    , UART_CMD_bcal1        , "Bit align calibration repeater"             , 0 },
+    {"bcal"     , UART_CMD_bcal         , "HW bcal (direct bw_align, repeater)"        , 0 }, // 2604251300 route bcal -> UART_CMD_bcal (HW)
+//  {"bcal"     , UART_CMD_bcal1        , "Bit align calibration repeater"             , 0 },
+    {"bcal1"    , UART_CMD_bcal1        , "Bit align calibration repeater (token)"     , 0 },
+    {"bcalfw"   , UART_CMD_bcalfw       , "FW-driven bit/word align (debug, verbose)"  , 0 }, // 2604242200
+    {"bcalfwi"  , UART_CMD_bcalfwi      , "bcalfw init (enter fw_mode + ROIC test)"    , 0 }, // 2604250010
+    {"bcalfwx"  , UART_CMD_bcalfwx      , "bcalfw exit (leave fw_mode + ROIC normal)"  , 0 }, // 2604250010
+    {"bcalfws"  , UART_CMD_bcalfws      , "bcalfw stable [ch] (no ch = all ROIC_NUM)"  , 0 }, // 2604250010
+    {"bcalfww"  , UART_CMD_bcalfww      , "bcalfw word [ch] (no ch = all ROIC_NUM)"    , 0 }, // 2604250010
     {"tempbcal" , UART_CMD_tempbcal     , "temp auto bcal off for testing"             , 0 },
     {"gcal"     , UART_CMD_gcal         , "Get Calibration Parameter"                  , 0 },
     {"ucal"     , UART_CMD_ucal         , "Update Calibration Parameter"               , 0 },
@@ -139,6 +151,7 @@ const CMD_STRUCT CMD_MAT[MAX_CMD_NUM] = {
     {"fstat"    , UART_CMD_fstat        , "Display FrameBuffer Status"                 , 0 },
     {"finit"    , UART_CMD_finit        , "Initialize FrameBuffer"                     , 0 },
     {"fclr"     , UART_CMD_fclr         , "Clear FrameBuffer"                          , 0 },
+    {"fov"      , UART_CMD_fov          , "Display FrameBuffer OVFLW summary"          , 0 },   //# 2605081100
     {"pdbg"     , UART_CMD_pdbg         , "Select PHY Debug Mode"                      , 0 },
     {"prev"     , UART_CMD_prev         , "Display PHY Revision"                       , 0 },
     {"grab"     , UART_CMD_grab         , "TFT Operation Enable / Disable"             , 0 },
@@ -168,6 +181,7 @@ const CMD_STRUCT CMD_MAT[MAX_CMD_NUM] = {
     {"hwload"   , UART_CMD_load_hw_calibration  , "Load HW Calibration"                , 0 },
     {"fpgare"   , UART_CMD_fpgareboot  , "Load fpga reboot"                            , 0 },
     {"fre"      , UART_CMD_fpgareboot  , "Load fpga reboot"                            , 0 },
+	{"doc"		, UART_CMD_doc			, "Control Digital Offset Correction"		   , 0 },
 };
 
 // TI_ROIC
@@ -271,6 +285,238 @@ u8 UART_CMD_auth (u8 num, u32* data) {
     else if(num == 1) {
         execute_cmd_auth(data[0]);
         disp_cmd_auth();
+        return CMD_OK;
+    }
+    else
+        return CMD_ERR3;
+}
+
+//# 2605062100 APM bandwidth command on SLOT0 (axi_crossbar_0_M00_AXI, 256-bit @ sdram_0_ui_clk)
+//   NUM_OF_COUNTERS=1 -> sequential R then W. byte counter is u32: window kept short to avoid wrap.
+//#define APM_SLOT0_DATA_WIDTH    256U          //# bus width in bits (from cpu.hwh SLOT_0_AXI)
+//#define APM_SLOT0_CLK_FREQ_HZ   187546887U    //# slot_0_axi_aclk = sdram_0_ui_clk
+//#define APM_DEFAULT_MS          200U          //# 200ms x 2 dirs ~= 1.2GB/dir at peak (u32 safe)
+//#define APM_MIN_MS              10U
+//#define APM_MAX_MS              500U          //# >500ms risks u32 byte counter wrap at peak BW
+
+//# 2605071100 APM upgraded to 8 parallel counters (R/W bytes + tran cnt + latency sum + idle) for stall diagnosis
+//# 2605071158 APM extended to 3 slots (M00 / GEV TX read / Sensor write), measured sequentially per slot
+//#define APM_SLOT0_DATA_WIDTH    256U          //# bus width in bits (from cpu.hwh SLOT_x_AXI, all 3 slots same width)
+#define APM_SLOT0_DATA_WIDTH    512U          //$ 260513 EXT4343RD AXI bus width 256->512 (cpu4ddr.bd axi_dwidth_converter MI_DATA_WIDTH=512)
+#define APM_SLOT0_CLK_FREQ_HZ   187546887U    //# slot_x_axi_aclk = sdram_0_ui_clk (all 3 slots same domain)
+#define APM_DEFAULT_MS          200U          //# per-slot window; 3 slots -> total ~600ms
+#define APM_MIN_MS              10U
+#define APM_MAX_MS              500U          //# total_lat = avg_lat * tran_cnt may wrap if window too long
+
+//# 2605071100 APM per-slot counter index (8 counters on the slot under measurement)
+#define APM_CNT_R_BYTES         0U
+#define APM_CNT_W_BYTES         1U
+#define APM_CNT_R_TRAN          2U
+#define APM_CNT_W_TRAN          3U
+#define APM_CNT_R_LATSUM        4U
+#define APM_CNT_W_LATSUM        5U
+#define APM_CNT_R_IDLE          6U
+#define APM_CNT_W_IDLE          7U
+
+//# 2605071158 APM slot mapping (BD: axi_perf_mon_0 SLOT_0/1/2)
+#define APM_NUM_SLOTS           3U
+static const struct {
+    u8           id;
+    const char  *name;
+} apm_slot_map[APM_NUM_SLOTS] = {
+    { 0U, "SLOT0 M00 (DDR3 agg)"     },
+//    { 1U, "SLOT1 GEV TX read (S02)"  },
+    { 1U, "SLOT1 GEV TX read (S03)"  }, //$ 260513 Fix label: HW SLOT1=S03_AXI not S02
+//    { 2U, "SLOT2 Sensor write (S03)" },
+    { 2U, "SLOT2 Sensor write (S02)" }, //$ 260513 Fix label: HW SLOT2=S02_AXI not S03
+};
+
+static XAxiPmon apm_inst;
+static u8 apm_ready = 0;
+
+static int apm_init_once(void) {
+    XAxiPmon_Config *cfg;
+    if (apm_ready) return 0;
+    cfg = XAxiPmon_LookupConfig(XPAR_AXI_PERF_MON_0_DEVICE_ID);
+    if (cfg == NULL) return -1;
+    if (XAxiPmon_CfgInitialize(&apm_inst, cfg, cfg->BaseAddress) != XST_SUCCESS) return -1;
+    apm_ready = 1;
+    return 0;
+}
+
+//# 2605062100 sequential single-metric measure (deprecated by 2605071100)
+/*
+static void apm_measure(u8 metric, u32 ms, u32 *byte_cnt, u64 *clk_cnt) {
+    u32 hi = 0, lo = 0;
+    XAxiPmon_ResetMetricCounter(&apm_inst);
+    XAxiPmon_ResetGlobalClkCounter(&apm_inst);
+    XAxiPmon_SetMetrics(&apm_inst, 0, metric, 0);   //# slot=0, metric, counter=0
+    XAxiPmon_EnableGlobalClkCounter(&apm_inst);     //# 2605062100 GCC must be enabled separately (CR bit 16)
+    XAxiPmon_EnableMetricsCounter(&apm_inst);
+    msdelay(ms);
+    XAxiPmon_DisableMetricsCounter(&apm_inst);
+    XAxiPmon_DisableGlobalClkCounter(&apm_inst);
+    *byte_cnt = XAxiPmon_GetMetricCounter(&apm_inst, 0);
+    XAxiPmon_GetGlobalClkCounter(&apm_inst, &hi, &lo);
+    *clk_cnt = ((u64)hi << 32) | lo;
+}
+*/
+
+//# 2605071100 parallel 8-counter measure (single slot)
+//# 2605071158 renamed apm_result_t -> apm_slot_t and parameterized by slot ID
+typedef struct {
+    u32 r_bytes;       //# Read Byte Count       (METRIC_SET_3)
+    u32 w_bytes;       //# Write Byte Count      (METRIC_SET_2)
+    u32 r_tran;        //# Read Transaction Cnt  (METRIC_SET_1)
+    u32 w_tran;        //# Write Transaction Cnt (METRIC_SET_0)
+    u32 r_latsum;      //# Total Read Latency    (METRIC_SET_5)  cycles
+    u32 w_latsum;      //# Total Write Latency   (METRIC_SET_6)  cycles
+    u32 r_idle;        //# Mst_Rd_Idle_Cnt       (METRIC_SET_8)  ARVALID idle cycles
+    u32 w_idle;        //# Slv_Wr_Idle_Cnt       (METRIC_SET_7)  AWVALID idle cycles
+    u64 total_clk;     //# Global clock counter (window length in cycles)
+} apm_slot_t;
+
+static void apm_measure_slot(u8 slot, u32 ms, apm_slot_t *r) {
+    u32 hi = 0, lo = 0;
+    XAxiPmon_ResetMetricCounter(&apm_inst);
+    XAxiPmon_ResetGlobalClkCounter(&apm_inst);
+    //# Counter 0..7 each tracking a different metric on the given slot
+    XAxiPmon_SetMetrics(&apm_inst, slot, XAPM_METRIC_SET_3, APM_CNT_R_BYTES);
+    XAxiPmon_SetMetrics(&apm_inst, slot, XAPM_METRIC_SET_2, APM_CNT_W_BYTES);
+    XAxiPmon_SetMetrics(&apm_inst, slot, XAPM_METRIC_SET_1, APM_CNT_R_TRAN);
+    XAxiPmon_SetMetrics(&apm_inst, slot, XAPM_METRIC_SET_0, APM_CNT_W_TRAN);
+    XAxiPmon_SetMetrics(&apm_inst, slot, XAPM_METRIC_SET_5, APM_CNT_R_LATSUM);
+    XAxiPmon_SetMetrics(&apm_inst, slot, XAPM_METRIC_SET_6, APM_CNT_W_LATSUM);
+    XAxiPmon_SetMetrics(&apm_inst, slot, XAPM_METRIC_SET_8, APM_CNT_R_IDLE);
+    XAxiPmon_SetMetrics(&apm_inst, slot, XAPM_METRIC_SET_7, APM_CNT_W_IDLE);
+    XAxiPmon_EnableGlobalClkCounter(&apm_inst);
+    XAxiPmon_EnableMetricsCounter(&apm_inst);
+    msdelay(ms);
+    XAxiPmon_DisableMetricsCounter(&apm_inst);
+    XAxiPmon_DisableGlobalClkCounter(&apm_inst);
+
+    r->r_bytes  = XAxiPmon_GetMetricCounter(&apm_inst, APM_CNT_R_BYTES);
+    r->w_bytes  = XAxiPmon_GetMetricCounter(&apm_inst, APM_CNT_W_BYTES);
+    r->r_tran   = XAxiPmon_GetMetricCounter(&apm_inst, APM_CNT_R_TRAN);
+    r->w_tran   = XAxiPmon_GetMetricCounter(&apm_inst, APM_CNT_W_TRAN);
+    r->r_latsum = XAxiPmon_GetMetricCounter(&apm_inst, APM_CNT_R_LATSUM);
+    r->w_latsum = XAxiPmon_GetMetricCounter(&apm_inst, APM_CNT_W_LATSUM);
+    r->r_idle   = XAxiPmon_GetMetricCounter(&apm_inst, APM_CNT_R_IDLE);
+    r->w_idle   = XAxiPmon_GetMetricCounter(&apm_inst, APM_CNT_W_IDLE);
+    XAxiPmon_GetGlobalClkCounter(&apm_inst, &hi, &lo);
+    r->total_clk = ((u64)hi << 32) | lo;
+}
+
+//# 2605071158 pretty-print one slot's metrics (extracted from old UART_CMD_apm body)
+static void apm_print_slot(const char *name, const apm_slot_t *m) {
+    u64 clk = (m->total_clk == 0) ? 1ULL : m->total_clk;
+    u64 r_gbps_x100, w_gbps_x100;
+    u32 r_util_x100, w_util_x100;
+    u32 r_idle_x100, w_idle_x100;
+    u32 r_avglat_x10, w_avglat_x10;
+
+    r_gbps_x100  = ((u64)m->r_bytes * 8ULL * APM_SLOT0_CLK_FREQ_HZ / clk) / 10000000ULL;
+    w_gbps_x100  = ((u64)m->w_bytes * 8ULL * APM_SLOT0_CLK_FREQ_HZ / clk) / 10000000ULL;
+    //r_util_x100  = (u32)(((u64)m->r_bytes * 10000ULL) / (clk * 32ULL));
+    r_util_x100  = (u32)(((u64)m->r_bytes * 10000ULL) / (clk * 64ULL)); //$ 260513 512-bit bus: bytes_per_cycle=512/8=64
+    //w_util_x100  = (u32)(((u64)m->w_bytes * 10000ULL) / (clk * 32ULL));
+    w_util_x100  = (u32)(((u64)m->w_bytes * 10000ULL) / (clk * 64ULL)); //$ 260513 512-bit bus: bytes_per_cycle=512/8=64
+    r_idle_x100  = (u32)(((u64)m->r_idle  * 10000ULL) / clk);
+    w_idle_x100  = (u32)(((u64)m->w_idle  * 10000ULL) / clk);
+    r_avglat_x10 = (m->r_tran == 0) ? 0U : (u32)(((u64)m->r_latsum * 10ULL) / m->r_tran);
+    w_avglat_x10 = (m->w_tran == 0) ? 0U : (u32)(((u64)m->w_latsum * 10ULL) / m->w_tran);
+
+    func_printf(" %s  total=%u cyc\r\n", name, (u32)clk);
+    func_printf("   R: %u B (%u tr) -> %u.%02u Gbps  util %u.%02u %%%%  idle %u.%02u %%%%  avgLat %u.%u cyc\r\n",
+        m->r_bytes, m->r_tran,
+        (u32)(r_gbps_x100/100), (u32)(r_gbps_x100%100),
+        (u32)(r_util_x100/100), (u32)(r_util_x100%100),
+        (u32)(r_idle_x100/100), (u32)(r_idle_x100%100),
+        (u32)(r_avglat_x10/10), (u32)(r_avglat_x10%10));
+    func_printf("   W: %u B (%u tr) -> %u.%02u Gbps  util %u.%02u %%%%  idle %u.%02u %%%%  avgLat %u.%u cyc\r\n",
+        m->w_bytes, m->w_tran,
+        (u32)(w_gbps_x100/100), (u32)(w_gbps_x100%100),
+        (u32)(w_util_x100/100), (u32)(w_util_x100%100),
+        (u32)(w_idle_x100/100), (u32)(w_idle_x100%100),
+        (u32)(w_avglat_x10/10), (u32)(w_avglat_x10%10));
+}
+
+u8 UART_CMD_apm (u8 num, u32* data) {
+    u32 ms = APM_DEFAULT_MS;
+    apm_slot_t m;
+    u64 max_bps;
+    u32 max_int, max_frac;
+    u32 i;
+
+    if (num == 1)      ms = data[0];
+    else if (num != 0) return CMD_ERR3;
+    if (ms < APM_MIN_MS || ms > APM_MAX_MS) return CMD_ERR4;
+
+    if (apm_init_once() < 0) {
+        func_printf("APM init fail\r\n");
+        return CMD_ERR2;
+    }
+
+    max_bps  = (u64)APM_SLOT0_DATA_WIDTH * APM_SLOT0_CLK_FREQ_HZ;
+    max_int  = (u32)(max_bps / 1000000000ULL);
+    max_frac = (u32)((max_bps / 1000000ULL) % 1000ULL);
+
+    //# Note: %%%% renders as one '%' because func_printf double-parses (vsprintf -> xil_printf)
+    func_printf("APM %u slots @ %u Hz, %u-bit, max %u.%03u Gbps each\r\n",
+        APM_NUM_SLOTS, (u32)APM_SLOT0_CLK_FREQ_HZ, (u32)APM_SLOT0_DATA_WIDTH, max_int, max_frac);
+    func_printf(" Window=%u ms x %u slots (sequential)\r\n", ms, APM_NUM_SLOTS);
+
+    //# 2605071158 sequential per-slot measurement (each slot uses all 8 counters for full metrics)
+    for (i = 0U; i < APM_NUM_SLOTS; i++) {
+        apm_measure_slot(apm_slot_map[i].id, ms, &m);
+        apm_print_slot(apm_slot_map[i].name, &m);
+    }
+
+    return CMD_OK;
+}
+
+//# 2605071529 DDR AXI burst limit runtime selector (register 0x04A0, 2-bit mode)
+//   Quantize input down to nearest power of 2 then map to mode 0..3.
+//   Tier:  N <= 32 -> mode 0 (32),  N <= 64 -> mode 1 (64),
+//          N <= 128 -> mode 2 (128), else      -> mode 3 (256).
+u8 UART_CMD_ddrburst (u8 num, u32* data) {
+    u32 mode, beats;
+    static const u32 mode2beats[4] = {32U, 64U, 128U, 256U};
+
+    if (num == 0) {
+        mode  = REG(ADDR_DDR_BURST) & 0x3U;
+        beats = mode2beats[mode];
+        func_printf("DDR AXI burst limit = %u beats (mode %u)\r\n", beats, mode);
+        return CMD_OK;
+    }
+    else if (num == 1) {
+        if      (data[0] <= 32U)  mode = 0U;  //# -> 32 beats
+        else if (data[0] <= 64U)  mode = 1U;  //# -> 64 beats
+        else if (data[0] <= 128U) mode = 2U;  //# -> 128 beats
+        else                      mode = 3U;  //# -> 256 beats
+        REG(ADDR_DDR_BURST) = mode;
+        beats = mode2beats[mode];
+        func_printf("DDR AXI burst limit set to %u beats (mode %u). Effect: next AXI tx\r\n",
+                    beats, mode);
+        return CMD_OK;
+    }
+    return CMD_ERR3;
+}
+
+//# 260421 add port cmd (Marvell/SFP select)
+u8 UART_CMD_port (u8 num, u32* data) {
+    if (num == 0) {
+        disp_cmd_port();
+        return CMD_OK;
+    }
+    else if (num == 1) {
+        if (data[0] > 1) return CMD_ERR4;
+        if (data[0] == 1 && !mEXT3643R_series) {
+            func_printf("SFP port is only available on EXT3643R.\r\n");
+            return CMD_ERR4;
+        }
+        execute_cmd_port(data[0]);
+        disp_cmd_port();
         return CMD_OK;
     }
     else
@@ -572,7 +818,8 @@ u8 UART_CMD_frate (u8 num, u32* data) {
         if(fval < func_frate_min)       { err = 1;  fval = func_frate_min; }
         else if(fval > func_frate_max)  { err = 1;  fval = func_frate_max; }
 
-        execute_cmd_frate((u32)(fval * 1000));
+        func_frate =fval; //# 26043011 cmd frate input
+        execute_cmd_frate(fval);
         disp_cmd_frate();
         disp_cmd_emax();
 
@@ -722,7 +969,7 @@ u8 UART_CMD_ifs (u8 num, u32* data) {
     }
     else if (num == 1) {
     	//if(data[0] < 0 || data[0] > 39) return CMD_ERR4;
-    	if(data[0] > 15) return CMD_ERR4;
+    		if(data[0] > 15) return CMD_ERR4;
         execute_cmd_ifs(data[0]);
         disp_roic_ifs();
         return CMD_OK;
@@ -1523,6 +1770,26 @@ u8 UART_CMD_fclr (u8 num, u32* data) {
         return CMD_ERR3;
 }
 
+//# 2605081100 fov: one-line OVFLW summary, same format as [FBOV] auto-log in user_callback().
+//# Use for quick polling without the full fstat dump. Run 'fclr' to clear sticky bits.
+u8 UART_CMD_fov (u8 num, u32* data) {
+    if (num == 0) {
+        u32 s = framebuf_status;
+        u32 ov = s & (FRAMEBUF_S_DF_OVFLW | FRAMEBUF_S_RF_OVFLW |
+                      FRAMEBUF_S_IF_OVFLW | FRAMEBUF_S_TF_OVFLW);
+        func_printf("[FBOV] framebuf_status=0x%08X (DF/RF/IF/TF=%c%c%c%c) %s\r\n",
+                    (u32)s,
+                    (s & FRAMEBUF_S_DF_OVFLW) ? 'D' : '-',
+                    (s & FRAMEBUF_S_RF_OVFLW) ? 'R' : '-',
+                    (s & FRAMEBUF_S_IF_OVFLW) ? 'I' : '-',
+                    (s & FRAMEBUF_S_TF_OVFLW) ? 'T' : '-',
+                    ov ? "[OVFLW SET - run fclr]" : "[OK]");
+        return CMD_OK;
+    }
+    else
+        return CMD_ERR3;
+}
+
 u8 UART_CMD_pdbg (u8 num, u32* data) {
     if (num == 1) {
         func_printf("@@@@ PHY DEBUG (select option number)\r\n");
@@ -1770,6 +2037,136 @@ u8 UART_CMD_bcal(u8 num, u32* data) {
     }
     else
         return CMD_ERR3;
+}
+
+// 2604242200 FW-driven bit-align command
+//   bcalfw                 -> all ROIC_NUM channels (stable+word, verbose)
+//   bcalfw <ch>            -> single channel, verbose=1 (full bit_stable + word_align)
+//   bcalfw <ch> 1          -> bit_stable only
+//   bcalfw <ch> 2          -> word_align only (uses current IDELAY)
+//   bcalfw <ch> 3 <tap>    -> probe: set ch, RST then CE x tap, dump par/status
+u8 UART_CMD_bcalfw(u8 num, u32* data) {
+    BCALFW_DBG("[dbg] bcalfw enter num=%d\r\n", (int)num);
+
+    if (num == 0) {
+        // 2604250500 split big multi-string printf into short calls (long single
+        //            call appears to trigger system error on this build)
+        func_printf("bcalfw usage:\r\n");
+        func_printf("  bcalfw                  : all ROIC ch (report only)\r\n");
+        func_printf("  bcalfw <ch>             : single ch stable+word\r\n");
+        func_printf("  bcalfw <ch> 1           : bit_stable only\r\n");
+        func_printf("  bcalfw <ch> 2           : word_align only\r\n");
+        func_printf("  bcalfw <ch> 3 <tap>     : probe (dump par/status)\r\n");
+        func_printf("  ---- step-separated:\r\n");
+        func_printf("  bcalfwi  bcalfws [ch]  bcalfww [ch]  bcalfwx\r\n");
+        bw_align_fw_run_all(0);   // quiet sweep, prints summary report at end
+        return CMD_OK;
+    }
+
+    if (data[0] >= ROIC_NUM) return CMD_ERR4;
+    u8 ch = (u8)data[0];
+
+    if (num == 1) {
+        bcal_fw_full_result_t r;
+        bw_align_fw_run_one_ch(ch, &r, 1);
+        bw_align_fw_exit();
+        return CMD_OK;
+    }
+
+    u32 mode = data[1];
+    if (num == 2) {
+        if (mode == 1) {
+            bw_align_fw_init();
+            bcal_fw_stable_result_t r;
+            bw_align_fw_bit_stable(ch, &r, 1);
+            bw_align_fw_exit();
+            return CMD_OK;
+        }
+        if (mode == 2) {
+            bw_align_fw_init();
+            bcal_fw_word_result_t r;
+            bw_align_fw_word_align(ch, &r, 1);
+            bw_align_fw_exit();
+            return CMD_OK;
+        }
+        return CMD_ERR4;
+    }
+
+    if (num == 3 && mode == 3) {
+        if (data[2] > 31) return CMD_ERR4;
+        u8 tap = (u8)data[2];
+        bw_align_fw_init();
+        bw_align_fw_set_ch(ch);
+        bw_align_fw_pulse(BCAL_FW_PULSE_RST);
+        usdelay(100);
+        for (u8 i = 0; i < tap; i++) {
+            bw_align_fw_pulse(BCAL_FW_PULSE_CE);
+            usdelay(2);
+        }
+        usdelay(100);
+        u32 par = bw_align_fw_read_par();
+        u32 st  = bw_align_fw_read_status();
+        func_printf("ch%2d tap=%2d  par=0x%06lX  diff=%lu ff00=%lu  ocnt=%lu\r\n",
+                    ch, tap,
+                    (unsigned long)(par & 0xFFFFFF),
+                    (unsigned long)((par >> 24) & 1),
+                    (unsigned long)((par >> 25) & 1),
+                    (unsigned long)(st & 0x1F));
+        bw_align_fw_exit();
+        return CMD_OK;
+    }
+    return CMD_ERR3;
+}
+
+// 2604250010 step-separated commands for incremental debugging.
+// Workflow: bcalfwi -> bcalfws [ch] -> bcalfww [ch] -> bcalfwx
+// Each command prints results immediately (no accumulated storage).
+u8 UART_CMD_bcalfwi(u8 num, u32* data) {
+    (void)num; (void)data;
+    bw_align_fw_init();
+    func_printf("bcalfw init done (fw_mode ON)\r\n");
+    return CMD_OK;
+}
+
+u8 UART_CMD_bcalfwx(u8 num, u32* data) {
+    (void)num; (void)data;
+    bw_align_fw_exit();
+    func_printf("bcalfw exit done (fw_mode OFF, ROIC normal)\r\n");
+    return CMD_OK;
+}
+
+u8 UART_CMD_bcalfws(u8 num, u32* data) {
+    // 2604250230 no arg = run all ROIC channels (yield between for main-loop)
+    if (num == 0) {
+        for (u32 ch = 0; ch < ROIC_NUM; ch++) {
+            bcal_fw_stable_result_t r;
+            bw_align_fw_bit_stable((u8)ch, &r, 1);
+            gige_callback(0); msdelay(20); gige_callback(0);
+        }
+        return CMD_OK;
+    }
+    if (num != 1)            return CMD_ERR3;
+    if (data[0] >= ROIC_NUM) return CMD_ERR4;
+    bcal_fw_stable_result_t r;
+    bw_align_fw_bit_stable((u8)data[0], &r, 1);
+    return CMD_OK;
+}
+
+u8 UART_CMD_bcalfww(u8 num, u32* data) {
+    // 2604250230 no arg = run all ROIC channels (yield between for main-loop)
+    if (num == 0) {
+        for (u32 ch = 0; ch < ROIC_NUM; ch++) {
+            bcal_fw_word_result_t r;
+            bw_align_fw_word_align((u8)ch, &r, 1);
+            gige_callback(0); msdelay(20); gige_callback(0);
+        }
+        return CMD_OK;
+    }
+    if (num != 1)            return CMD_ERR3;
+    if (data[0] >= ROIC_NUM) return CMD_ERR4;
+    bcal_fw_word_result_t r;
+    bw_align_fw_word_align((u8)data[0], &r, 1);
+    return CMD_OK;
 }
 
 u8 UART_CMD_gcal(u8 num, u32* data) {
@@ -3033,6 +3430,21 @@ u8 UART_CMD_ropertime(u8 num, u32* data) { //# 231017
 u8 UART_CMD_fpgareboot (u8 num, u32* data) {
     if (num == 0) {
         execute_cmd_fpgareboot();
+        return CMD_OK;
+    }
+    else
+        return CMD_ERR3;
+}
+u8 UART_CMD_doc (u8 num, u32* data) {
+    if (num == 0) {
+        disp_cmd_doc();
+        return CMD_OK;
+    }
+    else if (num == 1) {
+        if(data[0] < 0 || data[0] > 1)          return CMD_ERR4;
+        if(data[0] == 1) execute_cmd_doc();
+        else			 {execute_cmd_wroic(0x51, 0x0000); func_doc = 0;}
+        disp_cmd_doc();
         return CMD_OK;
     }
     else

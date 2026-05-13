@@ -21,13 +21,13 @@ entity Matrix5x5 is
         i_hsyn : in  std_logic;
         i_vsyn : in  std_logic;
         i_hcnt : in  std_logic_vector(12 - 1 downto 0);
-        i_vcnt : in  std_logic_vector(12 - 1 downto 0);
+        i_vcnt : in  std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
         i_data : in  std_logic_vector(16 * 25 - 1 downto 0);
 
         o_hsyn : out std_logic;
         o_vsyn : out std_logic;
         o_hcnt : out std_logic_vector(12 - 1 downto 0);
-        o_vcnt : out std_logic_vector(12 - 1 downto 0);
+        o_vcnt : out std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
         o_data : out std_logic_vector(17 - 1 downto 0)
     );
 end entity matrix5x5;
@@ -61,54 +61,54 @@ architecture behavioral of matrix5x5 is
     signal hsyn0 : std_logic;
     signal vsyn0 : std_logic;
     signal hcnt0 : std_logic_vector(12 - 1 downto 0);
-    signal vcnt0 : std_logic_vector(12 - 1 downto 0);
+    signal vcnt0 : std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal data0 : std_logic_vector(16 * 25 - 1 downto 0);
     signal Coef0 : std_logic_vector(16 * 25 - 1 downto 0);
 
     signal hsyn1 : std_logic;
     signal vsyn1 : std_logic;
     signal hcnt1 : std_logic_vector(12 - 1 downto 0);
-    signal vcnt1 : std_logic_vector(12 - 1 downto 0);
+    signal vcnt1 : std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal mult1 : type_25_40b;
 
     signal hsyn2 : std_logic;
     signal vsyn2 : std_logic;
     signal hcnt2 : std_logic_vector(12 - 1 downto 0);
-    signal vcnt2 : std_logic_vector(12 - 1 downto 0);
+    signal vcnt2 : std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal mult2 : type_25_40b;
     signal add2  : type_25_40b;
 
     signal hsyn3 : std_logic;
     signal vsyn3 : std_logic;
     signal hcnt3 : std_logic_vector(12 - 1 downto 0);
-    signal vcnt3 : std_logic_vector(12 - 1 downto 0);
+    signal vcnt3 : std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal mult3 : type_25_40b;
     signal add3  : type_25_40b;
 
     signal hsyn4 : std_logic;
     signal vsyn4 : std_logic;
     signal hcnt4 : std_logic_vector(12 - 1 downto 0);
-    signal vcnt4 : std_logic_vector(12 - 1 downto 0);
+    signal vcnt4 : std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal mult4 : type_25_40b;
     signal add4  : type_25_40b;
 
     signal hsyn5 : std_logic;
     signal vsyn5 : std_logic;
     signal hcnt5 : std_logic_vector(12 - 1 downto 0);
-    signal vcnt5 : std_logic_vector(12 - 1 downto 0);
+    signal vcnt5 : std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
     -- signal add5  : std_logic_vector(40*2 - 1 downto 0);
     signal add5  : type_25_40b;
 
     signal hsyn6 : std_logic;
     signal vsyn6 : std_logic;
     signal hcnt6 : std_logic_vector(12 - 1 downto 0);
-    signal vcnt6 : std_logic_vector(12 - 1 downto 0);
+    signal vcnt6 : std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal add6  : std_logic_vector(40 * 1 - 1 downto 0);
 
     signal hsyn7   : std_logic;
     signal vsyn7   : std_logic;
     signal hcnt7   : std_logic_vector(12 - 1 downto 0);
-    signal vcnt7   : std_logic_vector(12 - 1 downto 0);
+    signal vcnt7   : std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal result7 : std_logic_vector(17 - 1 downto 0);
 
     signal result_stat : std_logic_vector(4 - 1 downto 0);

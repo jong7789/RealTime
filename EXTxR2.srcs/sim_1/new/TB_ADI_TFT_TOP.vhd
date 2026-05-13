@@ -87,9 +87,11 @@ architecture Behavioral of TB_ADI_TFT_TOP is
 		oreg_ext_frame_time	: out	std_logic_vector(31 downto 0);
 	
 		ireg_width			: in	std_logic_vector(11 downto 0);
-		ireg_height			: in	std_logic_vector(11 downto 0);
+--		ireg_height			: in	std_logic_vector(11 downto 0);
+		ireg_height			: in	std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
 		ireg_offsetx		: in	std_logic_vector(11 downto 0);
-		ireg_offsety		: in	std_logic_vector(11 downto 0);
+--		ireg_offsety		: in	std_logic_vector(11 downto 0);
+		ireg_offsety		: in	std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
 	
 		ireg_roic_en		: in	std_logic;
 		ireg_roic_addr		: in	std_logic_vector(3 downto 0);
@@ -121,7 +123,8 @@ architecture Behavioral of TB_ADI_TFT_TOP is
 		ohsync				: out	std_logic;
 		ovsync				: out	std_logic;
 		ohcnt				: out	std_logic_vector(9 downto 0);
-		ovcnt				: out	std_logic_vector(11 downto 0);
+--		ovcnt				: out	std_logic_vector(11 downto 0);
+		ovcnt				: out	std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
 		odata				: out	std_logic_vector(63 downto 0)
 	);
 	end component;
@@ -277,9 +280,11 @@ begin
 		oreg_ext_frame_time	=> open,
 	                                                                            
 		ireg_width			=> x"000",
-		ireg_height			=> x"000",
+--		ireg_height			=> x"000",
+		ireg_height			=> '0' & x"000", --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
 		ireg_offsetx		=> conv_std_logic_vector(MAX_WIDTH(MODEL), 12),
-		ireg_offsety		=> conv_std_logic_vector(MAX_HEIGHT(MODEL), 12),
+--		ireg_offsety		=> conv_std_logic_vector(MAX_HEIGHT(MODEL), 12),
+		ireg_offsety		=> conv_std_logic_vector(MAX_HEIGHT(MODEL), 13), --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
 	
 		ireg_roic_en		=> '0',
 		ireg_roic_addr		=> x"0",

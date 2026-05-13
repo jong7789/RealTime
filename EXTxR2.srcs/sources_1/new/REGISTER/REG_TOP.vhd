@@ -41,9 +41,11 @@ entity REG_TOP is
 
         oreg_out_en   : out std_logic;
         oreg_width    : out std_logic_vector(11 downto 0);
-        oreg_height   : out std_logic_vector(11 downto 0);
+--      oreg_height   : out std_logic_vector(11 downto 0);
+--      oreg_offsety  : out std_logic_vector(11 downto 0);
+        oreg_height   : out std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
         oreg_offsetx  : out std_logic_vector(11 downto 0);
-        oreg_offsety  : out std_logic_vector(11 downto 0);
+        oreg_offsety  : out std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
         oreg_rev_x    : out std_logic;
         oreg_rev_y    : out std_logic;
         oreg_tp_sel   : out std_logic_vector(3 downto 0);
@@ -232,6 +234,13 @@ entity REG_TOP is
         ireg_sm_data7 : in  std_logic_vector(31 downto 0);
         oreg_bcal_ctrl     : out std_logic_vector(31 downto 0);
         ireg_bcal_data     : in  std_logic_vector(31 downto 0);
+        --# 2604242200 FW-driven bit-align register set
+        oreg_bcal_fw_ctrl   : out std_logic_vector(31 downto 0);
+        oreg_bcal_fw_rsv    : out std_logic_vector(31 downto 0);
+        ireg_bcal_fw_par    : in  std_logic_vector(31 downto 0);
+        ireg_bcal_fw_status : in  std_logic_vector(31 downto 0);
+        --# 2605071529 DDR3 AXI burst limit selector (2-bit mode)
+        oreg_ddr_burst      : out std_logic_vector(1 downto 0);
         oreg_mpc_posoffset : out std_logic_vector(15 downto 0);
         oreg_d2m_ctrl      : out std_logic_vector(3 downto 0);
         oreg_fw_busy       : out std_logic;
@@ -270,7 +279,9 @@ entity REG_TOP is
         oreg_ofga_lim : out std_logic_vector(16 - 1 downto 0); --# 230725
         oreg_EqCtrl   : out std_logic_vector(16 - 1 downto 0);
         oreg_EqTopVal : out std_logic_vector(16 - 1 downto 0);
-        oreg_debug    : out std_logic_vector(15 downto 0)
+        oreg_debug    : out std_logic_vector(15 downto 0);
+        --# 2604221500 SFP/RXAUI status input (bit0=sfp_phy_sel, bit1=sfp_rst_done, bit2=sfp_signal_detect)
+        ireg_sfp_stat : in  std_logic_vector(31 downto 0)
     );
 end entity reg_top;
 
@@ -295,9 +306,11 @@ architecture behavioral of reg_top is
     -- User Register
     signal sreg_out_en   : std_logic;
     signal sreg_width    : std_logic_vector(11 downto 0);
-    signal sreg_height   : std_logic_vector(11 downto 0);
+--  signal sreg_height   : std_logic_vector(11 downto 0);
+--  signal sreg_offsety  : std_logic_vector(11 downto 0);
+    signal sreg_height   : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
     signal sreg_offsetx  : std_logic_vector(11 downto 0);
-    signal sreg_offsety  : std_logic_vector(11 downto 0);
+    signal sreg_offsety  : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
     signal sreg_rev_x    : std_logic;
     signal sreg_rev_y    : std_logic;
     signal sreg_tp_sel   : std_logic_vector(3 downto 0);
@@ -503,6 +516,12 @@ architecture behavioral of reg_top is
 
     signal sreg_bcal_ctrl : std_logic_vector(31 downto 0);
     signal sreg_bcal_data : std_logic_vector(31 downto 0);
+    --# 2604242200 FW-driven bit-align registers
+    signal sreg_bcal_fw_ctrl   : std_logic_vector(31 downto 0);
+    signal sreg_bcal_fw_rsv    : std_logic_vector(31 downto 0);
+    signal sreg_ddr_burst      : std_logic_vector(1 downto 0);  --# 2605071529 default 64-beat (mode 01)
+    signal sreg_bcal_fw_par    : std_logic_vector(31 downto 0);
+    signal sreg_bcal_fw_status : std_logic_vector(31 downto 0);
 
     signal sreg_fw_busy     : std_logic;
     signal sreg_toprst_ctrl : std_logic_vector(15 downto 0);
@@ -759,6 +778,14 @@ architecture behavioral of reg_top is
     signal sreg_bcal_data_2d : std_logic_vector(31 downto 0);
     signal sreg_bcal_data_3d : std_logic_vector(31 downto 0);
 
+    --# 2604242200 FW bcal IN sync (par/status sourced from rclk_ch domain via TI_LVDS_RX)
+    signal sreg_bcal_fw_par_1d    : std_logic_vector(31 downto 0);
+    signal sreg_bcal_fw_par_2d    : std_logic_vector(31 downto 0);
+    signal sreg_bcal_fw_par_3d    : std_logic_vector(31 downto 0);
+    signal sreg_bcal_fw_status_1d : std_logic_vector(31 downto 0);
+    signal sreg_bcal_fw_status_2d : std_logic_vector(31 downto 0);
+    signal sreg_bcal_fw_status_3d : std_logic_vector(31 downto 0);
+
     signal sreg_frame_cnt_1d : std_logic_vector(31 downto 0);
     signal sreg_frame_cnt_2d : std_logic_vector(31 downto 0);
     signal sreg_frame_cnt_3d : std_logic_vector(31 downto 0);
@@ -775,6 +802,12 @@ architecture behavioral of reg_top is
     signal sreg_pwdac_currlevel_1d : std_logic_vector(16 - 1 downto 0);
     signal sreg_pwdac_currlevel_2d : std_logic_vector(16 - 1 downto 0);
     signal sreg_pwdac_currlevel_3d : std_logic_vector(16 - 1 downto 0);
+
+    --# 2604221600 SFP/RXAUI status CDC pipeline (ireg_sfp_stat -> 3FF sync -> sreg_sfp_stat)
+    signal sreg_sfp_stat_1d : std_logic_vector(31 downto 0);
+    signal sreg_sfp_stat_2d : std_logic_vector(31 downto 0);
+    signal sreg_sfp_stat_3d : std_logic_vector(31 downto 0);
+    signal sreg_sfp_stat    : std_logic_vector(31 downto 0);
 
     signal sreg_fpga_reboot : std_logic := '0';
     signal fpga_reboot      : std_logic := '0';
@@ -814,6 +847,8 @@ begin
                 sreg_roic_temp      <= (others => (others => '0'));
 --                sreg_roic_temp      <= (others => '0');
                 sreg_roic_rdata     <= (others => '0');
+                --# 2604221600 SFP status reset
+                sreg_sfp_stat       <= (others => '0');
             else
                 sreg_grab_done        <= sreg_grab_done_3d;
                 sreg_ext_exp_time     <= sreg_ext_exp_time_3d;
@@ -883,10 +918,15 @@ begin
                 sreg_sm_data7 <= sreg_sm_data7_3d;
 
                 sreg_bcal_data       <= sreg_bcal_data_3d;
+                --# 2604242200 FW bcal final sync latch
+                sreg_bcal_fw_par     <= sreg_bcal_fw_par_3d;
+                sreg_bcal_fw_status  <= sreg_bcal_fw_status_3d;
                 sreg_frame_cnt       <= sreg_frame_cnt_3d;
                 sreg_trigcnt         <= sreg_trigcnt_3d;
                 sReg_AccStat         <= sreg_AccStat_3d;
                 sreg_pwdac_currlevel <= sreg_pwdac_currlevel_3d;
+                --# 2604221600 SFP status final latch (3FF sync complete)
+                sreg_sfp_stat        <= sreg_sfp_stat_3d;
 
                 sreg_freeruncnt <= sreg_freeruncnt + '1';
 
@@ -906,7 +946,8 @@ begin
             if (isys_rstn = '0') then
                 sreg_out_en      <= '0';
                 sreg_width       <= conv_std_logic_vector(MAX_WIDTH(GNR_MODEL), 12);
-                sreg_height      <= conv_std_logic_vector(MAX_HEIGHT(GNR_MODEL), 12);
+--              sreg_height      <= conv_std_logic_vector(MAX_HEIGHT(GNR_MODEL), 12);
+                sreg_height      <= conv_std_logic_vector(MAX_HEIGHT(GNR_MODEL), 13); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
                 sreg_offsetx     <= (others => '0');
                 sreg_offsety     <= (others => '0');
                 sreg_rev_x       <= '0';
@@ -1052,6 +1093,11 @@ begin
                 sreg_sm_ctrl   <= (others => '0');
                 sreg_bcal_ctrl <= (others => '0');
                 sreg_sync_ctrl <= (others => '0');
+                --# 2604242200 FW bcal reset init
+                sreg_bcal_fw_ctrl <= (others => '0');
+                sreg_bcal_fw_rsv  <= (others => '0');
+--                sreg_ddr_burst    <= "11";  --# 260508 11=256 #2605071529 default mode 01 = 64 beats
+                sreg_ddr_burst    <= "01";  --$ ddr burst 11-> 01
 
                 sreg_mpc_posoffset <= conv_std_logic_vector(400, 16);
 
@@ -1093,15 +1139,19 @@ begin
                 sreg_EqCtrl   <= (others => '0');
                 sreg_EqTopVal <= (others => '0');
             else
+                --# 2604242200 BCAL_FW_CTRL pulse bits auto-clear (1 sys_clk cycle pulse)
+                sreg_bcal_fw_ctrl(7 downto 4) <= (others => '0');
                 if (iepc_cs_n = '0' and iepc_we_n = '0' and wr_blk = '0') then
 -- █░█░█ █▀█ █ ▀█▀ █▀▀
 -- ▀▄▀▄▀ █▀▄ █ ░█░ ██▄
                     case iepc_addr is
                         when ADDR_OUT_EN           => sreg_out_en          <= iepc_wdata(0);
                         when ADDR_WIDTH            => sreg_width           <= iepc_wdata(11 downto 0);
-                        when ADDR_HEIGHT           => sreg_height          <= iepc_wdata(11 downto 0);
+--                      when ADDR_HEIGHT           => sreg_height          <= iepc_wdata(11 downto 0);
+--                      when ADDR_OFFSETY          => sreg_offsety         <= iepc_wdata(11 downto 0);
+                        when ADDR_HEIGHT           => sreg_height          <= iepc_wdata(12 downto 0); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
                         when ADDR_OFFSETX          => sreg_offsetx         <= iepc_wdata(11 downto 0);
-                        when ADDR_OFFSETY          => sreg_offsety         <= iepc_wdata(11 downto 0);
+                        when ADDR_OFFSETY          => sreg_offsety         <= iepc_wdata(12 downto 0); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
                         when ADDR_REV_X            => sreg_rev_x           <= iepc_wdata(0);
                         when ADDR_REV_Y            => sreg_rev_y           <= iepc_wdata(0);
                         when ADDR_TP_SEL           => sreg_tp_sel          <= iepc_wdata(3 downto 0);
@@ -1264,6 +1314,11 @@ begin
 --                      when ADDR_I2C_RDATA7       => sreg_roic_tp_sel     <= Read Only;
                         when ADDR_SM_CTRL          => sreg_sm_ctrl         <= iepc_wdata(31 downto 0);
                         when ADDR_BCAL_CTRL        => sreg_bcal_ctrl       <= iepc_wdata(31 downto 0);
+                        --# 2604242200 FW bcal write
+                        when ADDR_BCAL_FW_CTRL     => sreg_bcal_fw_ctrl    <= iepc_wdata(31 downto 0);
+                        when ADDR_BCAL_FW_RSV      => sreg_bcal_fw_rsv     <= iepc_wdata(31 downto 0);
+                        --# 2605071529 ddr burst mode write
+                        when ADDR_DDR_BURST        => sreg_ddr_burst       <= iepc_wdata(1 downto 0);
                         when ADDR_MPC_POSOFFSET    => sreg_mpc_posoffset   <= iepc_wdata(15 downto 0);
                         when ADDR_D2M_EN           => sreg_d2m_en          <= iepc_wdata(0);
                         when ADDR_D2M_EXP_IN       => sreg_d2m_exp_in      <= iepc_wdata(0);
@@ -1338,9 +1393,11 @@ begin
                         case iepc_addr is
                             when ADDR_OUT_EN           => oepc_rdata(0)           <= sreg_out_en;
                             when ADDR_WIDTH            => oepc_rdata(11 downto 0) <= sreg_width;
-                            when ADDR_HEIGHT           => oepc_rdata(11 downto 0) <= sreg_height;
+--                          when ADDR_HEIGHT           => oepc_rdata(11 downto 0) <= sreg_height;
+--                          when ADDR_OFFSETY          => oepc_rdata(11 downto 0) <= sreg_offsety;
+                            when ADDR_HEIGHT           => oepc_rdata(12 downto 0) <= sreg_height; --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
                             when ADDR_OFFSETX          => oepc_rdata(11 downto 0) <= sreg_offsetx;
-                            when ADDR_OFFSETY          => oepc_rdata(11 downto 0) <= sreg_offsety;
+                            when ADDR_OFFSETY          => oepc_rdata(12 downto 0) <= sreg_offsety; --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
                             when ADDR_REV_X            => oepc_rdata(0)           <= sreg_rev_x;
                             when ADDR_REV_Y            => oepc_rdata(0)           <= sreg_rev_y;
                             when ADDR_TP_SEL           => oepc_rdata(3 downto 0)  <= sreg_tp_sel;
@@ -1536,6 +1593,13 @@ begin
                             when ADDR_CLK_UICLK        => oepc_rdata(15 downto 0) <= sreg_clk_uiclk; --# 260123
                             when ADDR_BCAL_CTRL        => oepc_rdata(31 downto 0) <= sreg_bcal_ctrl;
                             when ADDR_BCAL_DATA        => oepc_rdata(31 downto 0) <= sreg_bcal_data;
+                            --# 2604242200 FW bcal read
+                            when ADDR_BCAL_FW_CTRL     => oepc_rdata(31 downto 0) <= sreg_bcal_fw_ctrl;
+                            when ADDR_BCAL_FW_PAR      => oepc_rdata(31 downto 0) <= sreg_bcal_fw_par;
+                            when ADDR_BCAL_FW_STATUS   => oepc_rdata(31 downto 0) <= sreg_bcal_fw_status;
+                            when ADDR_BCAL_FW_RSV      => oepc_rdata(31 downto 0) <= sreg_bcal_fw_rsv;
+                            --# 2605071529 ddr burst mode read
+                            when ADDR_DDR_BURST        => oepc_rdata(1 downto 0)  <= sreg_ddr_burst;
                             when ADDR_MPC_POSOFFSET    => oepc_rdata(15 downto 0) <= sreg_mpc_posoffset;
                             when ADDR_D2M_EN           => oepc_rdata(0)           <= sreg_d2m_en;
                             when ADDR_D2M_EXP_IN       => oepc_rdata(0)           <= sreg_d2m_exp_in;
@@ -1580,6 +1644,8 @@ begin
                             when ADDR_EQ_CTRL          => oepc_rdata(15 downto 0) <= sreg_EqCtrl;
                             when ADDR_EQ_TOPVAL        => oepc_rdata(15 downto 0) <= sreg_EqTopVal;
                             when ADDR_OFGA_LIM         => oepc_rdata(15 downto 0) <= sreg_ofga_lim;
+                            --# 2604221600 SFP/RXAUI status read-only (3FF-sync'd from async sfp signals)
+                            when ADDR_SFP_STAT         => oepc_rdata(31 downto 0) <= sreg_sfp_stat;
                             when others => NULL;
                         end case;
 
@@ -1732,6 +1798,10 @@ begin
 
     oreg_sm_ctrl   <= sreg_sm_ctrl;
     oreg_bcal_ctrl <= sreg_bcal_ctrl;
+    --# 2604242200 FW bcal output drive
+    oreg_bcal_fw_ctrl <= sreg_bcal_fw_ctrl;
+    oreg_bcal_fw_rsv  <= sreg_bcal_fw_rsv;
+    oreg_ddr_burst    <= sreg_ddr_burst;  --# 2605071529
 
     oreg_mpc_posoffset <= sreg_mpc_posoffset;
 
@@ -1864,6 +1934,10 @@ begin
                 sreg_flaw_rdata_1d    <= (others => '0');
                 sreg_flaw_rdata_2d    <= (others => '0');
                 sreg_flaw_rdata_3d    <= (others => '0');
+                --# 2604221600 SFP status CDC pipeline reset
+                sreg_sfp_stat_1d      <= (others => '0');
+                sreg_sfp_stat_2d      <= (others => '0');
+                sreg_sfp_stat_3d      <= (others => '0');
             else
                 sreg_grab_done_1d        <= ireg_grab_done;
                 sreg_grab_done_2d        <= sreg_grab_done_1d;
@@ -2060,6 +2134,13 @@ begin
                 sreg_bcal_data_1d <= ireg_bcal_data;
                 sreg_bcal_data_2d <= sreg_bcal_data_1d;
                 sreg_bcal_data_3d <= sreg_bcal_data_2d;
+                --# 2604242200 FW bcal IN sync (rclk_ch -> sys_clk via 3FF)
+                sreg_bcal_fw_par_1d    <= ireg_bcal_fw_par;
+                sreg_bcal_fw_par_2d    <= sreg_bcal_fw_par_1d;
+                sreg_bcal_fw_par_3d    <= sreg_bcal_fw_par_2d;
+                sreg_bcal_fw_status_1d <= ireg_bcal_fw_status;
+                sreg_bcal_fw_status_2d <= sreg_bcal_fw_status_1d;
+                sreg_bcal_fw_status_3d <= sreg_bcal_fw_status_2d;
                 sreg_frame_cnt_1d <= ireg_frame_cnt;
                 sreg_frame_cnt_2d <= sreg_frame_cnt_1d;
                 sreg_frame_cnt_3d <= sreg_frame_cnt_2d;
@@ -2085,6 +2166,10 @@ begin
                 sreg_pwdac_currlevel_1d <= ireg_pwdac_currlevel;
                 sreg_pwdac_currlevel_2d <= sreg_pwdac_currlevel_1d;
                 sreg_pwdac_currlevel_3d <= sreg_pwdac_currlevel_2d;
+                --# 2604221600 SFP/RXAUI status 3FF sync (ireg_sfp_stat is async w.r.t. sys_clk)
+                sreg_sfp_stat_1d <= ireg_sfp_stat;
+                sreg_sfp_stat_2d <= sreg_sfp_stat_1d;
+                sreg_sfp_stat_3d <= sreg_sfp_stat_2d;
             end if;
         end if;
     end process;

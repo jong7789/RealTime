@@ -133,3 +133,7 @@ cores/bootloader_src_v1.25/
 xgvrd-*.zip
 Thumbs.db
 desktop.ini
+
+# 빌드 산출물 및 참고 프로젝트 백업
+vitis/bin/EXT_3643R*/
+xgvrd_kc705_sfp_260312/

@@ -392,10 +392,17 @@ architecture top of EXTREAM_R is
     signal sfp_xgmii_rxc        : std_logic_vector(  7 downto 0);   -- SFP XGMII RX control
     signal sfp_rst_done         : std_logic;                         -- SFP PHY reset done
     signal sfp_phy_sel          : std_logic;                         -- PHY select: '1'=SFP, '0'=RXAUI
+    --# 2604221500 Packed SFP/RXAUI status for register readback (ADDR_SFP_STAT = 0x048C)
+    signal sreg_sfp_stat        : std_logic_vector( 31 downto 0);
+    signal mac_tx_dcm_lock      : std_logic;                         -- MAC TX DCM lock (SFP: sfp_rst_done / RXAUI: rxaui_mgt_tx_ready)  --# 260421 Bug1 fix
+    signal mac_rx_dcm_lock      : std_logic;                         -- MAC RX DCM lock (SFP: sfp_rst_done / RXAUI: rxaui_align_status)  --# 260421 Bug1 fix
 
     signal phy_mdio_out         : std_logic;                        -- PHY output data
     signal phy_mdio_tri         : std_logic;                        -- PHY tristate buffer control
     signal phy_mdio_iobuf_o     : std_logic;                        -- IOBUF MDIO output
+    --# 2604231100 MDIO IOBUF gating: block MAC MDIO drive to external Marvell during SFP mode
+    signal eff_mdio_out         : std_logic;
+    signal eff_mdio_tri         : std_logic;
 
     -- SFP DRP loopback signals
     signal sfp_drp_req          : std_logic;
@@ -410,6 +417,34 @@ architecture top of EXTREAM_R is
     signal rxaui_clk156_lock    : std_logic;                         -- RXAUI clock locked
     signal rxaui_xgmii_rxd      : std_logic_vector( 63 downto 0);   -- RXAUI XGMII RX data
     signal rxaui_xgmii_rxc      : std_logic_vector(  7 downto 0);   -- RXAUI XGMII RX control
+
+    --# 2604221355 SFP PHY select CDC to sys_clk for BUFGMUX_CTRL glitch-free switching
+    signal sfp_phy_sel_raw      : std_logic;                         -- Combinational select (sfp_signal_detect AND sfp_rst_done)
+    signal sfp_phy_sel_d0       : std_logic;                         -- 1st FF of 2FF sync
+    signal sfp_phy_sel_sync     : std_logic;                         -- sys_clk synchronized select
+    --# 2605081100 SFP PHY select 256-cycle debounce (sys_clk domain) - reject transient SFP_LOS glitches before propagating to clock/data MUX
+    signal sfp_sel_dbnc_cnt     : std_logic_vector(7 downto 0) := (others => '0');
+    signal sfp_phy_sel_dbnc     : std_logic := '0';
+    --# 2605081100 ASYNC_REG attribute for 2FF synchronizer FFs
+    attribute ASYNC_REG : string;
+    attribute ASYNC_REG of sfp_phy_sel_d0   : signal is "TRUE";
+    attribute ASYNC_REG of sfp_phy_sel_sync : signal is "TRUE";
+
+    --# 2604221355 Clock frequency counters for ILA (simple: sys_clk toggles every 100ms, target clocks count between edges)
+    signal win_cnt              : std_logic_vector( 23 downto 0);    -- sys_clk 100MHz, 100ms = 10,000,000
+    signal win_tog              : std_logic;                         -- sys_clk toggle every 100ms
+
+    signal tog_rx_d0            : std_logic;                         -- win_tog sync'd to rxaui_clk156 (FF0)
+    signal tog_rx_d1            : std_logic;                         -- (FF1)
+    signal tog_rx_d2            : std_logic;                         -- (FF2) for edge detect
+    signal cnt_rxaui            : std_logic_vector( 23 downto 0);    -- counts rxaui_clk156 cycles in 100ms window
+    signal cnt_rxaui_latched    : std_logic_vector( 23 downto 0);    -- latched at tog edge; ~15,625,000 when healthy
+
+    signal tog_sf_d0            : std_logic;                         -- win_tog sync'd to sfp_coreclk (FF0)
+    signal tog_sf_d1            : std_logic;                         -- (FF1)
+    signal tog_sf_d2            : std_logic;                         -- (FF2) for edge detect
+    signal cnt_sfpcore          : std_logic_vector( 23 downto 0);    -- counts sfp_coreclk cycles in 100ms window
+    signal cnt_sfpcore_latched  : std_logic_vector( 23 downto 0);    -- latched at tog edge; 0 if SFP PHY dead
 
     -- I2C bus signals
     signal fmc_sda_o            : std_logic;                         -- SDA output
@@ -447,29 +482,34 @@ architecture top of EXTREAM_R is
     signal shsync_tft : std_logic := '0';
     signal svsync_tft : std_logic := '0';
     signal shcnt_tft  : std_logic_vector(9 downto 0) := (others => '0');
-    signal svcnt_tft  : std_logic_vector(11 downto 0) := (others => '0');
+--  signal svcnt_tft  : std_logic_vector(11 downto 0) := (others => '0');
+    signal svcnt_tft  : std_logic_vector(12 downto 0) := (others => '0'); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
     signal sdata_tft  : std_logic_vector(DDR_BIT_W0( (GNR_MODEL))-1 downto 0) := (others => '0');
 
     signal shsync_ddr3 : std_logic := '0';
     signal svsync_ddr3 : std_logic := '0';
     signal shcnt_ddr3  : std_logic_vector(11 downto 0) := (others => '0');
-    signal svcnt_ddr3  : std_logic_vector(11 downto 0) := (others => '0');
+--  signal svcnt_ddr3  : std_logic_vector(11 downto 0) := (others => '0');
+    signal svcnt_ddr3  : std_logic_vector(12 downto 0) := (others => '0'); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
     signal sdata_ddr3  : std_logic_vector(DDR_BIT_R0( (GNR_MODEL))-1 downto 0) := (others => '0');
 
     signal stpc_wen   : std_logic;
     signal stpc_waddr : std_logic_vector(11 downto 0);
     signal stpc_wdata : std_logic_vector(DDR_BIT_W1( (GNR_MODEL))-1 downto 0);
-    signal stpc_wvcnt : std_logic_vector(11 downto 0);
+--  signal stpc_wvcnt : std_logic_vector(11 downto 0);
+    signal stpc_wvcnt : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
 
     signal savg_wen   : std_logic;
     signal savg_waddr : std_logic_vector(11 downto 0);
     signal savg_winfo : std_logic_vector(DDR_BIT_W2( (GNR_MODEL))-1 downto 0);
-    signal savg_wvcnt : std_logic_vector(11 downto 0);
+--  signal savg_wvcnt : std_logic_vector(11 downto 0);
+    signal savg_wvcnt : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
 
     signal sacc_wen   : std_logic;
     signal sacc_waddr : std_logic_vector(11 downto 0);
     signal sacc_wdata : std_logic_vector(DDR_BIT_W4( (GNR_MODEL))-1 downto 0);
-    signal sacc_wvcnt : std_logic_vector(11 downto 0);
+--  signal sacc_wvcnt : std_logic_vector(11 downto 0);
+    signal sacc_wvcnt : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
 
     signal stpc_rdata : std_logic_vector(DDR_BIT_R1(GNR_MODEL)-1 downto 0) ;
     signal savg_rinfo : std_logic_vector(DDR_BIT_R2(GNR_MODEL)-1 downto 0) ;
@@ -481,13 +521,15 @@ architecture top of EXTREAM_R is
     signal shsync_calib : std_logic := '0';
     signal svsync_calib : std_logic := '0';
     signal shcnt_calib    : std_logic_vector(11 downto 0) := (others => '0');
-    signal svcnt_calib    : std_logic_vector(11 downto 0) := (others => '0');
+--  signal svcnt_calib    : std_logic_vector(11 downto 0) := (others => '0');
+    signal svcnt_calib    : std_logic_vector(12 downto 0) := (others => '0'); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
     signal sdata_calib    : std_logic_vector(63 downto 0) := (others => '0');
 
     signal shsync_img_proc : std_logic := '0';
     signal svsync_img_proc : std_logic := '0';
     signal shcnt_img_proc  : std_logic_vector(11 downto 0) := (others => '0');
-    signal svcnt_img_proc  : std_logic_vector(11 downto 0) := (others => '0');
+--  signal svcnt_img_proc  : std_logic_vector(11 downto 0) := (others => '0');
+    signal svcnt_img_proc  : std_logic_vector(12 downto 0) := (others => '0'); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
     signal sdata_img_proc  : std_logic_vector(63 downto 0) := (others => '0');
 
     signal sfb_frame : std_logic := '0';
@@ -540,9 +582,11 @@ architecture top of EXTREAM_R is
     signal sreg_ext_exp_time   : std_logic_vector(31 downto 0) := (others => '0');
     signal sreg_ext_frame_time : std_logic_vector(31 downto 0) := (others => '0');
     signal sreg_width          : std_logic_vector(11 downto 0) := (others => '0');
-    signal sreg_height         : std_logic_vector(11 downto 0) := (others => '0');
+--  signal sreg_height         : std_logic_vector(11 downto 0) := (others => '0');
+--  signal sreg_offsety        : std_logic_vector(11 downto 0) := (others => '0');
+    signal sreg_height         : std_logic_vector(12 downto 0) := (others => '0'); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
     signal sreg_offsetx        : std_logic_vector(11 downto 0) := (others => '0');
-    signal sreg_offsety        : std_logic_vector(11 downto 0) := (others => '0');
+    signal sreg_offsety        : std_logic_vector(12 downto 0) := (others => '0'); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
     signal sreg_roic_en        : std_logic := '0';
     signal sreg_roic_addr      : std_logic_vector(7 downto 0) := (others => '0');
     signal sreg_roic_wdata     : std_logic_vector(15 downto 0) := (others => '0');
@@ -699,6 +743,12 @@ architecture top of EXTREAM_R is
 
     signal sreg_bcal_ctrl  : std_logic_vector(31 downto 0) := (others => '0');
     signal sreg_bcal_data  : std_logic_vector(31 downto 0) := (others => '0');
+    --# 2604242200 FW-driven bit-align registers
+    signal sreg_bcal_fw_ctrl   : std_logic_vector(31 downto 0) := (others => '0');
+    signal sreg_bcal_fw_rsv    : std_logic_vector(31 downto 0) := (others => '0');
+    signal sreg_bcal_fw_par    : std_logic_vector(31 downto 0) := (others => '0');
+    signal sreg_bcal_fw_status : std_logic_vector(31 downto 0) := (others => '0');
+    signal sreg_ddr_burst      : std_logic_vector(1 downto 0) := "01";  --# 2605071529 default 64-beat
 
     signal sreg_mpc_posoffset  : std_logic_vector(15 downto 0) := (others => '0');
 
@@ -792,9 +842,11 @@ architecture top of EXTREAM_R is
     signal s_spi_rtl_0_io1_t : std_logic;
 
     signal rsreg_width      : std_logic_vector(11 downto 0) := (others => '0');
-    signal rsreg_height     : std_logic_vector(11 downto 0) := (others => '0');
+--  signal rsreg_height     : std_logic_vector(11 downto 0) := (others => '0');
+--  signal rsreg_offsety    : std_logic_vector(11 downto 0) := (others => '0');
+    signal rsreg_height     : std_logic_vector(12 downto 0) := (others => '0'); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
     signal rsreg_offsetx    : std_logic_vector(11 downto 0) := (others => '0');
-    signal rsreg_offsety    : std_logic_vector(11 downto 0) := (others => '0');
+    signal rsreg_offsety    : std_logic_vector(12 downto 0) := (others => '0'); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
     signal rsreg_sexp_time  : std_logic_vector(31 downto 0) := (others => '0');
     signal rsreg_exp_time   : std_logic_vector(31 downto 0) := (others => '0');
     signal rsreg_frame_time : std_logic_vector(31 downto 0) := (others => '0');
@@ -842,9 +894,11 @@ architecture top of EXTREAM_R is
     signal svsync_ddr_4d : std_logic;
 
     signal isreg_width      : std_logic_vector(11 downto 0) := (others => '0');
-    signal isreg_height     : std_logic_vector(11 downto 0) := (others => '0');
+--  signal isreg_height     : std_logic_vector(11 downto 0) := (others => '0');
+--  signal isreg_offsety    : std_logic_vector(11 downto 0) := (others => '0');
+    signal isreg_height     : std_logic_vector(12 downto 0) := (others => '0'); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
     signal isreg_offsetx    : std_logic_vector(11 downto 0) := (others => '0');
-    signal isreg_offsety    : std_logic_vector(11 downto 0) := (others => '0');
+    signal isreg_offsety    : std_logic_vector(12 downto 0) := (others => '0'); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
     signal isreg_sexp_time  : std_logic_vector(31 downto 0) := (others => '0');
     signal isreg_exp_time   : std_logic_vector(31 downto 0) := (others => '0');
     signal isreg_frame_time : std_logic_vector(31 downto 0) := (others => '0');
@@ -853,9 +907,11 @@ architecture top of EXTREAM_R is
     signal isreg_line_time  : std_logic_vector(15 downto 0) := (others => '0');
 
     signal isreg_width_1d      : std_logic_vector(11 downto 0) := (others => '0');
-    signal isreg_height_1d     : std_logic_vector(11 downto 0) := (others => '0');
+--  signal isreg_height_1d     : std_logic_vector(11 downto 0) := (others => '0');
+--  signal isreg_offsety_1d    : std_logic_vector(11 downto 0) := (others => '0');
+    signal isreg_height_1d     : std_logic_vector(12 downto 0) := (others => '0'); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
     signal isreg_offsetx_1d    : std_logic_vector(11 downto 0) := (others => '0');
-    signal isreg_offsety_1d    : std_logic_vector(11 downto 0) := (others => '0');
+    signal isreg_offsety_1d    : std_logic_vector(12 downto 0) := (others => '0'); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
     signal isreg_sexp_time_1d  : std_logic_vector(31 downto 0) := (others => '0');
     signal isreg_exp_time_1d   : std_logic_vector(31 downto 0) := (others => '0');
     signal isreg_frame_time_1d : std_logic_vector(31 downto 0) := (others => '0');
@@ -864,9 +920,11 @@ architecture top of EXTREAM_R is
     signal isreg_line_time_1d  : std_logic_vector(15 downto 0) := (others => '0');
 
     signal isreg_width_2d      : std_logic_vector(11 downto 0) := (others => '0');
-    signal isreg_height_2d     : std_logic_vector(11 downto 0) := (others => '0');
+--  signal isreg_height_2d     : std_logic_vector(11 downto 0) := (others => '0');
+--  signal isreg_offsety_2d    : std_logic_vector(11 downto 0) := (others => '0');
+    signal isreg_height_2d     : std_logic_vector(12 downto 0) := (others => '0'); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
     signal isreg_offsetx_2d    : std_logic_vector(11 downto 0) := (others => '0');
-    signal isreg_offsety_2d    : std_logic_vector(11 downto 0) := (others => '0');
+    signal isreg_offsety_2d    : std_logic_vector(12 downto 0) := (others => '0'); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
     signal isreg_sexp_time_2d  : std_logic_vector(31 downto 0) := (others => '0');
     signal isreg_exp_time_2d   : std_logic_vector(31 downto 0) := (others => '0');
     signal isreg_frame_time_2d : std_logic_vector(31 downto 0) := (others => '0');
@@ -966,6 +1024,10 @@ architecture top of EXTREAM_R is
     signal epc_rdy        : std_logic;                     -- Peripherals ready
     signal epc_cs_n       : std_logic;                     -- Peripheral chip selects
 
+    signal sfp_mdio_in          : std_logic;  --# MAC input data
+    signal sfp_mdio_out         : std_logic;  --# MAC output data
+    signal sfp_mdio_tri         : std_logic;  --# MAC tristate buffer control
+                        
 --%begin
 begin
 
@@ -1081,6 +1143,12 @@ begin
             ireg_bcal_ctrl => sreg_bcal_ctrl,
             oreg_bcal_data => sreg_bcal_data,
 
+            --# 2604242200 FW-driven bit-align connection
+            ireg_bcal_fw_ctrl   => sreg_bcal_fw_ctrl,
+            ireg_bcal_fw_rsv    => sreg_bcal_fw_rsv,
+            oreg_bcal_fw_par    => sreg_bcal_fw_par,
+            oreg_bcal_fw_status => sreg_bcal_fw_status,
+
             --# d2m port
             ireg_d2m_en         => sreg_d2m_en,
             ireg_d2m_exp_in     => sreg_d2m_exp_in,
@@ -1169,6 +1237,9 @@ begin
             ireg_sd_wen        => sreg_sd_wen,
             ireg_width         => sreg_width,
             ireg_height        => sreg_height,
+
+            --# 2605071529 DDR burst limit selector (00=32 / 01=64 / 10=128 / 11=256)
+            ireg_ddr_burst     => sreg_ddr_burst,
 
             istate_tftd => oostate_tftd,
 
@@ -1593,6 +1664,7 @@ begin
 --                                  sdata_tft(40-1 downto 32) & sdata_tft(48-1 downto 40) &
 --                                  sdata_tft(56-1 downto 48) & sdata_tft(64-1 downto 56) ;
 --              sfb_width        <= "111";
+            --##### ddr rear bypass #####
         --   if(sreg_out_en = '1') then
         --       sfb_frame        <= svsync_ddr3;
         --       sfb_dv           <= shsync_ddr3;
@@ -1601,6 +1673,7 @@ begin
         --                           sdata_ddr3(40-1 downto 32) & sdata_ddr3(48-1 downto 40) &
         --                           sdata_ddr3(56-1 downto 48) & sdata_ddr3(64-1 downto 56) ;
         --       sfb_width        <= "111";
+            --#########################
 --          else
 --          if(sreg_out_en = '1') then
 --              sfb_frame        <= svsync_calib;
@@ -2821,6 +2894,14 @@ end generate TP_EXT;
             oreg_bcal_ctrl => sreg_bcal_ctrl,
             ireg_bcal_data => sreg_bcal_data,
 
+            --# 2604242200 FW-driven bit-align connection
+            oreg_bcal_fw_ctrl   => sreg_bcal_fw_ctrl,
+            oreg_bcal_fw_rsv    => sreg_bcal_fw_rsv,
+            ireg_bcal_fw_par    => sreg_bcal_fw_par,
+            ireg_bcal_fw_status => sreg_bcal_fw_status,
+            --# 2605071529 DDR burst limit selector
+            oreg_ddr_burst      => sreg_ddr_burst,
+
             oreg_mpc_posoffset => sreg_mpc_posoffset,
 
             oreg_fw_busy     => sreg_fw_busy,
@@ -2869,7 +2950,9 @@ end generate TP_EXT;
             oreg_EqCtrl         => sreg_EqCtrl  ,
             oreg_EqTopVal       => sreg_EqTopVal,
 
-            oreg_debug => sreg_debug
+            oreg_debug => sreg_debug,
+            --# 2604221500 SFP/RXAUI status readback
+            ireg_sfp_stat => sreg_sfp_stat
         );
 
 --# for osd 220209mbh
@@ -3648,14 +3731,16 @@ end generate TP_EXT;
                     mdio_tri                => mac_mdio_tri,
                     tx_clk                  => xgmii_clk,
                     tx_clk_en               => open,
-                    tx_dcm_lock             => rxaui_mgt_tx_ready,  -- Can be tied to '1'
-                    xgmii_txd               => xgmii_txd,
-                    xgmii_txc               => xgmii_txc,
+                    --tx_dcm_lock             => rxaui_mgt_tx_ready,  -- Can be tied to '1'  --# 260421 Bug1: wrong in SFP mode
+                    tx_dcm_lock             => mac_tx_dcm_lock,            --# 260421 SFP/RXAUI MUX: sfp_rst_done or rxaui_mgt_tx_ready
+                    xgmii_txd               => xgmii_txd, --# out
+                    xgmii_txc               => xgmii_txc, --# out
                     rx_clk                  => xgmii_clk,
                     rx_clk_en               => open,
-                    rx_dcm_lock             => rxaui_align_status,  -- Can be tied to '1'
-                    xgmii_rxd               => xgmii_rxd,
-                    xgmii_rxc               => xgmii_rxc);
+                    --rx_dcm_lock             => rxaui_align_status,  -- Can be tied to '1'  --# 260421 Bug1: wrong in SFP mode
+                    rx_dcm_lock             => mac_rx_dcm_lock,            --# 260421 SFP/RXAUI MUX: sfp_rst_done or rxaui_align_status
+                    xgmii_rxd               => xgmii_rxd,  --# in
+                    xgmii_rxc               => xgmii_rxc); --# in
 
     -- RXAUI bridge
      GEV_RXAUI: entity work.rxaui_wrapper
@@ -3673,12 +3758,12 @@ end generate TP_EXT;
                     qplloutclk_out          => open,
                     qplllock_out            => open,
                     qplloutrefclk_out       => open,
-                    xgmii_txd               => xgmii_txd,
-                    xgmii_txc               => xgmii_txc,
+                    xgmii_txd               => xgmii_txd, --# in
+                    xgmii_txc               => xgmii_txc, --# in
 --                    xgmii_rxd               => xgmii_rxd,
 --                    xgmii_rxc               => xgmii_rxc,
-                    xgmii_rxd               => rxaui_xgmii_rxd,
-                    xgmii_rxc               => rxaui_xgmii_rxc,
+                    xgmii_rxd               => rxaui_xgmii_rxd,  --# out
+                    xgmii_rxc               => rxaui_xgmii_rxc,  --# out
                     rxaui_tx_l0_p           => PHY_SIP(0), -- rxaui_tx_l0_p,
                     rxaui_tx_l0_n           => PHY_SIN(0), -- rxaui_tx_l0_n,
                     rxaui_tx_l1_p           => PHY_SIP(1), -- rxaui_tx_l1_p,
@@ -3694,37 +3779,160 @@ end generate TP_EXT;
                     configuration_vector    => rxaui_config_vector,
                     status_vector           => rxaui_status_vector);
 
+-- █▀ █▀▀ █▀█ ▄█▄
+-- ▄█ █▀░ █▀▀ ░▀░ %sfp
     -- =========================================================================
     --# SFP+ 10GBASE-R PHY and XGMII MUX
     --# PHY has priority when SFP signal is detected
     -- =========================================================================
     GEN_SFP: if (FUNC_SFP_NUM(GNR_MODEL) > 0) generate   --# 260320 FUNC_SFP -> FUNC_SFP_NUM
+
+        COMPONENT ila_sfp
+        PORT (
+            clk    : IN STD_LOGIC;
+            probe0 : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
+            probe1 : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
+            probe2 : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
+            probe3 : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
+            probe4 : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
+            probe5 : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
+            probe6 : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
+            probe7 : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
+            probe8 : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
+            --# 2604221355 Add 24-bit probes for rxaui/sfp_coreclk frequency counters (regenerate ila_sfp IP in Vivado: Probe9,Probe10 width=24)
+            probe9  : IN STD_LOGIC_VECTOR(23 DOWNTO 0);
+            probe10 : IN STD_LOGIC_VECTOR(23 DOWNTO 0)
+        );
+        END COMPONENT;
+
     begin
+
+        u_ila_sfp : ila_sfp
+        PORT MAP (
+            clk    => sys_clk           ,
+            probe0(0) => sfp_los(0)        ,
+            probe1(0) => sfp_signal_detect ,
+            probe2(0) => sfp_tx_disable    ,
+            probe3(0) => not sfp_tx_disable,
+            probe4(0) => sfp_rst_done      ,
+            probe5(0) => sfp_phy_sel       ,
+            probe6(0) => xgmii_lock        ,
+            probe7(0) => mac_mdio_in       ,
+            probe8(0) => sfp_mdio_in       ,
+            --# 2604221355 Clock freq counters (100ms window): ~15,625,000 when healthy 156.25MHz; 0 if clock dead
+            probe9    => cnt_rxaui_latched ,
+            probe10   => cnt_sfpcore_latched
+        );
+
+        --# 2604221355 sys_clk toggle every 100ms (100MHz * 100ms = 10,000,000)
+        WIN_TOG_PROC : process(sys_clk)
+        begin
+            if rising_edge(sys_clk) then
+                if win_cnt = conv_std_logic_vector(9_999_999, 24) then
+                    win_cnt <= (others => '0');
+                    win_tog <= not win_tog;
+                else
+                    win_cnt <= win_cnt + 1;
+                end if;
+            end if;
+        end process;
+
+        --# 2604221355 rxaui_clk156 domain: CDC win_tog, count cycles between toggle edges
+        CNT_RXAUI_PROC : process(rxaui_clk156)
+        begin
+            if rising_edge(rxaui_clk156) then
+                tog_rx_d0 <= win_tog;
+                tog_rx_d1 <= tog_rx_d0;
+                tog_rx_d2 <= tog_rx_d1;
+                if tog_rx_d1 /= tog_rx_d2 then
+                    cnt_rxaui_latched <= cnt_rxaui;
+                    cnt_rxaui         <= conv_std_logic_vector(1, 24);
+                else
+                    cnt_rxaui         <= cnt_rxaui + 1;
+                end if;
+            end if;
+        end process;
+
+        --# 2604221355 sfp_coreclk domain: CDC win_tog, count cycles between toggle edges
+        CNT_SFPCORE_PROC : process(sfp_coreclk)
+        begin
+            if rising_edge(sfp_coreclk) then
+                tog_sf_d0 <= win_tog;
+                tog_sf_d1 <= tog_sf_d0;
+                tog_sf_d2 <= tog_sf_d1;
+                if tog_sf_d1 /= tog_sf_d2 then
+                    cnt_sfpcore_latched <= cnt_sfpcore;
+                    cnt_sfpcore         <= conv_std_logic_vector(1, 24);
+                else
+                    cnt_sfpcore         <= cnt_sfpcore + 1;
+                end if;
+            end if;
+        end process;
+
         -- SFP+ signal detect and TX disable
         sfp_signal_detect <= not sfp_los(0);               --# 260320 vector index
-        sfp_tx_dis_n(0)  <= not sfp_tx_disable;            --# 260320 vector index
+        sfp_tx_dis_n(0)   <= not sfp_tx_disable;            --# 260320 vector index
+--        sfp_phy_sel       <= sfp_signal_detect and sfp_rst_done;
+        --# 2605081100 sfp_phy_sel chain: raw -> 2FF sync -> 256-cyc debounce -> downstream MUXes.
+        --# Original combinational select drove xgmii_clk LUT-mux directly; sfp_los glitches could
+        --# corrupt framebuf TX. See docs/CHANGE_2605081100_FBUF_ACQ_RESET.md.
+        sfp_phy_sel_raw   <= sfp_signal_detect and sfp_rst_done;
 
-        -- PHY selection: SFP priority when signal is detected and PHY is ready
-        sfp_phy_sel <= sfp_signal_detect and sfp_rst_done;
+        --# 2605081100 2FF CDC sync (raw -> sys_clk); ASYNC_REG=TRUE on d0/sync FFs.
+        SFP_SEL_SYNC_PROC : process(sys_clk)
+        begin
+            if rising_edge(sys_clk) then
+                sfp_phy_sel_d0   <= sfp_phy_sel_raw;
+                sfp_phy_sel_sync <= sfp_phy_sel_d0;
+            end if;
+        end process SFP_SEL_SYNC_PROC;
 
-        -- Clock MUX: Select between RXAUI clk156 and SFP coreclk
---        SFP_CLK_MUX: BUFGMUX_CTRL
---            port map (O  => xgmii_clk,
---                      I0 => rxaui_clk156,
---                      I1 => sfp_coreclk,
---                      S  => sfp_phy_sel);
-            xgmii_clk <= rxaui_clk156;
+        --# 2605081100 256-sample (~2.56us @100MHz) hold filter; commits on counter rollover.
+        SFP_SEL_DEBOUNCE_PROC : process(sys_clk)
+        begin
+            if rising_edge(sys_clk) then
+                if sfp_phy_sel_sync = sfp_phy_sel_dbnc then
+                    sfp_sel_dbnc_cnt <= (others => '0');
+                else
+                    if sfp_sel_dbnc_cnt = x"FF" then
+                        sfp_phy_sel_dbnc <= sfp_phy_sel_sync;
+                        sfp_sel_dbnc_cnt <= (others => '0');
+                    else
+                        sfp_sel_dbnc_cnt <= sfp_sel_dbnc_cnt + 1;
+                    end if;
+                end if;
+            end if;
+        end process SFP_SEL_DEBOUNCE_PROC;
 
-        -- Clock lock MUX
+        sfp_phy_sel <= sfp_phy_sel_dbnc;
+
+        --# 2604221500 Pack SFP/RXAUI status for register read (ADDR_SFP_STAT)
+        sreg_sfp_stat     <= (0 => sfp_phy_sel,
+                              1 => sfp_rst_done,
+                              2 => sfp_signal_detect,
+                              others => '0');
+
+        -- Clock & lock MUX
+        xgmii_clk  <= sfp_coreclk  when sfp_phy_sel = '1' else rxaui_clk156;
         xgmii_lock <= sfp_rst_done when sfp_phy_sel = '1' else rxaui_clk156_lock;
 
         -- XGMII RX data MUX: SFP has priority
         xgmii_rxd <= sfp_xgmii_rxd when sfp_phy_sel = '1' else rxaui_xgmii_rxd;
         xgmii_rxc <= sfp_xgmii_rxc when sfp_phy_sel = '1' else rxaui_xgmii_rxc;
 
+        -- DCM lock MUX: SFP PHY reset done drives MAC TX/RX enable  --# 260421 Bug1 fix
+--        mac_tx_dcm_lock <= sfp_rst_done;  --# 260421 SFP mode: sfp_rst_done as MAC TX DCM lock
+--        mac_rx_dcm_lock <= sfp_rst_done;  --# 260421 SFP mode: sfp_rst_done as MAC RX DCM lock
+        --# 2604221355 MUX by sfp_phy_sel so RXAUI fallback enables MAC when SFP is absent
+        mac_tx_dcm_lock <= sfp_rst_done when sfp_phy_sel = '1' else rxaui_mgt_tx_ready;
+        mac_rx_dcm_lock <= sfp_rst_done when sfp_phy_sel = '1' else rxaui_align_status;
+                
+    --# SFP MDIO #26042019
+    mac_mdio_in <= sfp_mdio_out and (not sfp_mdio_tri) when sfp_phy_sel = '1' else phy_mdio_iobuf_o;
+    sfp_mdio_in <= mac_mdio_out and (not mac_mdio_tri) when sfp_phy_sel = '1' else '0';               
         -- 10GBASE-R PCS/PMA PHY for SFP+
         SFP_PHY_INST: entity work.phy
-            port map   (dclk                    => sys_clk,
+            port map   (dclk                    => sfp_coreclk, --# xgmii_clk, --# sys-> xgmii 26042111
                         rxrecclk_out            => open,
                         refclk_p                => sfp_ref_clk_p(0), --# 260320 vector index
                         refclk_n                => sfp_ref_clk_n(0), --# 260320 vector index
@@ -3762,18 +3970,18 @@ end generate TP_EXT;
                         gt0_rxbufstatus         => open,
                         gt0_rxprbserr           => open,
                         gt0_dmonitorout         => open,
-                        xgmii_txd               => xgmii_txd,
-                        xgmii_txc               => xgmii_txc,
-                        xgmii_rxd               => sfp_xgmii_rxd,
-                        xgmii_rxc               => sfp_xgmii_rxc,
-                        txp                     => sfp_tx_p(0),      --# 260320 vector index
-                        txn                     => sfp_tx_n(0),      --# 260320 vector index
-                        rxp                     => sfp_rx_p(0),      --# 260320 vector index
-                        rxn                     => sfp_rx_n(0),      --# 260320 vector index
+                        xgmii_txd               => xgmii_txd,     --# in
+                        xgmii_txc               => xgmii_txc,     --# in
+                        xgmii_rxd               => sfp_xgmii_rxd, --# out
+                        xgmii_rxc               => sfp_xgmii_rxc, --# out
+                        txp                     => sfp_tx_p(0),   --# 260320 vector index
+                        txn                     => sfp_tx_n(0),   --# 260320 vector index
+                        rxp                     => sfp_rx_p(0),   --# 260320 vector index
+                        rxn                     => sfp_rx_n(0),   --# 260320 vector index
                         mdc                     => mac_mdc,
-                        mdio_in                 => mac_mdio_in,
-                        mdio_out                => phy_mdio_out,
-                        mdio_tri                => phy_mdio_tri,
+                        mdio_in                 => sfp_mdio_in,
+                        mdio_out                => sfp_mdio_out,
+                        mdio_tri                => sfp_mdio_tri,
                         prtad                   => (others => '0'),
                         core_status             => open,
                         resetdone_out           => sfp_rst_done,
@@ -3796,9 +4004,9 @@ end generate TP_EXT;
                         pma_pmd_type            => "111",            -- 10GBASE-SR
                         tx_disable              => sfp_tx_disable);
 
-    -- MDIO
-    mac_mdio_in <= (phy_mdio_tri and (not mac_mdio_tri) and mac_mdio_out) or
-                   (mac_mdio_tri and (not phy_mdio_tri) and phy_mdio_out);
+--    -- MDIO
+--    mac_mdio_in <= (phy_mdio_tri and (not mac_mdio_tri) and mac_mdio_out) or
+--                   (mac_mdio_tri and (not phy_mdio_tri) and phy_mdio_out);
 
     end generate GEN_SFP;
 
@@ -3814,6 +4022,10 @@ end generate TP_EXT;
         --sfp_tx_p     <= '0';
         --sfp_tx_n     <= '1';
         mac_mdio_in <= phy_mdio_iobuf_o;
+        mac_tx_dcm_lock <= rxaui_mgt_tx_ready;  --# 260421 RXAUI mode: rxaui_mgt_tx_ready as MAC TX DCM lock
+        mac_rx_dcm_lock <= rxaui_align_status;   --# 260421 RXAUI mode: rxaui_align_status as MAC RX DCM lock
+        --# 2604221500 SFP absent: status vector all zero
+        sreg_sfp_stat   <= (others => '0');
     end generate GEN_NO_SFP;
 
     -- KC705 platform specific logic -------------------------------------------
@@ -3862,7 +4074,10 @@ end generate TP_EXT;
     XGMII_RST_PROC: process (xgmii_clk, ext_rst, xgmii_lock)
         variable shreg  : unsigned(7 downto 0) := (others => '1');
     begin
-        if (ext_rst = '1') or (xgmii_lock = '0') then
+--        if (ext_rst = '1') or (xgmii_lock = '0') or (sfp_xgmii_rst='1') then --# sfp_xgmii_rst --#26042115
+        --# 2604221355 Gate sfp_xgmii_rst by sfp_phy_sel so RXAUI mode is not held in reset by unused SFP PHY
+--        if (ext_rst = '1') or (xgmii_lock = '0') or (sfp_phy_sel='1' and sfp_xgmii_rst='1') then
+        if (ext_rst = '1') or (xgmii_lock = '0') then --# rst not ctrl by sfp #2604231130 
             xgmii_rst <= '1';
             shreg     := (others => '1');
         elsif rising_edge(xgmii_clk) then
@@ -3904,14 +4119,27 @@ end generate TP_EXT;
     rxaui_signal_detect <= "11";                        -- Optical transceiver status
 
     -- PHY MDIO
+--    MDIO_IOBUF_INST: IOBUF
+--        port map   (I   => mac_mdio_out,
+--                    O   => phy_mdio_iobuf_o,
+--                    T   => mac_mdio_tri,
+----                    IO  => fmc_mdio);
+--                    IO  => PHY_MDIO);
+----    fmc_mdc <= mac_mdc;
+--    PHY_MDC <= mac_mdc;
+    --# 2604231100 MDIO IOBUF gating: drive external Marvell PHY only in RXAUI mode
+    --#            SFP mode -> force Hi-Z to prevent Marvell register corruption
+    eff_mdio_out <= mac_mdio_out when sfp_phy_sel = '0' else '0';
+    eff_mdio_tri <= mac_mdio_tri when sfp_phy_sel = '0' else '1';
+
     MDIO_IOBUF_INST: IOBUF
-        port map   (I   => mac_mdio_out,
+        port map   (I   => eff_mdio_out,
                     O   => phy_mdio_iobuf_o,
-                    T   => mac_mdio_tri,
---                    IO  => fmc_mdio);
+                    T   => eff_mdio_tri,
                     IO  => PHY_MDIO);
---    fmc_mdc <= mac_mdc;
-    PHY_MDC <= mac_mdc;
+
+    --# 2604231100 MDC gating (stop toggling to Marvell during SFP mode)
+    PHY_MDC <= mac_mdc when sfp_phy_sel = '0' else '0';
 
     -- I2C bus
     I2C_SDA_IOBUF_INST: IOBUF
@@ -3925,7 +4153,12 @@ end generate TP_EXT;
 
     -- FMC card reset
 --    fmc_reset_n <= not xgmii_rst;
-    PHY_RESET_N <= not xgmii_rst;
+--    PHY_RESET_N <= not xgmii_rst;
+    --# 2604231200 Separate Marvell hardware reset from MAC-internal xgmii_rst
+    --#            xgmii_rst asserts during SFP<->RXAUI transitions (via xgmii_lock MUX glitch),
+    --#            which was hard-resetting Marvell -> PHY firmware (app code) lost -> 0x1001 error
+    --#            Now Marvell only resets on external reset (ext_rst); MAC uses xgmii_rst independently
+    PHY_RESET_N <= not ext_rst;
 
     axi_rst                   <= not axi_aresetn;       -- Synchronous reset
     video_data(127 downto 64) <= (others => '0');
@@ -4180,17 +4413,17 @@ ila_debug : if(GEN_ILA_TOP = "ON") generate
             probe6  : in std_logic;
             probe7  : in std_logic_vector(11 downto 0);
             probe8  : in std_logic_vector(11 downto 0);
-            probe9  : in std_logic_vector(63 downto 0);
-           probe10 : in std_logic;
-           probe11 : in std_logic;
-           probe12 : in std_logic_vector(11 downto 0);
-           probe13 : in std_logic_vector(11 downto 0);
-           probe14 : in std_logic_vector(63 downto 0);
-           probe15 : in std_logic;
-           probe16 : in std_logic;
-           probe17 : in std_logic_vector(11 downto 0);
-           probe18 : in std_logic_vector(11 downto 0);
-           probe19 : in std_logic_vector(63 downto 0)
+            probe9  : in std_logic_vector(63 downto 0)
+--            probe10 : in std_logic;
+--            probe11 : in std_logic;
+--            probe12 : in std_logic_vector(11 downto 0);
+--            probe13 : in std_logic_vector(11 downto 0);
+--            probe14 : in std_logic_vector(63 downto 0)
+--            probe15 : in std_logic;
+--            probe16 : in std_logic;
+--            probe17 : in std_logic_vector(11 downto 0);
+--            probe18 : in std_logic_vector(11 downto 0);
+--            probe19 : in std_logic_vector(63 downto 0)
         );
     end component;
 
@@ -4207,17 +4440,17 @@ begin
             probe6  => svsync_ddr3,
             probe7  => shcnt_ddr3,
             probe8  => svcnt_ddr3,
-            probe9  => sdata_ddr3,
-           probe10 => shsync_calib,
-           probe11 => svsync_calib,
-           probe12 => shcnt_calib,
-           probe13 => svcnt_calib,
-           probe14 => sdata_calib,
-           probe15 => shsync_img_proc,
-           probe16 => svsync_img_proc,
-           probe17 => shcnt_img_proc,
-           probe18 => svcnt_img_proc,
-           probe19 => sdata_img_proc
+            probe9  => sdata_ddr3
+--            probe10 => shsync_calib,
+--            probe11 => svsync_calib,
+--            probe12 => shcnt_calib,
+--            probe13 => svcnt_calib,
+--            probe14 => sdata_calib,
+--            probe10 => shsync_img_proc,
+--            probe11 => svsync_img_proc,
+--            probe12 => shcnt_img_proc,
+--            probe13 => svcnt_img_proc,
+--            probe14 => sdata_img_proc
         );
 end generate ila_debug;
 

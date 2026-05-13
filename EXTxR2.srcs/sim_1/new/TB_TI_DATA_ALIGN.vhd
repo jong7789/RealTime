@@ -22,12 +22,14 @@ architecture Behavioral of TB_TI_DATA_ALIGN is
 		idata_array			: in	tdata_par;
 		
 		ireg_width			: in	std_logic_vector(11 downto 0);
-		ireg_height			: in	std_logic_vector(11 downto 0);
+--		ireg_height			: in	std_logic_vector(11 downto 0);
+		ireg_height			: in	std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
 		
 		ohsync				: out	std_logic;
 		ovsync				: out	std_logic;
 		ohcnt				: out	std_logic_vector(9 downto 0);
-		ovcnt				: out	std_logic_vector(11 downto 0);
+--		ovcnt				: out	std_logic_vector(11 downto 0);
+		ovcnt				: out	std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
 		odata				: out	std_logic_vector(63 downto 0)
 	);
 	end component;
@@ -75,7 +77,8 @@ begin
 		idata_array			=> tbdata_array,
 		
 		ireg_width			=> x"674",
-		ireg_height			=> x"008",
+--		ireg_height			=> x"008",
+		ireg_height			=> '0' & x"008", --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
 		
 		ohsync				=> open,
 		ovsync				=> open,

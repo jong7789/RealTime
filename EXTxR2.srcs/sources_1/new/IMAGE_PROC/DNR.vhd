@@ -16,7 +16,7 @@ entity DNR is
     port (
         i_clk            : in  std_logic;
         i_RegHActive     : in  std_logic_vector(12 - 1 downto 0);
-        i_RegVActive     : in  std_logic_vector(12 - 1 downto 0);
+        i_RegVActive     : in  std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
         i_RegDnrCtrl     : in  std_logic_vector(16 - 1 downto 0);
         i_RegSobelCoeff0 : in  std_logic_vector(16 - 1 downto 0);
         i_RegSobelCoeff1 : in  std_logic_vector(16 - 1 downto 0);
@@ -26,13 +26,13 @@ entity DNR is
         i_hsyn : in  std_logic;
         i_vsyn : in  std_logic;
         i_hcnt : in  std_logic_vector(12 - 1 downto 0);
-        i_vcnt : in  std_logic_vector(12 - 1 downto 0);
+        i_vcnt : in  std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
         i_data : in  std_logic_vector(16 - 1 downto 0);
 
         o_hsyn : out std_logic;
         o_vsyn : out std_logic;
         o_hcnt : out std_logic_vector(12 - 1 downto 0);
-        o_vcnt : out std_logic_vector(12 - 1 downto 0);
+        o_vcnt : out std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
         o_data : out std_logic_vector(16 - 1 downto 0)
     );
 end entity dnr;
@@ -43,18 +43,18 @@ architecture behavioral of dnr is
         port (
             i_clk        : in  std_logic;
             i_RegHActive : in  std_logic_vector(12 - 1 downto 0);
-            i_RegVActive : in  std_logic_vector(12 - 1 downto 0);
+            i_RegVActive : in  std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
             i_hsyn : in  std_logic;
             i_vsyn : in  std_logic;
             i_hcnt : in  std_logic_vector(12 - 1 downto 0);
-            i_vcnt : in  std_logic_vector(12 - 1 downto 0);
+            i_vcnt : in  std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
             i_data : in  std_logic_vector(16 - 1 downto 0);
 
             o_hsyn : out std_logic;
             o_vsyn : out std_logic;
             o_hcnt : out std_logic_vector(12 - 1 downto 0);
-            o_vcnt : out std_logic_vector(12 - 1 downto 0);
+            o_vcnt : out std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
             o_data : out std_logic_vector(16 * 25 - 1 downto 0)
         );
     end component mawari5x5;
@@ -79,13 +79,13 @@ architecture behavioral of dnr is
             i_hsyn : in  std_logic;
             i_vsyn : in  std_logic;
             i_hcnt : in  std_logic_vector(12 - 1 downto 0);
-            i_vcnt : in  std_logic_vector(12 - 1 downto 0);
+            i_vcnt : in  std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
             i_data : in  std_logic_vector(16 * 25 - 1 downto 0);
 
             o_hsyn : out std_logic;
             o_vsyn : out std_logic;
             o_hcnt : out std_logic_vector(12 - 1 downto 0);
-            o_vcnt : out std_logic_vector(12 - 1 downto 0);
+            o_vcnt : out std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
             o_data : out std_logic_vector(17 - 1 downto 0)
         );
     end component matrix5x5;
@@ -165,13 +165,13 @@ architecture behavioral of dnr is
     signal iMawari_hsyn : std_logic;
     signal iMawari_vsyn : std_logic;
     signal iMawari_hcnt : std_logic_vector(12 - 1 downto 0);
-    signal iMawari_vcnt : std_logic_vector(12 - 1 downto 0);
+    signal iMawari_vcnt : std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal iMawari_data : std_logic_vector(16 - 1 downto 0);
 
     signal Mawari_hsyn : std_logic;
     signal Mawari_vsyn : std_logic;
     signal Mawari_hcnt : std_logic_vector(12 - 1 downto 0);
-    signal Mawari_vcnt : std_logic_vector(12 - 1 downto 0);
+    signal Mawari_vcnt : std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal Mawari_data : std_logic_vector(16 * 25 - 1 downto 0);
 
     signal mw_addra : std_logic_vector(5 - 1 downto 0)   := (others => '0');
@@ -188,22 +188,23 @@ architecture behavioral of dnr is
     signal MatrixRL_hsyn : std_logic;
     signal MatrixRL_vsyn : std_logic;
     signal MatrixRL_hcnt : std_logic_vector(12 - 1 downto 0);
-    signal MatrixRL_vcnt : std_logic_vector(12 - 1 downto 0);
+    signal MatrixRL_vcnt : std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal MatrixRL_data : std_logic_vector(17 - 1 downto 0); -- signed 17b
 
     signal MatrixUD_hsyn : std_logic;
     signal MatrixUD_vsyn : std_logic;
     signal MatrixUD_hcnt : std_logic_vector(12 - 1 downto 0);
-    signal MatrixUD_vcnt : std_logic_vector(12 - 1 downto 0);
+    signal MatrixUD_vcnt : std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal MatrixUD_data : std_logic_vector(17 - 1 downto 0); -- signed 17b
 
     type type_syn_shf is array (arrLength downto 0) of std_logic;
-    type type_cnt_shf is array (arrLength downto 0) of std_logic_vector(12 - 1 downto 0);
+    type type_cnt_shf  is array (arrLength downto 0) of std_logic_vector(12 - 1 downto 0);
+    type type_vcnt_shf is array (arrLength downto 0) of std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
     signal Sob_hsyn_shf  : type_syn_shf;
     signal Sob_vsyn_shf  : type_syn_shf;
     signal Sob_hcnt_shf  : type_cnt_shf;
-    signal Sob_vcnt_shf  : type_cnt_shf;
+    signal Sob_vcnt_shf  : type_vcnt_shf; --# 2604231608 Expand V-axis 12->13bit
     signal Sob_datA_shf0 : std_logic_vector(17 - 1 downto 0);
     signal Sob_datB_shf0 : std_logic_vector(17 - 1 downto 0);
 
@@ -231,13 +232,13 @@ architecture behavioral of dnr is
     signal MatrixBr_hsyn : std_logic;
     signal MatrixBr_vsyn : std_logic;
     signal MatrixBr_hcnt : std_logic_vector(12 - 1 downto 0);
-    signal MatrixBr_vcnt : std_logic_vector(12 - 1 downto 0);
+    signal MatrixBr_vcnt : std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal MatrixBr_data : std_logic_vector(17 - 1 downto 0); -- signed 17b
 
     signal MatrixBrCut_hsyn : std_logic;
     signal MatrixBrCut_vsyn : std_logic;
     signal MatrixBrCut_hcnt : std_logic_vector(12 - 1 downto 0);
-    signal MatrixBrCut_vcnt : std_logic_vector(12 - 1 downto 0);
+    signal MatrixBrCut_vcnt : std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal MatrixBrCut_data : std_logic_vector(16 - 1 downto 0);
 
     -- signal RegEdgeEn : std_logic;
@@ -249,7 +250,7 @@ architecture behavioral of dnr is
     signal hsynSel : std_logic;
     signal vsynSel : std_logic;
     signal hcntSel : std_logic_vector(12 - 1 downto 0);
-    signal vcntSel : std_logic_vector(12 - 1 downto 0);
+    signal vcntSel : std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal dataSel : std_logic_vector(16 - 1 downto 0);
 
 -- !begin
@@ -325,7 +326,8 @@ begin
         end if;
     end process;
 
-    mw_dina <= b"00_0000"  & -- 432 <= 6 + 1 + 1 + 12 + 12 + 400;
+--  mw_dina <= b"00_0000"  & -- 432 <= 6 + 1 + 1 + 12 + 12 + 400;
+    mw_dina <= b"0_0000"   & -- 432 <= 5 + 1 + 1 + 12 + 13 + 400 --# 2604231608 Expand V-axis 12->13bit
                Mawari_hsyn &
                Mawari_vsyn &
                Mawari_hcnt &
@@ -637,8 +639,10 @@ begin
 
             i_hsyn => mw_doutb(400 + 26 - 1),
             i_vsyn => mw_doutb(400 + 25 - 1),
-            i_hcnt => mw_doutb(400 + 24 - 1 downto 400 + 12),
-            i_vcnt => mw_doutb(400 + 12 - 1 downto 400),
+--          i_hcnt => mw_doutb(400 + 24 - 1 downto 400 + 12),
+--          i_vcnt => mw_doutb(400 + 12 - 1 downto 400),
+            i_hcnt => mw_doutb(400 + 13 + 12 - 1 downto 400 + 13), --# 2604231608 Expand V-axis 12->13bit
+            i_vcnt => mw_doutb(400 + 13 - 1 downto 400),           --# 2604231608 Expand V-axis 12->13bit
             i_data => mw_doutb(400 - 1 downto 0), -- delay26 <= logic17 + matrix8 + 1
 
             o_hsyn => MatrixBr_hsyn,

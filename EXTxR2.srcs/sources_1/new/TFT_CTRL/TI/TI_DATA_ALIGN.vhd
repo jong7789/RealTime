@@ -20,16 +20,20 @@ entity TI_DATA_ALIGN is
         iroic_clk_sel : in std_logic_vector(ROIC_NUM(GNR_MODEL) - 1 downto 0); --# 241202
 
         ireg_width    : in std_logic_vector(11 downto 0);
-        ireg_height   : in std_logic_vector(11 downto 0);
+--      ireg_height   : in std_logic_vector(11 downto 0);
+        ireg_height   : in std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
 
         ohsync        : out std_logic;
         ovsync        : out std_logic;
         ohcnt         : out std_logic_vector(9 downto 0);
-        ovcnt         : out std_logic_vector(11 downto 0);
+--      ovcnt         : out std_logic_vector(11 downto 0);
+        ovcnt         : out std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
         odata         : out std_logic_vector(63 downto 0);
 
-        orefvcnt                : out std_logic_vector(12 - 1 downto 0);
-        ivcnt                   : in  std_logic_vector(12 - 1 downto 0); -- for ila debug
+--      orefvcnt                : out std_logic_vector(12 - 1 downto 0);
+--      ivcnt                   : in  std_logic_vector(12 - 1 downto 0); -- for ila debug
+        orefvcnt                : out std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
+        ivcnt                   : in  std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302 (for ila debug)
         ostate_dpram_data_align : out tstate_dpram_data_align
     );
 end entity ti_data_align;
@@ -155,22 +159,26 @@ architecture behavioral of ti_data_align is
     signal shsync : std_logic;
     signal svsync : std_logic;
     signal shcnt  : std_logic_vector(9 downto 0);
-    signal svcnt  : std_logic_vector(11 downto 0);
+--  signal svcnt  : std_logic_vector(11 downto 0);
+    signal svcnt  : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
     signal sdata  : std_logic_vector(63 downto 0);
 
     signal sreg_width  : std_logic_vector(9 downto 0);
-    signal sreg_height : std_logic_vector(11 downto 0);
+--  signal sreg_height : std_logic_vector(11 downto 0);
+    signal sreg_height : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
 
     signal dumm_shsync_out : std_logic;
     signal dumm_svsync_out : std_logic;
     signal dumm_shcnt_out  : std_logic_vector(9 downto 0);
-    signal dumm_svcnt_out  : std_logic_vector(11 downto 0);
+--  signal dumm_svcnt_out  : std_logic_vector(11 downto 0);
+    signal dumm_svcnt_out  : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
     signal dumm_sdata_out  : std_logic_vector(63 downto 0);
 
     signal hflp_shsync_out : std_logic;
     signal hflp_svsync_out : std_logic;
     signal hflp_shcnt_out  : std_logic_vector(9 downto 0);
-    signal hflp_svcnt_out  : std_logic_vector(11 downto 0);
+--  signal hflp_svcnt_out  : std_logic_vector(11 downto 0);
+    signal hflp_svcnt_out  : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
     signal hflp_sdata_out  : std_logic_vector(63 downto 0);
 
     signal stoggle_porta_1d : std_logic_vector(ROIC_NUM(GNR_MODEL) - 1 downto 0);
@@ -192,8 +200,10 @@ architecture behavioral of ti_data_align is
     signal shcnt_1d : std_logic_vector(9 downto 0);
     signal shcnt_2d : std_logic_vector(9 downto 0);
 
-    signal svcnt_1d : std_logic_vector(11 downto 0);
-    signal svcnt_2d : std_logic_vector(11 downto 0);
+--  signal svcnt_1d : std_logic_vector(11 downto 0);
+--  signal svcnt_2d : std_logic_vector(11 downto 0);
+    signal svcnt_1d : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
+    signal svcnt_2d : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
 
 --    signal align_done_trig_sh : std_logic_vector(15 downto 0);
     type ty_align_done_trig_sh is array (0 to ROIC_NUM(GNR_MODEL) - 1) of std_logic_vector(15 downto 0);
@@ -205,7 +215,8 @@ architecture behavioral of ti_data_align is
 
 --  signal sivcnt_1d : std_logic_vector(11 downto 0);
 --  signal sivcnt_2d : std_logic_vector(11 downto 0);
-    type ty_sivcnt is array (0 to ROIC_NUM(GNR_MODEL) - 1) of std_logic_vector(11 downto 0);
+--  type ty_sivcnt is array (0 to ROIC_NUM(GNR_MODEL) - 1) of std_logic_vector(11 downto 0);
+    type ty_sivcnt is array (0 to ROIC_NUM(GNR_MODEL) - 1) of std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
     signal sivcnt_1d : ty_sivcnt;
     signal sivcnt_2d : ty_sivcnt;
 
@@ -1038,16 +1049,16 @@ begin
                 ihsync : in    std_logic;
                 ivsync : in    std_logic;
                 ihcnt  : in    std_logic_vector(9 downto 0);
-                ivcnt  : in    std_logic_vector(11 downto 0);
+                ivcnt  : in    std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
                 idata  : in    std_logic_vector(63 downto 0);
 
                 ireg_width  : in    std_logic_vector(11 downto 0);
-                ireg_height : in    std_logic_vector(11 downto 0);
+                ireg_height : in    std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
                 ohsync : out   std_logic;
                 ovsync : out   std_logic;
                 ohcnt  : out   std_logic_vector(9 downto 0);
-                ovcnt  : out   std_logic_vector(11 downto 0);
+                ovcnt  : out   std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
                 odata  : out   std_logic_vector(63 downto 0)
             );
         end component;
@@ -1098,16 +1109,16 @@ begin
                 ihsync : in    std_logic;
                 ivsync : in    std_logic;
                 ihcnt  : in    std_logic_vector(9 downto 0);
-                ivcnt  : in    std_logic_vector(11 downto 0);
+                ivcnt  : in    std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
                 idata  : in    std_logic_vector(63 downto 0);
 
                 ireg_width  : in    std_logic_vector(11 downto 0);
-                ireg_height : in    std_logic_vector(11 downto 0);
+                ireg_height : in    std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
                 ohsync : out   std_logic;
                 ovsync : out   std_logic;
                 ohcnt  : out   std_logic_vector(9 downto 0);
-                ovcnt  : out   std_logic_vector(11 downto 0);
+                ovcnt  : out   std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
                 odata  : out   std_logic_vector(63 downto 0)
             );
         end component;

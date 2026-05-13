@@ -92,10 +92,35 @@
     	01. EXT4343RD DDR3 * 4EA
     	02. //$ 260422 TFT Charge Injection
     	03. //$ 260423 AFE3256 does not use bmode gain
+    	02. 2026.04.21 14:15 //# 260421 SFP
+    	03. 2026.04.22 16:00 //# 2604221600 ADDR_SFP_STAT read + check_sfp_stat() auto-switch polling
+    	04. 2026.04.22 17:00 //# 2604221700 check_sfp_stat: boot-force port 0 + N-iter debounce (SFP_STAB_CNT)
+    	05. 2026.04.22 18:00 //# 2604221800 Moved once==100/5 m88x init to execute_cmd_port(0); cold-boot order (inity->IP wait->init)
+    	06. 2026.04.23 09:59 //# temp test 2604230959
+    	06. 2026.04.23 10:16 //# add Eth diable 2604231016
+    	07. 2026.04.23 10:30 //# 2604231030 port0 fix 0x1001: SFP_PORT0_APP_POLL path (skip deinit, poll PHY app ready)
+    	08. 2026.04.23 11:30 //# 2604231130 port0 fix 0x1001: skip 2nd m88x33xx_inity in execute_cmd_port (main.c:270 already did it)
+    	09. 2026.04.24 22:00 //# 2604242200 Add bcalfw command (FW-driven bit/word align): low-level helpers, bw_align_fw_bit_stable/word_align/run_one_ch/run_all in func_basic.c, paired HW changes (TI_LVDS_RX sticky latch + fw_mode mux, REG_TOP/TOP_HEADER 0x0490-0x049C)
+        10. //$ 260428 doc uart
+        11. //$ 260506 DDR CH3 disable
+        12. //$ 260507 fix timing profile
+		10. 2026.04.29 16:08 //# 2604291608 Add BASE_OFFSETX/Y globals (fpga_info.c/h), apply in execute_cmd_roi before binning scale to inject EXT3643R sensor border crop into ADDR_OFFSETX/Y at boot
+    	11. 2026.04.29 17:30 //# 2604291730 Add roi_init() in func_basic.c and call it at end of fpga_init() so ADDR_OFFSETX/Y get BASE_OFFSET applied at boot (update_hwload path is disabled)
+    	12. 2026.04.30        //$ 260430 execute_cmd_frate: ADDR_FRAME_TIME -> ROUND_UP_4 (round-up to mul of 4); ADDR_LINE_TIME -> ROUND_DOWN_4 (round-down to mul of 4); 2-bit align (lower 2 bits = 0)
+    	13. 2026.04.30        //$ 260430 Add 'apm' UART command (AXI Performance Monitor for DDR3 S_AXI bandwidth measurement) - command.c/h, display.c/h
+    	14. 2026.04.30 17:00  //$ 2604301700 Refactor ADDR_DDR_CH_EN: bit masks added in fpga_info.h (DDR_CH_EN_*), set_ddr_ch_en() composer in func_basic.c (base = W_ROIC|R_ROIC = 0x11; +R_OFFSET if func_offset_cal, +R_NUC if func_gain_cal, +W_OFFSET|R_D2M if func_d2m). 9 call sites in calib.c (6) and func_cmd.c (3) replaced with set_ddr_ch_en()
+    	15. 2026.04.30 18:00  //$ 2604301800 user.c gige link state callback: case3(Discovery Success) -> set_ddr_ch_en(); case0/1/2(disconnect) -> 0x00 (all DDR ch disabled). Debug prints added in set_ddr_ch_en() and rus load (func_offset_cal trace)
+    	16. 2026.05.06 16:50  //###### no use DOC 260506
+    	17. 2026.05.08 11:00  //# 2605081100 fbuf INIT|CLRSTAT@acq + log + fov + 256MB@0xB0000000
+    	18. 2026.05.08 16:00  //# 2605081600 bcalfw strict par match (require 0xFFF000) + retry up to 3x; OK only when mid valid AND par == 0xFFF000 (func_basic.c bw_align_fw_word_align/run_one_ch/bcalfw_one_pass)
+    	19. 2026.05.08 17:00  //# 2605081700 ADDR_DDR_CH_EN ownership moved to main loop: set_ddr_ch_en() called once after genicam_command() (writes every iteration, logs on change). All scattered set_ddr_ch_en() callers removed (calib.c x6, func_cmd.c x4, user.c x1). All 0b literal ADDR_DDR_CH_EN writes replaced with bit-mask macros (DDR_CH_ALL_OFF, DDR_CH_EN_R_OFFSET, DDR_CH_EN_R_NUC, ...) in calib.c/func_cmd.c/user.c. fpga_info.h: added DDR_CH_ALL_OFF.
+    	20. 2026.05.13        //$ 260513 APM util calc: 32->64 bytes/cycle (256->512-bit AXI for EXT4343RD); fix SLOT1/2 S02/S03 labels
 *****************************************************************************/
 
-u8  GIGE_DVER   [16] = "SW2.03.04      "; // SW1.SUB.MAIN version
-u8  FW_DATE     [20] = "2026.04.23 15:00";
+//u8  GIGE_DVER   [16] = "SW2.01.04      "; // SW1.SUB.MAIN version
+//u8  FW_DATE     [20] = "2026.04.23 11:30";
+u8  GIGE_DVER   [16] = "SW2.12.05      "; // 2604242200 bcalfw added
+u8  FW_DATE     [20] = "2026.05.13 12:00";
 
 /****************************************************************************
 timing profile => system_config
@@ -129,7 +154,8 @@ const u32 MPMC_HIGHADDR         = 0;
 // Stream channel packet size margins
 // The values represent net GVSP payload length without IP/UDP/GVSP headers!
 const u32 SCPS_MIN =  512;
-const u32 SCPS_MAX = 8192;
+//const u32 SCPS_MAX = 8192;
+const u32 SCPS_MAX = 16288;
 const u32 SCPS_INC =   16;  // AXI data width in bytes
 
 // Unused simulated EEPROM image
@@ -266,6 +292,7 @@ int main(void)
 //    if(DBG_main)func_printf("[DBG_main] m88x33xx_init(RXAUI) 1ST \r\n");
     func_printf("Ethernet m88x33xx_inity set...");
     m88x33xx_inity(RXAUI); //# 231208
+    g_port_sel = 0; //# 260421 default PHY port = Marvell
     func_printf("Done\r\n");
     //#######################################################################
     load_fpga_model(); //# 231023 no_model_def
@@ -290,7 +317,9 @@ int main(void)
         gige_force_gev_version(0x00020002);             // Force GEV spec version to 2.2
 #endif
 //        framebuf_init(1, 0, 0,0x04000000);              // Low latency, progressive-scan, GEV 2.x, buffer size
-        framebuf_init(1, 0, 0,0x06000000); //# v2 legacy
+//        framebuf_init(1, 0, 0,0x06000000); //# v2 legacy  --# 2605081330 Reverted 192MB attempt: heap overlap caused 'cannot connect'
+//        framebuf_init(1, 0, 0,0x0C000000); //# 2605081100 attempted 192MB heap-based - reverted
+        framebuf_init(1, 0, 0,0x10000000); //# 2605081400 256MB via _FRAMEBUF_DEDICATED_RAM_ at 0xB0000000 (last 256MB of DDR, bypasses heap). 7 frames @33MB margin for EXT3643R
         framebuf_control |= FRAMEBUF_C_EXTSTAT;         // Enable extended GVSP status codes
         func_printf("[UU] Running in GEV 2.x mode\r\n");
     }
@@ -351,16 +380,19 @@ int main(void)
         user_callback();
         uart_command();
         genicam_command();
+        set_ddr_ch_en(); //# 2605081700 main-loop owner of ADDR_DDR_CH_EN: rewrite every loop from feature flags, log on change only
         update_defect();
 //        if(DBG_main)func_printf("[DBG_main] update_data &&&&&&&&&&&&&&&&&&&&&&\r\n");
         update_data(); //# bit align
 //        update_sleep(); //temp #v2 231127
         update_fwtrig();
         update_acc(); //# for test 220329mbh
+        check_sfp_stat(); // 2604221600 SFP/RXAUI auto-switch polling
 //        if(DBG_main)func_printf("[DBG_main] update_hwload &&&&&&&&&&&&&&&&&&&&&\r\n");
 //        update_hwload();
 //        if(DBG_main)func_printf("#[DBG_main] update_hwload\r\n");
 //        update_hwload(); //# 231226
+/*  2604221800 Moved to execute_cmd_port(0) in func_cmd.c (cold-boot order + IP wait + init)
         if (once == 4 )
         {
 //             m88x33xx_inity(RXAUI); //# 220628mbh
@@ -407,25 +439,7 @@ int main(void)
            if (ret)
         	   func_printf("m88x33xx_init FAILED with ERROR code %d\r\n", ret);
 
-//           // Initialize framebuffer and set GEV version
-//           if ((video_gpio_in & 0x00000001) == 0)
-//           {
-//               gige_set_gev_version(1);                        // GEV 1.x (SW11 switch 1 position "OFF")
-//               framebuf_init(1, 0, 1, 0x04000000);             // Low latency, progressive-scan, GEV 1.x, buffer size
-//               framebuf_control &= ~FRAMEBUF_C_EXTSTAT;        // Disable extended GVSP status codes
-//               func_printf("[UU] Running in GEV 1.2 mode\r\n");
-//           }
-//           else
-//           {
-//               gige_set_gev_version(2);                        // GEV 2.x (SW11 switch 1 position "ON")
-//       #if 0
-//               gige_force_gev_version(0x00020002);             // Force GEV spec version to 2.2
-//       #endif
-//               framebuf_init(1, 0, 0,0x04000000);              // Low latency, progressive-scan, GEV 2.x, buffer size
-//               framebuf_control |= FRAMEBUF_C_EXTSTAT;         // Enable extended GVSP status codes
-//               func_printf("[UU] Running in GEV 2.x mode\r\n");
-//           }
-//           execute_cmd_load_hw_calibration(1); //# 231226
+           // Initialize framebuffer and set GEV version (kept inside the comment since pre-existing // lines)
            if(DBG_main)func_printf("#[DBG_main] func_width=%d\r\n",func_width);
            if(DBG_main)func_printf("#[DBG_main] func_height=%d\r\n",func_height);
            if(DBG_main)func_printf("#[DBG_main] func_width=%d\r\n",REG(ADDR_WIDTH));
@@ -436,6 +450,7 @@ int main(void)
             once++; //220118mbh
 
         }
+*/
 /*
 // ================================================================== DEBUG ====
         if (!XUartLite_IsReceiveEmpty(XPAR_UARTLITE_0_BASEADDR))

@@ -45,9 +45,9 @@ entity TI_FRAME_MANAGER is
         oreg_ext_frame_time : out   std_logic_vector(31 downto 0);
 
         ireg_offsetx        : in    std_logic_vector(11 downto 0);
-        ireg_offsety        : in    std_logic_vector(11 downto 0);
+        ireg_offsety        : in    std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
         ireg_width          : in    std_logic_vector(11 downto 0);
-        ireg_height         : in    std_logic_vector(11 downto 0);
+        ireg_height         : in    std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
         iext_trig           : in    std_logic;
         oext_trig           : out   std_logic;
@@ -148,9 +148,9 @@ architecture Behavioral of TI_FRAME_MANAGER is
             ireg_frame_time     : in    std_logic_vector(31 downto 0);
 
             ireg_offsetx        : in    std_logic_vector(11 downto 0);
-            ireg_offsety        : in    std_logic_vector(11 downto 0);
+            ireg_offsety        : in    std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             ireg_width          : in    std_logic_vector(11 downto 0);
-            ireg_height         : in    std_logic_vector(11 downto 0);
+            ireg_height         : in    std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
             iext_trig           : in    std_logic;
             oext_trig           : out   std_logic;

@@ -1,24 +1,26 @@
 {
-  "permissions": {
-    "allow": [
-      "Read",
-      "Grep",
-      "Glob",
-      "Bash(*)"
-    ],
-    "deny": [
-      "Edit(*)",
-      "Write(*)",
-      "Bash(rm:*)",
-      "Bash(mv:*)",
-      "Bash(cp:*)",
-      "Bash(chmod:*)",
-      "Bash(sed:*)"
-    ],
-    "defaultMode": "plan"
-  },
-  "enabledPlugins": {
-    "github@claude-plugins-official": true
-  },
-  "enablePowerShellTool": true
+    "permissions": {
+        "allow": [
+            "Read",
+            "Grep",
+            "Glob",
+            "Edit",
+            "Write",
+            "Bash(*)"
+        ],
+        "deny": [
+            "Bash(rm:*)",
+            "Bash(mv:*)",
+            "Bash(cp:*)",
+            "Bash(chmod:*)",
+            "Bash(sed:*)",
+            "Bash(sudo:*)",
+            "Bash(python:*)"
+        ],
+        "defaultMode": "default"
+    },
+    "enabledPlugins": {
+        "github@claude-plugins-official": true
+    },
+    "enablePowerShellTool": true
 }

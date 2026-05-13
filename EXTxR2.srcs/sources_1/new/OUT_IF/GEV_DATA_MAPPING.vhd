@@ -15,7 +15,7 @@ entity GEV_DATA_MAPPING is
         ihsync : in  std_logic;
         ivsync : in  std_logic;
         ihcnt  : in  std_logic_vector(9 downto 0);
-        ivcnt  : in  std_logic_vector(11 downto 0);
+        ivcnt  : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
         idata  : in  std_logic_vector(63 downto 0);
 
         ofb_frame : out std_logic;

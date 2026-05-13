@@ -41,9 +41,9 @@ entity TI_TFT_CTRL is
         ireg_frame_time     : in  std_logic_vector(31 downto 0);
 
         ireg_offsetx        : in  std_logic_vector(11 downto 0);
-        ireg_offsety        : in  std_logic_vector(11 downto 0);
+        ireg_offsety        : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
         ireg_width          : in  std_logic_vector(11 downto 0);
-        ireg_height         : in  std_logic_vector(11 downto 0);
+        ireg_height         : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
         iext_trig           : in  std_logic;
         oext_trig           : out std_logic;
@@ -170,13 +170,15 @@ architecture Behavioral of TI_TFT_CTRL is
     signal sroic_sync_s0        : std_logic;
     signal sroic_tp_sel         : std_logic;
     signal sroic_dvalid         : std_logic;
-    signal sroic_line_cnt       : std_logic_vector(11 downto 0);
+--  signal sroic_line_cnt       : std_logic_vector(11 downto 0);
+    signal sroic_line_cnt       : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
     signal sroic_cds1_time      : std_logic_vector(15 downto 0);
     signal sroic_cds2_time      : std_logic_vector(15 downto 0);
     signal sroic_intrst_time    : std_logic_vector(15 downto 0);
 
-    signal sgate_line_cnt       : std_logic_vector(11 downto 0);
+--  signal sgate_line_cnt       : std_logic_vector(11 downto 0);
+    signal sgate_line_cnt       : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sgate_ch_cnt         : integer range 0 to GATE_MAX_CH(GNR_MODEL)-1;
     signal sgate_num            : integer range 0 to GATE_NUM(GNR_MODEL)-1;
     signal sgate_cnt            : std_logic_vector(31 downto 0);
@@ -195,7 +197,8 @@ architecture Behavioral of TI_TFT_CTRL is
     signal sgate_flk            : std_logic;
     signal sgate_dummy_en       : std_logic;
     signal sgate_dummy_num      : integer range 0 to MAX_HEIGHT(GNR_MODEL)-1;
-    signal sgate_dummy_cnt      : std_logic_vector(11 downto 0);
+--  signal sgate_dummy_cnt      : std_logic_vector(11 downto 0);
+    signal sgate_dummy_cnt      : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sgate_dummy_add      : integer range 0 to 3; -- update 210126
 
     signal stft_busy            : std_logic;
@@ -232,8 +235,10 @@ architecture Behavioral of TI_TFT_CTRL is
     signal sreg_exp_time        : std_logic_vector(31 downto 0);
     signal sreg_frame_time      : std_logic_vector(31 downto 0);
 
-    signal sreg_offsety         : std_logic_vector(11 downto 0);
-    signal sreg_height          : std_logic_vector(11 downto 0);
+--  signal sreg_offsety         : std_logic_vector(11 downto 0);
+--  signal sreg_height          : std_logic_vector(11 downto 0);
+    signal sreg_offsety         : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal sreg_height          : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
     signal sreg_timing_mode     : std_logic_vector( 1 downto 0); --* jhkim
 
@@ -310,12 +315,18 @@ architecture Behavioral of TI_TFT_CTRL is
     signal sreg_frame_time_1d       : std_logic_vector(31 downto 0);
     signal sreg_frame_time_2d       : std_logic_vector(31 downto 0);
     signal sreg_frame_time_3d       : std_logic_vector(31 downto 0);
-    signal sreg_offsety_1d          : std_logic_vector(11 downto 0);
-    signal sreg_offsety_2d          : std_logic_vector(11 downto 0);
-    signal sreg_offsety_3d          : std_logic_vector(11 downto 0);
-    signal sreg_height_1d           : std_logic_vector(11 downto 0);
-    signal sreg_height_2d           : std_logic_vector(11 downto 0);
-    signal sreg_height_3d           : std_logic_vector(11 downto 0);
+--  signal sreg_offsety_1d          : std_logic_vector(11 downto 0);
+--  signal sreg_offsety_2d          : std_logic_vector(11 downto 0);
+--  signal sreg_offsety_3d          : std_logic_vector(11 downto 0);
+--  signal sreg_height_1d           : std_logic_vector(11 downto 0);
+--  signal sreg_height_2d           : std_logic_vector(11 downto 0);
+--  signal sreg_height_3d           : std_logic_vector(11 downto 0);
+    signal sreg_offsety_1d          : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal sreg_offsety_2d          : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal sreg_offsety_3d          : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal sreg_height_1d           : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal sreg_height_2d           : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal sreg_height_3d           : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
     signal sreg_timing_mode_1d      : std_logic_vector( 1 downto 0); --* jhkim
     signal sreg_timing_mode_2d      : std_logic_vector( 1 downto 0); --* jhkim

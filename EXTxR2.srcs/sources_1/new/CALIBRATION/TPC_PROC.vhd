@@ -25,13 +25,13 @@ port (
 
     ihsync          : in  std_logic;
     ivsync          : in  std_logic;
-    ivcnt           : in  std_logic_vector(11 downto 0);
+    ivcnt           : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     ihcnt           : in  std_logic_vector(11 downto 0);
     idata           : in  std_logic_vector(15 downto 0);
 
     ohsync          : out std_logic;
     ovsync          : out std_logic;
-    ovcnt           : out std_logic_vector(11 downto 0);
+    ovcnt           : out std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     ohcnt           : out std_logic_vector(11 downto 0);
     odata           : out std_logic_vector(23 downto 0)
 );
@@ -69,17 +69,17 @@ architecture Behavioral of TPC_PROC is
 
     signal shsync_gain_cal  : std_logic;
     signal svsync_gain_cal  : std_logic;
-    signal svcnt_gain_cal   : std_logic_vector(11 downto 0);
+    signal svcnt_gain_cal   : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal shcnt_gain_cal   : std_logic_vector(11 downto 0);
     signal sdata_gain_cal   : std_logic_vector(23 downto 0);
     signal shsync_offset_cal : std_logic;
     signal svsync_offset_cal : std_logic;
-    signal svcnt_offset_cal : std_logic_vector(11 downto 0);
+    signal svcnt_offset_cal : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal shcnt_offset_cal : std_logic_vector(11 downto 0);
     signal sdata_offset_cal : std_logic_vector(23 downto 0);
     signal shsync_out       : std_logic;
     signal svsync_out       : std_logic;
-    signal svcnt_out        : std_logic_vector(11 downto 0);
+    signal svcnt_out        : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal shcnt_out        : std_logic_vector(11 downto 0);
     signal sdata_out        : std_logic_vector(23 downto 0);
 
@@ -100,10 +100,10 @@ architecture Behavioral of TPC_PROC is
     signal shcnt_2d  : std_logic_vector(11 downto 0);
     signal shcnt_3d  : std_logic_vector(11 downto 0);
     signal shcnt_4d  : std_logic_vector(11 downto 0);
-    signal svcnt_1d  : std_logic_vector(11 downto 0);
-    signal svcnt_2d  : std_logic_vector(11 downto 0);
-    signal svcnt_3d  : std_logic_vector(11 downto 0);
-    signal svcnt_4d  : std_logic_vector(11 downto 0);
+    signal svcnt_1d  : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal svcnt_2d  : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal svcnt_3d  : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal svcnt_4d  : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sdata_1d  : std_logic_vector(15 downto 0);
     signal sdata_2d  : std_logic_vector(15 downto 0);
     signal sdata_3d  : std_logic_vector(15 downto 0);

@@ -14,12 +14,12 @@ entity GEV_IF is
 
         ireg_out_en : in  std_logic;
         ireg_width  : in  std_logic_vector(11 downto 0);
-        ireg_height : in  std_logic_vector(11 downto 0);
+        ireg_height : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
         ihsync : in  std_logic;
         ivsync : in  std_logic;
         ihcnt  : in  std_logic_vector(11 downto 0);
-        ivcnt  : in  std_logic_vector(11 downto 0);
+        ivcnt  : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
         idata  : in  std_logic_vector(15 downto 0);
 
         ofb_frame : out std_logic;
@@ -39,18 +39,18 @@ architecture Behavioral of GEV_IF is
             igev_rstn  : in  std_logic;
 
             ireg_width  : in  std_logic_vector(11 downto 0);
-            ireg_height : in  std_logic_vector(11 downto 0);
+            ireg_height : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
             ihsync : in  std_logic;
             ivsync : in  std_logic;
             ihcnt  : in  std_logic_vector(11 downto 0);
-            ivcnt  : in  std_logic_vector(11 downto 0);
+            ivcnt  : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             idata  : in  std_logic_vector(15 downto 0);
 
             ohsync : out std_logic;
             ovsync : out std_logic;
             ohcnt  : out std_logic_vector(9 downto 0);
-            ovcnt  : out std_logic_vector(11 downto 0);
+            ovcnt  : out std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             odata  : out std_logic_vector(63 downto 0)
         );
     end component;
@@ -65,7 +65,7 @@ architecture Behavioral of GEV_IF is
             ihsync : in  std_logic;
             ivsync : in  std_logic;
             ihcnt  : in  std_logic_vector(9 downto 0);
-            ivcnt  : in  std_logic_vector(11 downto 0);
+            ivcnt  : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             idata  : in  std_logic_vector(63 downto 0);
 
             ofb_frame : out std_logic;
@@ -78,7 +78,7 @@ architecture Behavioral of GEV_IF is
     signal shsync_gev_dconv : std_logic;
     signal svsync_gev_dconv : std_logic;
     signal shcnt_gev_dconv  : std_logic_vector(9 downto 0);
-    signal svcnt_gev_dconv  : std_logic_vector(11 downto 0);
+    signal svcnt_gev_dconv  : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sdata_gev_dconv  : std_logic_vector(63 downto 0);
 
     component ILA_GEV_IF

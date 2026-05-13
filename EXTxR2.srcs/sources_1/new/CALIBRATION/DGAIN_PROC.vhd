@@ -15,13 +15,13 @@ port (
     ihsync     : in  std_logic;
     ivsync     : in  std_logic;
     ihcnt      : in  std_logic_vector(11 downto 0);
-    ivcnt      : in  std_logic_vector(11 downto 0);
+    ivcnt      : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     idata      : in  std_logic_vector(23 downto 0);
 
     ohsync     : out std_logic;
     ovsync     : out std_logic;
     ohcnt      : out std_logic_vector(11 downto 0);
-    ovcnt      : out std_logic_vector(11 downto 0);
+    ovcnt      : out std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     odata      : out std_logic_vector(15 downto 0)
 );
 end DGAIN_PROC;
@@ -58,7 +58,7 @@ architecture Behavioral of DGAIN_PROC is
     signal shsync_out    : std_logic;
     signal svsync_out    : std_logic;
     signal shcnt_out     : std_logic_vector(11 downto 0);
-    signal svcnt_out     : std_logic_vector(11 downto 0);
+    signal svcnt_out     : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sdata_out     : std_logic_vector(15 downto 0);
 
     signal shsync_1d     : std_logic;
@@ -76,11 +76,11 @@ architecture Behavioral of DGAIN_PROC is
     signal shcnt_3d      : std_logic_vector(11 downto 0);
     signal shcnt_4d      : std_logic_vector(11 downto 0);
     signal shcnt_5d      : std_logic_vector(11 downto 0);
-    signal svcnt_1d      : std_logic_vector(11 downto 0);
-    signal svcnt_2d      : std_logic_vector(11 downto 0);
-    signal svcnt_3d      : std_logic_vector(11 downto 0);
-    signal svcnt_4d      : std_logic_vector(11 downto 0);
-    signal svcnt_5d      : std_logic_vector(11 downto 0);
+    signal svcnt_1d      : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal svcnt_2d      : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal svcnt_3d      : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal svcnt_4d      : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal svcnt_5d      : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
 begin
 

@@ -13,18 +13,18 @@ entity GEV_DATA_CONV is
         igev_rstn  : in  std_logic;
 
         ireg_width  : in  std_logic_vector(11 downto 0);
-        ireg_height : in  std_logic_vector(11 downto 0);
+        ireg_height : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
         ihsync : in  std_logic;
         ivsync : in  std_logic;
         ihcnt  : in  std_logic_vector(11 downto 0);
-        ivcnt  : in  std_logic_vector(11 downto 0);
+        ivcnt  : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
         idata  : in  std_logic_vector(15 downto 0);
 
         ohsync : out std_logic;
         ovsync : out std_logic;
         ohcnt  : out std_logic_vector(9 downto 0);
-        ovcnt  : out std_logic_vector(11 downto 0);
+        ovcnt  : out std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
         odata  : out std_logic_vector(63 downto 0)
     );
 end GEV_DATA_CONV;
@@ -71,10 +71,10 @@ architecture Behavioral of GEV_DATA_CONV is
     signal shsync_conv : std_logic;
     signal svsync_conv : std_logic;
     signal shcnt_conv  : std_logic_vector(9 downto 0);
-    signal svcnt_conv  : std_logic_vector(11 downto 0);
+    signal svcnt_conv  : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
     signal sreg_width  : std_logic_vector(11 downto 0);
-    signal sreg_height : std_logic_vector(11 downto 0);
+    signal sreg_height : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
     signal sena_1d         : std_logic;
     signal sena_2d         : std_logic;
@@ -84,7 +84,7 @@ architecture Behavioral of GEV_DATA_CONV is
     signal shsync_conv_1d  : std_logic;
     signal svsync_conv_1d  : std_logic;
     signal shcnt_conv_1d   : std_logic_vector(9 downto 0);
-    signal svcnt_conv_1d   : std_logic_vector(11 downto 0);
+    signal svcnt_conv_1d   : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
     --# Preventing image vertical rotation, syncronize V, 231212
     signal svsync_1d        : std_logic;

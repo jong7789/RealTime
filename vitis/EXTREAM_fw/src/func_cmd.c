@@ -20,6 +20,7 @@
 #include "user.h"
 #include "math.h"
 #include "fpga_info.h"
+#include "phy.h" //# 260421 for m88x33xx_* / ael2005_init
 
 float afe_time_us       = 16.0;
 float data_time_us      = 16.0;
@@ -82,6 +83,7 @@ u32 func_ddr_out        = 0;
 u32 func_gain_cal       = 0;
 u32 func_offset_cal     = 0;
 u32 func_defect_cal     = 0;
+u32 func_doc			= 0;
 u32 func_defect_map     = 0;
 u32 func_dgain          = 100;
 u32 func_img_proc       = 0;
@@ -307,6 +309,137 @@ void execute_cmd_auth(u32 data) {
     if(data == 1234)        func_access_level = 1;
     else if(data == 8546)   func_access_level = 2;
     else                    func_access_level = 0;
+}
+
+//# 260421 PHY port selection state (0:Marvell 1:SFP)
+u8 g_port_sel = 0;
+
+// 2604231030 Select init strategy for port 0:
+//   defined => NEW: skip deinit, poll PHY app code ready (fixes 0x1001 error)
+//   undef   => OLD: keep deinit + fixed usleep(1sec) delay (previous behavior)
+#define SFP_PORT0_APP_POLL
+
+/*  2604221800 Old execute_cmd_port kept for reference; superseded by cold-boot order version below
+void execute_cmd_port(u32 data) {
+    if (data == 0) {
+        //# 260421 Marvell re-init: deinit -> init -> inity
+        m88x33xx_deinit();
+        gige_init(0, XPAR__CPU4DDR_I_M1_AXI_GEV_BASEADDR, DEV_MODE_TX, XPAR_CPU_M_AXI_DP_FREQ_HZ,
+                     PHY_NBASET_MRVL, 0, 2500000, 0, SCPS_MAX, DBG_ICMP);
+
+        m88x33xx_init(RXAUI);
+        m88x33xx_inity(RXAUI);
+        g_port_sel = 0;
+    }
+    else if (data == 1) {
+        //# 260421 SFP path: deinit Marvell then init AEL2005
+        m88x33xx_deinit();
+//        ael2005_init();
+        gige_init(0, XPAR_M1_AXI_GEV_BASEADDR, DEV_MODE_TX, XPAR_CPU_M_AXI_DP_FREQ_HZ,
+                  PHY_10G_PCS_PMA, 0x00, 2500000, 0, SCPS_MAX, DBG_ICMP);
+//        gige_set_params(1, 1, 0x01);    // I2C bus to Si5324 connected, heartbeat enabled, image payload
+//        sfp_clock_init();
+        pcs_pma_init();
+        gige_init(0, XPAR_M1_AXI_GEV_BASEADDR, DEV_MODE_TX, XPAR_CPU_M_AXI_DP_FREQ_HZ,
+                  PHY_10G_PCS_PMA, 0x00, 2500000, 0, SCPS_MAX, DBG_ICMP);
+
+        g_port_sel = 1;
+    }
+}
+*/
+
+// 2604231030 Cold-boot order for data==0: gige_init -> inity -> [app code poll] -> init
+//            NEW path (#define SFP_PORT0_APP_POLL): skip deinit, poll PHY app ready
+//            OLD path (#undef): keep deinit + usleep(1s) + IP wait (fallback)
+void execute_cmd_port(u32 data) {
+    if (data == 0) {
+        int ret;
+
+#ifdef SFP_PORT0_APP_POLL
+        // 2604231130 NEW path: skip 2nd inity (main.c:270 already uploaded firmware)
+        //            Calling inity twice resets PHY MCU and prevents app code reboot -> 0x1001
+        gige_init(0, XPAR__CPU4DDR_I_M1_AXI_GEV_BASEADDR, DEV_MODE_TX, XPAR_CPU_M_AXI_DP_FREQ_HZ,
+                     PHY_NBASET_MRVL, 0, 2500000, 0, SCPS_MAX, DBG_ICMP);
+
+    gige_set_data_rates(200, 10000);                    // f(tx_stm_clk) = 200MHz, 10Gbps Ethernet link
+    gige_set_link_config_cap(LINK_CONFIG_CAP_SL);       // Physical link configuration capabilities
+    gige_set_link_config(LINK_CONFIG_SL);               // Current physical link configuration
+    gige_set_sceba(0, MAP_SCEBA);                       // Set stream channel extended bootstrap address
+
+//        func_printf("Ethernet m88x33xx_inity set...");
+//        m88x33xx_inity(RXAUI);     // 2604231130 removed: 2nd call corrupts running PHY state
+//        func_printf("Done\r\n");
+
+        // Wait for PHY internal firmware (app code) to be ready — usually already running from main.c:270
+        (void)m88x33xx_wait_app_ready(5000);
+
+        // m88x33xx_initx(RXAUI);
+        func_printf("Ethernet m88x33xx_init set...");
+        ret = m88x33xx_init(RXAUI);
+#else
+        // 2604221800 OLD path: deinit + fixed usleep(1sec) + IP wait (fallback)
+        u32 wait_cnt;
+
+        //# 260421 Marvell re-init (cold-boot order)
+        m88x33xx_deinit();
+        gige_init(0, XPAR__CPU4DDR_I_M1_AXI_GEV_BASEADDR, DEV_MODE_TX, XPAR_CPU_M_AXI_DP_FREQ_HZ,
+                     PHY_NBASET_MRVL, 0, 2500000, 0, SCPS_MAX, DBG_ICMP);
+
+        func_printf("XREG(XGIGE_ADDR_IP)=%x \r\n",XREG(XGIGE_ADDR_IP));
+        // 2604221800 inity first (was main.c:270 setup path)
+        func_printf("Ethernet m88x33xx_inity set...");
+        m88x33xx_inity(RXAUI);
+        func_printf("XREG(XGIGE_ADDR_IP)=%x \r\n",XREG(XGIGE_ADDR_IP));
+        func_printf("Done\r\n");
+
+        // 2604221800 Wait for IP assignment
+        wait_cnt = 0;
+        usleep(1000000); //# 1sec
+
+        func_printf("XREG(XGIGE_ADDR_IP)=%x \r\n",XREG(XGIGE_ADDR_IP));
+        while (XREG(XGIGE_ADDR_IP) == 0) {
+            usleep(1000);
+            wait_cnt++;
+            if (wait_cnt >= 100) {
+                func_printf("[port0] IP wait timeout (XGIGE_ADDR_IP=0)\r\n");
+                break;
+            }
+        }
+
+        func_printf("Ethernet m88x33xx_init set...");
+        ret = m88x33xx_init(RXAUI);
+#endif
+
+        if (ret)
+            func_printf("m88x33xx_init FAILED with ERROR code %d\r\n", ret);
+
+        disp_cmd_rtime();
+
+        // boot LED per gige link status (was main.c once==5)
+        {
+            u32 gige_status = (gige_gcsr & 0x03);
+            if (gige_status == 1 || gige_status == 3)
+                REG(ADDR_LED_CTRL) = LED_CTRL_OFF;
+            else
+                REG(ADDR_LED_CTRL) = LED_CTRL_ON;
+        }
+
+        g_port_sel = 0;
+    }
+    else if (data == 1) {
+        //# 260421 SFP path: deinit Marvell then init AEL2005
+        m88x33xx_deinit();
+//        ael2005_init();
+        gige_init(0, XPAR_M1_AXI_GEV_BASEADDR, DEV_MODE_TX, XPAR_CPU_M_AXI_DP_FREQ_HZ,
+                  PHY_10G_PCS_PMA, 0x00, 2500000, 0, SCPS_MAX, DBG_ICMP);
+//        gige_set_params(1, 1, 0x01);    // I2C bus to Si5324 connected, heartbeat enabled, image payload
+//        sfp_clock_init();
+        pcs_pma_init();
+        gige_init(0, XPAR_M1_AXI_GEV_BASEADDR, DEV_MODE_TX, XPAR_CPU_M_AXI_DP_FREQ_HZ,
+                  PHY_10G_PCS_PMA, 0x00, 2500000, 0, SCPS_MAX, DBG_ICMP);
+
+        g_port_sel = 1;
+    }
 }
 void execute_cmd_psel_val(u32 data, u32 val) {
     REG(ADDR_TP_SEL) = 15;
@@ -681,6 +814,13 @@ void execute_cmd_roi(u32 offsetx, u32 offsety, u32 width, u32 height) {
     if(DBG_roi)func_printf("#[DBG_roi] func_offsetx=%d func_offsety=%d\r\n",func_offsetx, func_offsety);
     if(DBG_roi)func_printf("#[DBG_roi] func_width=%d func_height=%d\r\n",func_width, func_height);
 
+    //$ 2604291608 Add sensor base offset before binning scale (EXT3643R border crop)
+    offsetx += BASE_OFFSETX;
+    offsety += BASE_OFFSETY;
+    //$ 2604291608 Trace: confirm execute_cmd_roi runs at boot and BASE_OFFSET applied
+    if(DBG_roi)func_printf("#[DBG_roi] BASE_X=%d BASE_Y=%d offsetx=%d offsety=%d bin=%d\r\n",
+                BASE_OFFSETX, BASE_OFFSETY, offsetx, offsety, func_binning_mode);
+
     switch (func_binning_mode) {
         case 0  :
             offsetx_fpga = (offsetx * 1);
@@ -970,6 +1110,14 @@ void execute_cmd_fmax(void) {
     else                                  ; //func_frate = func_frate;
 }
 #define DBG_FRATE 0
+//$ 260430 Round-up to nearest even (force LSB=0) for FRAME_TIME / LINE_TIME REG
+//#define ROUND_UP_EVEN(x)    (((u32)(x) + 1U) & ~1U)
+//$ 260430 Round-down to nearest even (clear LSB) for LINE_TIME REG
+//#define ROUND_DOWN_EVEN(x)  ((u32)(x) & ~1U)
+//$ 260430 Round-up to multiple of 4 (clear lower 2 bits) for FRAME_TIME REG
+#define ROUND_UP_4(x)    (((u32)(x) + 3U) & ~3U)
+//$ 260430 Round-down to multiple of 4 (clear lower 2 bits) for LINE_TIME REG
+#define ROUND_DOWN_4(x)  ((u32)(x) & ~3U)
 void execute_cmd_frate(u32 data) {
 //  float dataf = data / 1000.0;
 //  float dataf = func_frate_calc; //220120mbh
@@ -991,11 +1139,17 @@ void execute_cmd_frate(u32 data) {
     ft_roll = (u32)(real_frame_time * 256 / 256) -1; // It prevent short bar noise at rolling 1fps 211230mbh
 
     if (func_shutter_mode==1 && func_trig_mode==2)  // global - ext2 220117 mbh exception
-    	REG(ADDR_FRAME_TIME) = ft_ext2;
+//    	REG(ADDR_FRAME_TIME) = ft_ext2;
+//    	REG(ADDR_FRAME_TIME) = ROUND_UP_EVEN(ft_ext2); //$ 260430 force even
+    	REG(ADDR_FRAME_TIME) = ROUND_UP_4(ft_ext2); //$ 260430 round-up to mul of 4 (2-bit align)
 	else if (func_shutter_mode==1 && func_trig_mode==1) // global - ext1
-		REG(ADDR_FRAME_TIME) = ft_ext1;
+//		REG(ADDR_FRAME_TIME) = ft_ext1;
+//		REG(ADDR_FRAME_TIME) = ROUND_UP_EVEN(ft_ext1); //$ 260430 force even
+		REG(ADDR_FRAME_TIME) = ROUND_UP_4(ft_ext1); //$ 260430 round-up to mul of 4 (2-bit align)
 	else
-		REG(ADDR_FRAME_TIME) = ft_roll;
+//		REG(ADDR_FRAME_TIME) = ft_roll;
+//		REG(ADDR_FRAME_TIME) = ROUND_UP_EVEN(ft_roll); //$ 260430 force even
+		REG(ADDR_FRAME_TIME) = ROUND_UP_4(ft_roll); //$ 260430 round-up to mul of 4 (2-bit align)
 
     if (func_shutter_mode==1 && func_trig_mode==2)  // global - ext2 220117 mbh exception
         linetime_sel = ft_ext2;
@@ -1033,7 +1187,10 @@ void execute_cmd_frate(u32 data) {
 //	float sel_line_time = (def_gev_speed == 10) ? (float)FPGA_DATA_CLK / MAX_FRATE / (func_height) + 0.5 :
 //						  (min_line_time < max_line_time) ? max_line_time : min_line_time;
 
-    REG(ADDR_LINE_TIME)=(u32)sel_line_time;
+//    REG(ADDR_LINE_TIME)=(u32)sel_line_time;
+//    REG(ADDR_LINE_TIME) = ROUND_UP_EVEN((u32)sel_line_time); //$ 260430 force even
+//    REG(ADDR_LINE_TIME) = ROUND_DOWN_EVEN((u32)sel_line_time); //$ 260430 force even (round-down)
+    REG(ADDR_LINE_TIME) = ROUND_DOWN_4((u32)sel_line_time); //$ 260430 round-down to mul of 4 (2-bit align)
     if(DBG_FRATE) func_printf("[DBG_FRATE]sel_line_time = %d \r\n",(int)sel_line_time);
     if(DBG_FRATE) func_printf("[DBG_FRATE]max_line_time = %d \r\n",(int)max_line_time);
     if(DBG_FRATE) func_printf("[DBG_FRATE]min_line_time = %d \r\n",(int)min_line_time);
@@ -1112,7 +1269,6 @@ void execute_cmd_fmax2(u32 MAIN_CLK) {
     else                        func_frate_max = (1000000 / (frame_time_us + trst_time_us + MIN_EWT));
 
     REG(ADDR_LINE_TIME)     = (u32)((float)(FPGA_DATA_CLK) / (func_height * func_frate_max)) - 100;
-    func_printf("fmax2_line_time = %d\r\n",REG(ADDR_LINE_TIME));
 
     // dskim - 21.03.15 - HEIGH 따라서 강제로 frate max 변경
     // dskim - 21.04.06 - 컴파일 오류 수정
@@ -1184,10 +1340,11 @@ void execute_cmd_gain(u32 data) {
 //  if(func_gain_cal)   REG(ADDR_DDR_CH_EN) = 0b01110101;   // d2m need wavg
 //  else                REG(ADDR_DDR_CH_EN) = 0b01010001;   //
 
-    REG(ADDR_DDR_CH_EN) = 0b01010001;
-if(func_gain_cal)             REG(ADDR_DDR_CH_EN)   = 0b01110001; // read ch 0,1,2 On 210302
-if(func_d2m)                  REG(ADDR_DDR_CH_EN)   = 0b11010101; // d2m on write ch2 avg for ref minus 210729
-if(func_gain_cal && func_d2m) REG(ADDR_DDR_CH_EN)   = 0b11110101; // d2m on write ch2 avg for ref minus 210729
+//  REG(ADDR_DDR_CH_EN) = 0b01010001;
+//if(func_gain_cal)             REG(ADDR_DDR_CH_EN)   = 0b01110001; // read ch 0,1,2 On 210302
+//if(func_d2m)                  REG(ADDR_DDR_CH_EN)   = 0b11010101; // d2m on write ch2 avg for ref minus 210729
+//if(func_gain_cal && func_d2m) REG(ADDR_DDR_CH_EN)   = 0b11110101; // d2m on write ch2 avg for ref minus 210729
+    //# 2605081700 set_ddr_ch_en() removed; main loop reapplies composer next iteration
 }
 
 void execute_cmd_offset(u32 data) {
@@ -1437,12 +1594,13 @@ u8 execute_cmd_rus(u32 data) {
 
     for(i = 0; i < 100; i++) {
         rdata[i] = flash_read_dword(addr);
+        if(DBG_rus) func_printf("DBG_rus rdata[%d]=%d\r\n",i, rdata[i] );
         addr += 4;
     }
 
     for(i = 0; i < 53; i++) {   // dskim - 21.09.24 - edge - 구버전 호환성
         if(flag_data == 0) {
-            if(rdata[i] == 0xFFFFFFFF) {
+            if((rdata[i] == 0xFFFFFFFF) || (rdata[i] == 0x0)) { //# 260429
                 flag_data = 0;
             } else
                 flag_data = 1;
@@ -1477,7 +1635,7 @@ u8 execute_cmd_rus(u32 data) {
     if(rdata[58] != 0xFFFFFFFF)
         func_exposure_type   = rdata[58];       // dskim - dynamic, static
 
-    if(!flag_data) { func_printf("\r\n");   return 1; }
+    if(!flag_data) { func_printf("flag 0 \r\n");   return 1; }
 
     func_frate              = rdata[0] / 1000.0;
     func_gewt               = rdata[1];
@@ -1517,10 +1675,16 @@ u8 execute_cmd_rus(u32 data) {
     // TI_ROIC
 //  func_roic_mute          = rdata[31] / 1000.0;
     func_offset_cal         = rdata[32];
+    func_printf("[DBG] rus load: func_offset_cal = %d (rdata[32])\r\n", func_offset_cal); //$ 2604301730 debug DDR_CH_EN init
     func_hw_debug           = rdata[33];
     func_gate_rnum          = rdata[34];
     func_exp_mode           = rdata[35];
     func_erase_time         = rdata[36];
+
+    if(DBG_rus) func_printf("DBG_rus func_frate=%d\r\n",func_frate);
+    if(DBG_rus) func_printf("DBG_rus func_gewt=%d\r\n",func_gewt);
+    if(DBG_rus) func_printf("DBG_rus func_width=%d\r\n",func_width);
+    if(DBG_rus) func_printf("DBG_rus func_height=%d\r\n",func_height);
 
     // TI_ROIC
     k = 37;
@@ -3290,68 +3454,69 @@ void execute_cmd_cddr(u32 data) {
                     func_printf("0 [None]\r\n");
 //                  if(func_gain_cal)   REG(ADDR_DDR_CH_EN) = 0b01110001;
 //                  else                REG(ADDR_DDR_CH_EN) = 0b01010001;
-                    REG(ADDR_DDR_CH_EN) = 0b01010001;
-                    if(func_gain_cal)             REG(ADDR_DDR_CH_EN)   = 0b01110001; // read ch 0,1,2 On 210302
-                    if(func_d2m)                  REG(ADDR_DDR_CH_EN)   = 0b11010101; // d2m on write ch2 avg for ref minus 210729
-                    if(func_gain_cal && func_d2m) REG(ADDR_DDR_CH_EN)   = 0b11110101; // d2m on write ch2 avg for ref minus 210729
+//                  REG(ADDR_DDR_CH_EN) = 0b01010001;
+//                  if(func_gain_cal)             REG(ADDR_DDR_CH_EN)   = 0b01110001; // read ch 0,1,2 On 210302
+//                  if(func_d2m)                  REG(ADDR_DDR_CH_EN)   = 0b11010101; // d2m on write ch2 avg for ref minus 210729
+//                  if(func_gain_cal && func_d2m) REG(ADDR_DDR_CH_EN)   = 0b11110101; // d2m on write ch2 avg for ref minus 210729
+                    //# 2605081700 set_ddr_ch_en() removed; main loop reapplies composer next iteration
                     break;
         case 1 :    REG(ADDR_DDR_OUT) = 4;
                     msdelay(100);
                     set_ddr_raddr(ADDR_AVG_DATA_DOSE0, 2);
-                    REG(ADDR_DDR_CH_EN) = 0b01000000;
+                    REG(ADDR_DDR_CH_EN) = DDR_CH_EN_R_OFFSET; //# 2605081700 viewer: read CH2 only
                     func_printf("1 [Ref Image 0]\r\n");
                     break;
         case 2 :    REG(ADDR_DDR_OUT) = 4;
                     msdelay(100);
                     set_ddr_raddr(ADDR_AVG_DATA_DOSE1, 2);
-                    REG(ADDR_DDR_CH_EN) = 0b01000000;
+                    REG(ADDR_DDR_CH_EN) = DDR_CH_EN_R_OFFSET; //# 2605081700 viewer: read CH2 only
                     func_printf("2 [Ref Image 1]\r\n");
                     break;
         case 3 :    REG(ADDR_DDR_OUT) = 4;
                     msdelay(100);
                     set_ddr_raddr(ADDR_AVG_DATA_DOSE2, 2);
-                    REG(ADDR_DDR_CH_EN) = 0b01000000;
+                    REG(ADDR_DDR_CH_EN) = DDR_CH_EN_R_OFFSET; //# 2605081700 viewer: read CH2 only
                     func_printf("3 [Ref Image 2]\r\n");
                     break;
         case 4 :    REG(ADDR_DDR_OUT) = 4;
                     msdelay(100);
                     set_ddr_raddr(ADDR_AVG_DATA_DOSE3, 2);
-                    REG(ADDR_DDR_CH_EN) = 0b01000000;
+                    REG(ADDR_DDR_CH_EN) = DDR_CH_EN_R_OFFSET; //# 2605081700 viewer: read CH2 only
                     func_printf("4 [Ref Image 3]\r\n");
                     break;
         case 5 :    REG(ADDR_DDR_OUT) = 4;
                     msdelay(100);
                     set_ddr_raddr(ADDR_AVG_DATA_DOSE4, 2);
-                    REG(ADDR_DDR_CH_EN) = 0b01000000;
+                    REG(ADDR_DDR_CH_EN) = DDR_CH_EN_R_OFFSET; //# 2605081700 viewer: read CH2 only
                     func_printf("5 [Ref Image 4]\r\n");
                     break;
         case 6 :    REG(ADDR_DDR_OUT) = 4;
                     msdelay(100);
                     set_ddr_raddr(ADDR_AVG_DATA_DOSE5, 2);
-                    REG(ADDR_DDR_CH_EN) = 0b01000000;
+                    REG(ADDR_DDR_CH_EN) = DDR_CH_EN_R_OFFSET; //# 2605081700 viewer: read CH2 only
                     func_printf("6 [Ref Image 5 d2m x-ray]\r\n");
                     break;
         case 7 :    REG(ADDR_DDR_OUT) = 4;
                     msdelay(100);
                     set_ddr_raddr(ADDR_AVG_DATA_DOSE6, 2);
-                    REG(ADDR_DDR_CH_EN) = 0b01000000;
+                    REG(ADDR_DDR_CH_EN) = DDR_CH_EN_R_OFFSET; //# 2605081700 viewer: read CH2 only
                     func_printf("7 [Ref Image 6 acc]\r\n");
                     break;
         case 8 :    REG(ADDR_DDR_OUT) = 2;
                     msdelay(100);
-                    REG(ADDR_DDR_CH_EN) = 0b00100000;
+                    REG(ADDR_DDR_CH_EN) = DDR_CH_EN_R_NUC; //# 2605081700 viewer: read CH1 only
                     func_printf("8 [Calib Gain Data]\r\n");
                     break;
         case 9 :    REG(ADDR_DDR_OUT) = 3;
                     msdelay(100);
-                    REG(ADDR_DDR_CH_EN) = 0b00100000;
+                    REG(ADDR_DDR_CH_EN) = DDR_CH_EN_R_NUC; //# 2605081700 viewer: read CH1 only
                     func_printf("9 [Calib Offset Data]\r\n");
                     break;
 //      case 8 :    break;
         case 10 :   REG(ADDR_DDR_OUT) = 4;
                     msdelay(100);
                     set_ddr_raddr(ADDR_NUC_DATA, 2);
-                    REG(ADDR_DDR_CH_EN) = 0b01000000;
+                    REG(ADDR_DDR_CH_EN) = DDR_CH_EN_R_OFFSET; //# 2605081700 viewer: read CH2 only
                     func_printf("10 [DEBUGGING]\r\n");
                     break;
     }
@@ -3372,18 +3537,19 @@ void execute_cmd_wddr(u32 data, u32 level) {
 
     switch(data) {
         case 0 :                                    break;
-        case 1 : addr = ADDR_AVG_DATA_DOSE0; if(DBG_wddr)func_printf("[DBG_wddr] AVG DOSE 0\r\n");  break;
-        case 2 : addr = ADDR_AVG_DATA_DOSE1; if(DBG_wddr)func_printf("[DBG_wddr] AVG DOSE 1\r\n");  break;
-        case 3 : addr = ADDR_AVG_DATA_DOSE2; if(DBG_wddr)func_printf("[DBG_wddr] AVG DOSE 2\r\n");  break;
-        case 4 : addr = ADDR_AVG_DATA_DOSE3; if(DBG_wddr)func_printf("[DBG_wddr] AVG DOSE 3\r\n");  break;
-        case 5 : addr = ADDR_AVG_DATA_DOSE4; if(DBG_wddr)func_printf("[DBG_wddr] AVG DOSE 4\r\n");  break;
+        case 1 : addr = ADDR_AVG_DATA_DOSE0; if(DBG_wddr)func_printf("[DBG_wddr] AVG DOSE 0\r\n "); break;
+        case 2 : addr = ADDR_AVG_DATA_DOSE1; if(DBG_wddr)func_printf("[DBG_wddr] AVG DOSE 1\r\n ");  break;
+        case 3 : addr = ADDR_AVG_DATA_DOSE2; if(DBG_wddr)func_printf("[DBG_wddr] AVG DOSE 2\r\n ");  break;
+        case 4 : addr = ADDR_AVG_DATA_DOSE3; if(DBG_wddr)func_printf("[DBG_wddr] AVG DOSE 3\r\n ");  break;
+        case 5 : addr = ADDR_AVG_DATA_DOSE4; if(DBG_wddr)func_printf("[DBG_wddr] AVG DOSE 4\r\n ");  break;
     }
     if(DBG_wddr)func_printf("[DBG_wddr] addr = 0x%8x\r\n",addr);
     set_ddr_waddr(addr, 2);
     set_ddr_raddr(addr, 2);
 
 //  REG(ADDR_DDR_CH_EN) = 0b01010101;
-    REG(ADDR_DDR_CH_EN) = 0b11010101; // read ch3 en 210728mbh
+    //# 2605081700 wddr (write-DDR avg): D2M-style mask. main loop will overwrite after this routine returns
+    REG(ADDR_DDR_CH_EN) = DDR_CH_EN_W_ROIC | DDR_CH_EN_W_OFFSET | DDR_CH_EN_R_ROIC | DDR_CH_EN_R_OFFSET | DDR_CH_EN_R_D2M;
     if(DBG_wddr)func_printf("[DBG_wddr] func_width=%d\r\n",func_width);
     if(DBG_wddr)func_printf("[DBG_wddr] func_height=%d\r\n",func_height);
     if(DBG_wddr)func_printf("[DBG_wddr] reg_width=%d\r\n",REG(ADDR_WIDTH));
@@ -3404,10 +3570,11 @@ void execute_cmd_wddr(u32 data, u32 level) {
     }
     if(func_hw_debug != 1)  avg = get_ddr_frame_avg(addr, func_width, func_height);
 
-                                  REG(ADDR_DDR_CH_EN)   = 0b01010001;
-    if(func_gain_cal)             REG(ADDR_DDR_CH_EN)   = 0b01110001; // read ch 0,1,2 On 210302
-    if(func_d2m)                  REG(ADDR_DDR_CH_EN)   = 0b11010101; // d2m on write ch2 avg for ref minus 210729
-    if(func_gain_cal && func_d2m) REG(ADDR_DDR_CH_EN)   = 0b11110101; // d2m on write ch2 avg for ref minus 210729
+//                                REG(ADDR_DDR_CH_EN)   = 0b01010001;
+//  if(func_gain_cal)             REG(ADDR_DDR_CH_EN)   = 0b01110001; // read ch 0,1,2 On 210302
+//  if(func_d2m)                  REG(ADDR_DDR_CH_EN)   = 0b11010101; // d2m on write ch2 avg for ref minus 210729
+//  if(func_gain_cal && func_d2m) REG(ADDR_DDR_CH_EN)   = 0b11110101; // d2m on write ch2 avg for ref minus 210729
+    //# 2605081700 set_ddr_ch_en() removed; main loop reapplies composer next iteration
 
     func_ref_num = 0;
     func_ref_avg_max = 0;
@@ -4396,12 +4563,12 @@ void execute_cmd_atimingprofile()
     	GATE_r = SHR_f + 1;
     	GATE_f = GATE_r + N_gate;
 
-    	func_printf("ROIC 0x3A IRST:%3d %3d~%3d \t",N_irst,IRST_r,IRST_f);  	execute_cmd_tp_graph(IRST_r,IRST_f);
-        func_printf("ROIC 0x3B SHR :%3d %3d~%3d \t",N_shr, SHR_r, SHR_f );  	execute_cmd_tp_graph( SHR_r, SHR_f);
-        func_printf("ROIC 0x3E LPF1:%3d %3d~%3d \t",N_lpf ,LPF1_r,LPF1_f);  	execute_cmd_tp_graph(LPF1_r,LPF1_f);
-        func_printf("FPGA 0x58 GATE:%3d %3d~%3d \t",N_gate,GATE_r,GATE_f );		execute_cmd_tp_graph(GATE_r,GATE_f);
-        func_printf("ROIC 0x3D SHS :%3d %3d~%3d \t",N_shs, SHS_r, SHS_f );  	execute_cmd_tp_graph( SHS_r, SHS_f);
-        func_printf("ROIC 0x3E LPF2:%3d %3d~%3d \t",N_lpf ,LPF2_r,LPF2_f);  	execute_cmd_tp_graph(LPF2_r,LPF2_f);
+    	func_printf("ROIC 0x3A IRST:%3d %3d~%3d 	",N_irst,IRST_r,IRST_f);  	execute_cmd_tp_graph(IRST_r,IRST_f);
+        func_printf("ROIC 0x3B SHR :%3d %3d~%3d 	",N_shr, SHR_r, SHR_f );  	execute_cmd_tp_graph( SHR_r, SHR_f);
+        func_printf("ROIC 0x3E LPF1:%3d %3d~%3d 	",N_lpf ,LPF1_r,LPF1_f);  	execute_cmd_tp_graph(LPF1_r,LPF1_f);
+        func_printf("FPGA 0x58 GATE:%3d %3d~%3d 	",N_gate,GATE_r,GATE_f );		execute_cmd_tp_graph(GATE_r,GATE_f);
+        func_printf("ROIC 0x3D SHS :%3d %3d~%3d 	",N_shs, SHS_r, SHS_f );  	execute_cmd_tp_graph( SHS_r, SHS_f);
+        func_printf("ROIC 0x3E LPF2:%3d %3d~%3d 	",N_lpf ,LPF2_r,LPF2_f);  	execute_cmd_tp_graph(LPF2_r,LPF2_f);
         func_printf("\r\n");
     }
     else{
@@ -4442,7 +4609,8 @@ void execute_cmd_tp_graph(u32 rising,u32 falling)
     }
 
     u32 mclk = REG(ADDR_CLK_MCLK); // read real mclk
-    u32 nclk = 100000/mclk;
+    //u32 nclk = 100000/mclk;  // removed: truncates 33.333 to 33
+    u32 time_ns = (falling-rising) * 100000 / mclk; //$ 260507 fix: multiply before divide
 
     for(u32 i=0; i<rise; i++)
         func_printf(" ");
@@ -4478,7 +4646,7 @@ void execute_cmd_tp_graph(u32 rising,u32 falling)
     for(u32 i=0; i<apdi; i++) // ap
             {func_printf(" ");}
 
-        func_printf("~%d.%3dus,%d~",(falling-rising)*nclk/1000,(falling-rising)*nclk%1000,(falling-rising));
+        func_printf("~%d.%03dus,%d~",time_ns/1000, time_ns%1000, (falling-rising)); //$ 260507
 
     for(u32 i=0; i<apdi; i++) // di
             {func_printf(" ");}
@@ -4735,7 +4903,8 @@ void execute_cmd_d2m_set(Profile_Def *profile)
     REG(ADDR_AVG_EN)    = 0;
     REG(ADDR_AVG_LEVEL) = 0;
 
-    REG(ADDR_DDR_CH_EN) = 0b11010101; // ddr avg ch enable
+    //# 2605081700 d2m start: enable W_ROIC|W_OFFSET|R_ROIC|R_OFFSET|R_D2M (was 0b11010101)
+    REG(ADDR_DDR_CH_EN) = DDR_CH_EN_W_ROIC | DDR_CH_EN_W_OFFSET | DDR_CH_EN_R_ROIC | DDR_CH_EN_R_OFFSET | DDR_CH_EN_R_D2M;
     REG(ADDR_TRIG_VALID)= 1;          // out trig_valid enable
     u8 MCLK_ns = 1000000000 / profile->m_clock; // 50ns
     // ### 4343 rc D ### str 1024= /4 time
@@ -4761,7 +4930,8 @@ void execute_cmd_d2m_en()
 void execute_cmd_d2m_dis()
 {
     func_d2m = 0;
-    REG(ADDR_DDR_CH_EN) = 0b01110001;   // ddr avg ch enable
+    //# 2605081700 d2m disable: W_ROIC|R_ROIC|R_NUC|R_OFFSET (was 0b01110001). main loop will reapply composer next iter
+    REG(ADDR_DDR_CH_EN) = DDR_CH_EN_W_ROIC | DDR_CH_EN_R_ROIC | DDR_CH_EN_R_NUC | DDR_CH_EN_R_OFFSET;
     REG(ADDR_D2M_EN        )=0;         // d2 mode disable
     execute_cmd_grab(1);
 }
@@ -4900,10 +5070,14 @@ void execute_cmd_eao(u32 enable)
     set_ddr_raddr(ADDR_AVG_DATA_DOSE0, 2);
 
     REG(ADDR_AVG_LEVEL) = 0; // avg_level init 0
-    REG(ADDR_DDR_CH_EN) = 0b01010101;
-    if(func_gain_cal)             REG(ADDR_DDR_CH_EN)   = 0b01111101; // read ch 0,1,2 On 210302
-    if(func_d2m)                  REG(ADDR_DDR_CH_EN)   = 0b11010101; // d2m on write ch2 avg for ref minus 210729
-    if(func_gain_cal && func_d2m) REG(ADDR_DDR_CH_EN)   = 0b11110101; // d2m on write ch2 avg for ref minus 210729
+    //# 2605081700 eao base: W_ROIC|W_OFFSET|R_ROIC|R_OFFSET (was 0b01010101)
+    REG(ADDR_DDR_CH_EN) = DDR_CH_EN_W_ROIC | DDR_CH_EN_W_OFFSET | DDR_CH_EN_R_ROIC | DDR_CH_EN_R_OFFSET;
+    //# 2605081700 +R_NUC +W_CH3 (was 0b01111101)
+    if(func_gain_cal)             REG(ADDR_DDR_CH_EN)   = DDR_CH_EN_W_ROIC | DDR_CH_EN_W_OFFSET | DDR_CH_EN_W_CH3 | DDR_CH_EN_R_ROIC | DDR_CH_EN_R_NUC | DDR_CH_EN_R_OFFSET;
+    //# 2605081700 d2m mask (was 0b11010101)
+    if(func_d2m)                  REG(ADDR_DDR_CH_EN)   = DDR_CH_EN_W_ROIC | DDR_CH_EN_W_OFFSET | DDR_CH_EN_R_ROIC | DDR_CH_EN_R_OFFSET | DDR_CH_EN_R_D2M;
+    //# 2605081700 d2m + gain mask (was 0b11110101)
+    if(func_gain_cal && func_d2m) REG(ADDR_DDR_CH_EN)   = DDR_CH_EN_W_ROIC | DDR_CH_EN_W_OFFSET | DDR_CH_EN_R_ROIC | DDR_CH_EN_R_NUC | DDR_CH_EN_R_OFFSET | DDR_CH_EN_R_D2M;
     msdelay(100);
 
     REG(ADDR_MPC_CTRL) =  enable & 1;   // force offset 211025mbh
@@ -5161,7 +5335,7 @@ void execute_cmd_settimingprofile(u32* data)
     profile_data.tshr_lpf1 = data[3] * 100;
     profile_data.tshs_lpf2 = data[4] * 100;
     profile_data.tgate = data[5] * 100;
-    if(AFE3256_series) 	roic_3256_init(&profile_data); //$ 251121
+    if(AFE3256_series) 	roic_3256_settingprofile(&profile_data); //$ 251121
     else				roic_settimingprofile(&profile_data);
 //  roic_settimingprofile(data[0], data[1], data[2], data[3], data[4], data[5]);
 }
@@ -6248,7 +6422,7 @@ u8 execute_cmd_load_hw_calibration(u32 value) {
 
 
     system_config(); //$
-    if(AFE3256_series) 	roic_3256_init(&profile.init);
+    if(AFE3256_series) 	roic_3256_settingprofile(&profile.init);
     else				roic_settimingprofile(&profile.init);
 //    roic_settimingprofile(&profile.init); //$
 //    update_roic_info(); //$
@@ -6470,4 +6644,5 @@ void execute_cmd_doc(void){ //$ 260305
     REG(ADDR_FW_BUSY) = 0;
 
     func_printf("\t DONE \r\n");
+    func_doc = 1;
 }

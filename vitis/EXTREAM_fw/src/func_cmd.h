@@ -162,6 +162,7 @@ extern u32 func_ddr_out;
 extern u32 func_gain_cal;
 extern u32 func_d2m;
 extern u32 func_offset_cal;
+extern u32 func_doc;
 extern u32 func_defect_cal;
 extern u32 func_defect_map;
 extern u32 func_dgain;
@@ -504,6 +505,10 @@ void execute_cmd_eq(u8 data);
 void execute_topvalue_set(u16 data);
 void execute_cmd_rombulkcheck(u8 data);
 void execute_cmd_rombulkread(u32 addr, u32 len);
+
+//# 260421 PHY port selection (0:Marvell 1:SFP)
+extern u8 g_port_sel;
+void execute_cmd_port(u32 data);
 
 typedef struct {
     u8         smsel;

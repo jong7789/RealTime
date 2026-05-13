@@ -26,13 +26,13 @@ generic ( GNR_MODEL : string := "EXT1616R" );
         i_hsyn : in  std_logic;
         i_vsyn : in  std_logic;
         i_hcnt : in  std_logic_vector(12 - 1 downto 0);
-        i_vcnt : in  std_logic_vector(12 - 1 downto 0);
+        i_vcnt : in  std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
         i_data : in  std_logic_vector(16 - 1 downto 0);
 
         o_hsyn : out std_logic;
         o_vsyn : out std_logic;
         o_hcnt : out std_logic_vector(12 - 1 downto 0);
-        o_vcnt : out std_logic_vector(12 - 1 downto 0);
+        o_vcnt : out std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
         o_data : out std_logic_vector(16 - 1 downto 0)
     );
 end entity osd;
@@ -248,31 +248,31 @@ architecture behavioralosd of osd is
     signal shsyn : std_logic;
     signal svsyn : std_logic;
     signal shcnt : std_logic_vector(11 downto 0);
-    signal svcnt : std_logic_vector(11 downto 0);
+    signal svcnt : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sdata : std_logic_vector(15 downto 0);
 
     signal s0hsyn : std_logic;
     signal s0vsyn : std_logic;
     signal s0hcnt : std_logic_vector(11 downto 0);
-    signal s0vcnt : std_logic_vector(11 downto 0);
+    signal s0vcnt : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal s0data : std_logic_vector(15 downto 0);
 
     signal s1hsyn : std_logic;
     signal s1vsyn : std_logic;
     signal s1hcnt : std_logic_vector(11 downto 0);
-    signal s1vcnt : std_logic_vector(11 downto 0);
+    signal s1vcnt : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal s1data : std_logic_vector(15 downto 0);
 
     signal s2hsyn : std_logic;
     signal s2vsyn : std_logic;
     signal s2hcnt : std_logic_vector(11 downto 0);
-    signal s2vcnt : std_logic_vector(11 downto 0);
+    signal s2vcnt : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal s2data : std_logic_vector(15 downto 0);
 
     signal ohsyn : std_logic;
     signal ovsyn : std_logic;
     signal ohcnt : std_logic_vector(11 downto 0);
-    signal ovcnt : std_logic_vector(11 downto 0);
+    signal ovcnt : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal odata : std_logic_vector(15 downto 0);
 
     signal font_addr : std_logic_vector(8 - 1 downto 0) := (others => '0');

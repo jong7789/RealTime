@@ -33,7 +33,7 @@ entity EQ_4096 is
         rstn : in  std_logic;
 
         i_regHActive  : in std_logic_vector(12-1 downto 0);
-        i_regVActive  : in std_logic_vector(12-1 downto 0);
+        i_regVActive  : in std_logic_vector(13-1 downto 0); --# 2604231608 Expand V-axis 12->13bit
         i_regEqCtrl   : in std_logic_vector(16-1 downto 0);
         i_regEqTopVal : in std_logic_vector(16-1 downto 0);
 
@@ -43,13 +43,13 @@ entity EQ_4096 is
         i_hsyn : in  std_logic;
         i_vsyn : in  std_logic;
         i_hcnt : in  std_logic_vector(12-1 downto 0);
-        i_vcnt : in  std_logic_vector(12-1 downto 0);
+        i_vcnt : in  std_logic_vector(13-1 downto 0); --# 2604231608 Expand V-axis 12->13bit
         i_data : in  std_logic_vector(16-1 downto 0);
 
         o_hsyn : out std_logic;
         o_vsyn : out std_logic;
         o_hcnt : out std_logic_vector(12-1 downto 0);
-        o_vcnt : out std_logic_vector(12-1 downto 0);
+        o_vcnt : out std_logic_vector(13-1 downto 0); --# 2604231608 Expand V-axis 12->13bit
         o_data : out std_logic_vector(16-1 downto 0)
     );
 end EQ_4096;
@@ -100,6 +100,7 @@ END COMPONENT;
 
     constant shft : integer := 10;
     type t_shift_12b is array(shft-1 downto 0) of std_logic_vector(12-1 downto 0);
+    type t_shift_13b is array(shft-1 downto 0) of std_logic_vector(13-1 downto 0); --# 2604231608 Expand V-axis 12->13bit
     type t_shift_16b is array(shft-1 downto 0) of std_logic_vector(16-1 downto 0);
 
     --# array
@@ -108,10 +109,10 @@ END COMPONENT;
     signal hsyn_ar        : std_logic_vector(shft-1 downto 0);
     signal vsyn_ar        : std_logic_vector(shft-1 downto 0);
     signal hcnt_ar        : t_shift_12b;
-    signal vcnt_ar        : t_shift_12b;
+    signal vcnt_ar        : t_shift_13b; --# 2604231608 Expand V-axis 12->13bit
     signal data_ar        : t_shift_16b;
     signal regHActive_ar  : t_shift_12b;
-    signal regVActive_ar  : t_shift_12b;
+    signal regVActive_ar  : t_shift_13b; --# 2604231608 Expand V-axis 12->13bit
     signal regEqCtrl_ar   : t_shift_16b;
     signal regEqTopval_ar : t_shift_16b;
 
@@ -119,11 +120,11 @@ END COMPONENT;
     signal hsyn  : std_logic;
     signal vsyn  : std_logic;
     signal hcnt  : std_logic_vector(12-1 downto 0);
-    signal vcnt  : std_logic_vector(12-1 downto 0);
+    signal vcnt  : std_logic_vector(13-1 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal data  : std_logic_vector(16-1 downto 0);
 
     signal regHActive  : std_logic_vector(12-1 downto 0);
-    signal regVActive  : std_logic_vector(12-1 downto 0);
+    signal regVActive  : std_logic_vector(13-1 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal regEqCtrl   : std_logic_vector(16-1 downto 0);
     signal regEqTopVal : std_logic_vector(16-1 downto 0);
     signal regEqEn     : std_logic;
@@ -217,7 +218,7 @@ END COMPONENT;
     signal ohs : std_logic;
     signal ovs : std_logic;
     signal ohc : std_logic_vector(12-1 downto 0);
-    signal ovc : std_logic_vector(12-1 downto 0);
+    signal ovc : std_logic_vector(13-1 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal oda : std_logic_vector(16-1 downto 0);
 
 --# %begin

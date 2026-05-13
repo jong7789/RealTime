@@ -22,6 +22,13 @@ port (
     oconv_rdata         : out std_logic_vector(511 downto 0);
     oconv_rbusy         : out std_logic;
 
+    --# 2605081600 Per-channel AXI ID inputs (Stage 1: enable MIG reorder)
+    iconv_wid           : in  std_logic_vector(2 downto 0);
+    iconv_rid           : in  std_logic_vector(2 downto 0);
+
+    --# 2605082100 Stage2-a Read multi-outstanding: idle indicator (high when no outstanding reads)
+    oconv_r_idle        : out std_logic;
+
 --$	axi_awid			: out	std_logic_vector(3 downto 0);
 	axi_awid			: out	std_logic_vector(DDR_AXI2(GNR_MODEL) -1 downto 0);
     axi_awaddr          : out std_logic_vector(31 downto 0);
@@ -106,6 +113,18 @@ architecture Behavioral of AXI_MASTER_IF is
     signal saxi_rready  : std_logic;
 
     signal sconv_rlen   : std_logic_vector(7 downto 0);
+    signal sconv_wlen   : std_logic_vector(7 downto 0);  --# 2605071454 latch iconv_wlen at AW handshake (mirror sconv_rlen pattern)
+
+    --# 2605081600 Latched AXI IDs (held stable for the entire burst transaction; zero-extended to DDR_AXI2 width)
+    signal saxi_awid_reg : std_logic_vector(DDR_AXI2(GNR_MODEL) - 1 downto 0);
+    signal saxi_arid_reg : std_logic_vector(DDR_AXI2(GNR_MODEL) - 1 downto 0);
+
+    --# 2605082100 Stage2-a Read multi-outstanding signals
+    constant MAX_R_OUTSTANDING : integer := 8;
+    signal saxi_r_outstanding : std_logic_vector(3 downto 0);  -- counts 0..15, gated to MAX_R_OUTSTANDING
+    signal saxi_arlen_reg     : std_logic_vector(7 downto 0);  -- latched AR length (held during arvalid)
+    signal sr_inc_pulse       : std_logic;                     -- AR handshake pulse (+1 outstanding)
+    signal sr_dec_pulse       : std_logic;                     -- R last beat handshake pulse (-1 outstanding)
 
     component ILA_AXI_MASTER_IF
     port (
@@ -151,6 +170,9 @@ ostate_read_ddr_mast  <= state_read;
                 saxi_wlast   <= '0';
                 saxi_wbusy   <= '1';
                 saxi_bready  <= '0';
+
+                sconv_wlen   <= (others => '0');  --# 2605071454
+                saxi_awid_reg <= (others => '0'); --# 2605081600 reset latched AWID
             else
                 case state_write is
                     when s_IDLE =>
@@ -164,6 +186,8 @@ ostate_read_ddr_mast  <= state_read;
                             saxi_awaddr  <= iconv_waddr;
                             saxi_awvalid <= '1';
                             saxi_wbusy   <= '1';
+                            --# 2605081600 latch AWID from channel index (zero-extended to AXI ID width)
+                            saxi_awid_reg <= conv_std_logic_vector(conv_integer(iconv_wid), DDR_AXI2(GNR_MODEL));
                         end if;
 
                         saxi_wcnt <= (others => '0');
@@ -174,13 +198,15 @@ ostate_read_ddr_mast  <= state_read;
                             saxi_awvalid <= '0';
                             saxi_wvalid  <= '1';
                             saxi_bready  <= '1';
+                            sconv_wlen   <= iconv_wlen;  --# 2605071454 latch wlen at AW handshake to avoid mid-burst race
                         end if;
 
                     when s_DATA =>
                         if (axi_wready = '1') then
                             saxi_wvalid <= '0';
 
-                            if (saxi_wcnt = iconv_wlen) then
+--                            if (saxi_wcnt = iconv_wlen) then
+                            if (saxi_wcnt = sconv_wlen) then  --# 2605071454 use latched wlen
                                 state_write <= s_BRESP;
                                 saxi_wlast  <= '0';
                             else
@@ -194,7 +220,8 @@ ostate_read_ddr_mast  <= state_read;
                         state_write <= s_DATA;
                         saxi_wvalid <= '1';
 
-                        if (saxi_wcnt = iconv_wlen) then
+--                        if (saxi_wcnt = iconv_wlen) then
+                        if (saxi_wcnt = sconv_wlen) then  --# 2605071454 use latched wlen
                             saxi_wlast <= '1';
                         else
                             saxi_wlast <= '0';
@@ -213,7 +240,9 @@ ostate_read_ddr_mast  <= state_read;
         end if;
     end process;
 
-    --# AXI read channel state machine (sync reset)
+    --# 2605082100 Stage2-a AR-issue FSM: accepts back-to-back rtrig while outstanding < MAX
+    --#   States used: s_IDLE (ready/gated), s_START (arvalid driven, wait arready)
+    --#   s_READ/s_CHECK: vestigial (kept in enum for ILA compat); routed back to s_IDLE
     process(iaxi_clk)
     begin
         if (iaxi_clk'event and iaxi_clk = '1') then
@@ -221,64 +250,97 @@ ostate_read_ddr_mast  <= state_read;
                 state_read   <= s_IDLE;
                 saxi_arvalid <= '0';
                 saxi_araddr  <= (others => '0');
-                saxi_rdata   <= (others => '0');
-                saxi_rready  <= '0';
-                saxi_rbusy   <= '0';
-                saxi_rcnt    <= (others => '0');
-
-                sconv_rlen   <= (others => '0');
+                saxi_arid_reg <= (others => '0');
+                saxi_arlen_reg <= (others => '0');
+                saxi_rcnt     <= (others => '0'); -- unused in Stage2-a; kept for ILA stability
+                sconv_rlen    <= (others => '0'); -- unused in Stage2-a; kept for symmetry
             else
                 case state_read is
                     when s_IDLE =>
-                        if (iconv_rtrig = '1') then
+                        --# Accept new AR only if queue not full
+                        if (iconv_rtrig = '1') and (saxi_r_outstanding < conv_std_logic_vector(MAX_R_OUTSTANDING, 4)) then
                             state_read <= s_START;
+                            saxi_arvalid   <= '1';
+                            saxi_araddr    <= iconv_raddr;
+                            saxi_arid_reg  <= conv_std_logic_vector(conv_integer(iconv_rid), DDR_AXI2(GNR_MODEL));
+                            saxi_arlen_reg <= iconv_rlen;
                         else
-                            state_read <= s_IDLE;
+                            saxi_arvalid <= '0';
                         end if;
-
-                        saxi_arvalid <= '0';
-                        saxi_rbusy   <= '0';
-                        saxi_rready  <= '0';
-                        saxi_rcnt    <= (others => '0');
 
                     when s_START =>
-                        state_read   <= s_READ;
-
-                        saxi_arvalid <= '1';
-                        saxi_araddr  <= iconv_raddr;
-                        saxi_rbusy   <= '1';
-                        saxi_rready  <= '0';
-
-                    when s_READ =>
+                        --# Hold arvalid until arready handshake, then return to s_IDLE for next push
                         if (axi_arready = '1') then
-                            state_read   <= s_CHECK;
+                            state_read   <= s_IDLE;
                             saxi_arvalid <= '0';
-                            saxi_rready  <= '1';
-                            sconv_rlen   <= iconv_rlen;
                         end if;
 
-                    when s_CHECK =>
-                        if (axi_rvalid = '1') then
-                            if (saxi_rcnt = sconv_rlen) then
+                    when others =>
+                        --# s_READ, s_CHECK: vestigial; should not be entered in Stage2-a
                                 state_read <= s_IDLE;
+                        saxi_arvalid <= '0';
+                end case;
+            end if;
+        end if;
+    end process;
+
+    --# 2605082100 Stage2-a R-data handler: capture axi_rdata into saxi_rdata each rvalid beat
+    process(iaxi_clk)
+    begin
+        if (iaxi_clk'event and iaxi_clk = '1') then
+            if (iaxi_rstn = '0') then
+                saxi_rdata  <= (others => '0');
+                saxi_rready <= '0';
                                 saxi_rbusy <= '0';
                             else
-                                saxi_rcnt <= saxi_rcnt + '1';
+                --# Always-ready strategy: assume downstream AXI_RDATA_CONV (BRAM-based) absorbs all beats
+                saxi_rready <= '1';
+                if (axi_rvalid = '1' and saxi_rready = '1') then
+                    saxi_rdata <= axi_rdata;
+                end if;
+                --# Legacy saxi_rbusy (used by some debug paths): high while any AR outstanding
+                if (saxi_r_outstanding /= "0000") then
+                    saxi_rbusy <= '1';
+                else
+                    saxi_rbusy <= '0';
+                end if;
                             end if;
-                            saxi_rdata <= axi_rdata;
                         end if;
-                    when others =>
-                        NULL;
-                end case;
+    end process;
+
+    --# 2605082100 Stage2-a Outstanding-AR counter: +1 on AR handshake, -1 on R last-beat handshake
+    sr_inc_pulse <= saxi_arvalid and axi_arready;
+    sr_dec_pulse <= axi_rvalid and saxi_rready and axi_rlast;
+
+    process(iaxi_clk)
+    begin
+        if (iaxi_clk'event and iaxi_clk = '1') then
+            if (iaxi_rstn = '0') then
+                saxi_r_outstanding <= (others => '0');
+            else
+                if (sr_inc_pulse = '1' and sr_dec_pulse = '0') then
+                    saxi_r_outstanding <= saxi_r_outstanding + '1';
+                elsif (sr_inc_pulse = '0' and sr_dec_pulse = '1') then
+                    saxi_r_outstanding <= saxi_r_outstanding - '1';
+                --# else: no change (both 0 or both 1 / cancel)
+                end if;
             end if;
         end if;
     end process;
 
     oconv_wbusy     <= saxi_wbusy;
     oconv_rdata     <= saxi_rdata;
-    oconv_rbusy     <= saxi_rbusy;
+--# 2605082100 Stage2-a oconv_rbusy: '1' when (queue full) OR (AR currently being issued)
+--#   The s_START term prevents race where AXI_IF advances on stale iconv_rbusy='0' while
+--#   a previous AR handshake is in flight (which would cause the new rtrig pulse to be lost
+--#   if outstanding hits MAX exactly at that handshake edge).
+    oconv_rbusy     <= '1' when (saxi_r_outstanding >= conv_std_logic_vector(MAX_R_OUTSTANDING, 4))
+                              or (state_read = s_START)
+                      else '0';
+    oconv_r_idle    <= '1' when (saxi_r_outstanding =  "0000") else '0';
 
-	axi_awid  			<= conv_std_logic_vector(1, DDR_AXI2(GNR_MODEL));
+--# 2605081600 axi_awid  <= conv_std_logic_vector(1, DDR_AXI2(GNR_MODEL)); -- fixed ID=1 (Stage 1: per-channel ID)
+	axi_awid  			<= saxi_awid_reg;
     axi_awaddr      <= saxi_awaddr;
     axi_awlen       <= iconv_wlen;
     axi_awsize      <= "110";          -- 512 bit
@@ -294,9 +356,11 @@ ostate_read_ddr_mast  <= state_read;
     axi_bready      <= saxi_bready;
 
 --$	axi_arid 			<= "0001";
-	axi_arid 			<= conv_std_logic_vector(1, DDR_AXI2(GNR_MODEL));
+--# 2605081600 axi_arid <= conv_std_logic_vector(1, DDR_AXI2(GNR_MODEL)); -- fixed ID=1 (Stage 1: per-channel ID)
+	axi_arid 			<= saxi_arid_reg;
     axi_araddr      <= saxi_araddr;
-    axi_arlen       <= iconv_rlen;
+--# 2605082100 Stage2-a axi_arlen <= iconv_rlen; -- combinational; broke when next iconv_rlen changes mid-arvalid
+    axi_arlen       <= saxi_arlen_reg;
     axi_arsize      <= "110";          -- 512 bit
     axi_arburst     <= "01";           -- INCR
     axi_arlock(0)   <= '0';

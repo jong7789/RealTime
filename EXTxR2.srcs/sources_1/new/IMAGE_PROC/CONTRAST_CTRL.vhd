@@ -15,13 +15,13 @@ port (
     ihsync        : in  std_logic;
     ivsync        : in  std_logic;
     ihcnt         : in  std_logic_vector(11 downto 0);
-    ivcnt         : in  std_logic_vector(11 downto 0);
+    ivcnt         : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     idata         : in  std_logic_vector(15 downto 0);
 
     ohsync        : out std_logic;
     ovsync        : out std_logic;
     ohcnt         : out std_logic_vector(11 downto 0);
-    ovcnt         : out std_logic_vector(11 downto 0);
+    ovcnt         : out std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     odata         : out std_logic_vector(15 downto 0)
 );
 end CONTRAST_CTRL;
@@ -43,7 +43,7 @@ architecture Behavioral of CONTRAST_CTRL is
     signal shsync_cal       : std_logic;
     signal svsync_cal       : std_logic;
     signal shcnt_cal        : std_logic_vector(11 downto 0);
-    signal svcnt_cal        : std_logic_vector(11 downto 0);
+    signal svcnt_cal        : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sdata_cal        : std_logic_vector(15 downto 0);
 
     signal shsync_1d        : std_logic;
@@ -55,9 +55,9 @@ architecture Behavioral of CONTRAST_CTRL is
     signal shcnt_1d         : std_logic_vector(11 downto 0);
     signal shcnt_2d         : std_logic_vector(11 downto 0);
     signal shcnt_3d         : std_logic_vector(11 downto 0);
-    signal svcnt_1d         : std_logic_vector(11 downto 0);
-    signal svcnt_2d         : std_logic_vector(11 downto 0);
-    signal svcnt_3d         : std_logic_vector(11 downto 0);
+    signal svcnt_1d         : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal svcnt_2d         : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal svcnt_3d         : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sreg_contrast_1d : std_logic_vector(15 downto 0);
     signal sreg_contrast_2d : std_logic_vector(15 downto 0);
     signal sreg_contrast_3d : std_logic_vector(15 downto 0);

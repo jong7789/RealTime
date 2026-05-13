@@ -60,6 +60,7 @@
 4343RCI2_DIR = EXT_4343RCI_GEN_HW2.10.02_01_SW2.01.04
  4343RI2_DIR =  EXT_4343RI_GEN_HW2.10.02_01_SW2.01.04
   4343RD_DIR =  EXT_4343RD_GEN_HW2.10.22_01_SW2.01.04
+   3643R_DIR =   EXT_3643R_GEN_HW2.10.22_01_SW2.01.04
 
 #---- Project specific settings ------------------------------------------------
 
@@ -431,6 +432,14 @@ bitbi43rc = bitstream1st_4343rc
 	@cp -fvp $(EE_BIN_FILE)                             $(OUT_PATH)/$(4343RD_DIR)/$(EE_NAME).bin
 	@cp -fvp $(OUT_PATH)/$(bin1st_dir)/$(bitbi43rc).bin $(OUT_PATH)/$(4343RD_DIR)/bitstream1st.bin
 
+3643r:
+	@mkdir -pv                                          $(OUT_PATH)/$(3643R_DIR)
+	@cp -fvp $(APP_BIN_FILE)                            $(OUT_PATH)/$(3643R_DIR)/$(APP_NAME).bin
+	@cp -fvp $(BIT_BIN_FILE)                            $(OUT_PATH)/$(3643R_DIR)/$(BIT_NAME).bin
+	@cp -fvp $(XML_FILE)                                $(OUT_PATH)/$(3643R_DIR)/$(XML_NAME).xml
+	@cp -fvp $(EE_BIN_FILE)                             $(OUT_PATH)/$(3643R_DIR)/$(EE_NAME).bin
+	@cp -fvp $(OUT_PATH)/$(bin1st_dir)/$(bitbi43rc).bin $(OUT_PATH)/$(3643R_DIR)/bitstream1st.bin
+
 # Update TCL scripts
 
 $(ETC_PATH)/$(CKSUM): $(wildcard $(SCRIPTS_PATH)/$(CKSUM))
@@ -576,6 +585,7 @@ endif
 	sx -b -X $(XML_FILE) > $(SERIAL) < $(SERIAL)
 	
 MY_JTAG = 00001abd04f901
+# MY_JTAG = 00000000000000
 
 prog: $(BIT_FILE)
 	@$(ECHO) "connect"          					>  xsdb_prog.tcl

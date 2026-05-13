@@ -529,7 +529,7 @@ void fpga_init(void) {
 //#else
 //    roic_settimingprofile(200, 256, 1000, 2000, 8000, 2000);
 //#endif    // pmode 인하여 wtp를 func_init()다음에 해줘야함
-    if (AFE3256_series) roic_3256_init(&profile.init);
+    if (AFE3256_series) {roic_3256_init(); roic_3256_settingprofile(&profile.init);}
     else roic_settimingprofile(&profile.init);
     temp_init();
     calib_init();
@@ -537,6 +537,16 @@ void fpga_init(void) {
 //    tft_set();            // dskim - 21.03.19 - "wtp" 명령어와 중복되어 삭제
     ext_trig_set();
     execute_cmd_edgemask_calc(); //# 231221 edge cut call
+    //$ 2604291730 Apply BASE_OFFSETX/Y to FPGA at boot (no other path calls execute_cmd_roi at startup)
+    roi_init();
+}
+
+//$ 2604291730 Boot-time ROI init: writes ADDR_OFFSETX/Y/WIDTH/HEIGHT via execute_cmd_roi so BASE_OFFSET is injected at startup
+#define DBG_roi_init 0
+void roi_init(void) {
+    if(DBG_roi_init)func_printf("#[DBG_roi_init] func_offsetx=%d func_offsety=%d func_width=%d func_height=%d\r\n",
+                                func_offsetx, func_offsety, func_width, func_height);
+    execute_cmd_roi(func_offsetx, func_offsety, func_width, func_height);
 }
 
 void ddr_init(void) {
@@ -551,6 +561,21 @@ void ddr_init(void) {
     func_printf("\tDone\r\n");
 }
 
+//# 2605081700 ADDR_DDR_CH_EN composer driven from main loop: write every call, log only when value changes
+void set_ddr_ch_en(void) {
+    static u32 last_printed = 0xFFFFFFFF;                               // sentinel forces first print
+    u32 regv = DDR_CH_EN_DEFAULT;                                       // 0x11 base (W_ROIC | R_ROIC)
+    if (func_offset_cal) regv |= DDR_CH_EN_R_OFFSET;                    // +0x40
+    if (func_gain_cal)   regv |= DDR_CH_EN_R_NUC;                       // +0x20
+    if (func_d2m)        regv |= (DDR_CH_EN_W_OFFSET | DDR_CH_EN_R_D2M);// +0x84
+    REG(ADDR_DDR_CH_EN) = regv;
+    if (regv != last_printed) {
+        func_printf("[DBG] set_ddr_ch_en: 0x%02x (offset_cal=%d gain_cal=%d d2m=%d)\r\n",
+                    regv, func_offset_cal, func_gain_cal, func_d2m);
+        last_printed = regv;
+    }
+}
+
 void pwr_init(void) {
     u32 cnt = 0;
 
@@ -563,13 +588,11 @@ void pwr_init(void) {
     func_printf("\tDone\r\n");
 }
 
-#define DBG_3256 1
-void roic_3256_init(Profile_Def *profile){
-	u32 grab = func_grab_en;
-	u32 str_init = 0;
-    u32 T_tdef;
 
-	func_printf("AFE3256 Configuration...   ");
+void roic_3256_init(void){
+	u32 grab = func_grab_en;
+
+	func_printf("AFE3256 Init...   ");
 
 	update_roic_info();
 
@@ -634,11 +657,17 @@ void roic_3256_init(Profile_Def *profile){
     execute_cmd_wroic(0x86,  0x0000);
     execute_cmd_wroic(0x88,  0x0000);
     execute_cmd_wroic(0x8E,  0x0002);
+//
+//    //$ Power Mode Selection (Low Power)
+//    execute_cmd_wroic(0x86,  0x0200);
+//    execute_cmd_wroic(0x88,  0x0002);
+//    execute_cmd_wroic(0x8E,  0x0006);
 
     //$ 260422 TFT Charge Injection
     execute_cmd_wroic(0x0D,  0x04E8);
     // execute_cmd_wroic(0x86,  0x8401); low noise
     execute_cmd_wroic(0x86,  0x8001); // normal power
+//    execute_cmd_wroic(0x86,  0x8201); // low power
     execute_cmd_wroic(0x87,  0x0300);
     execute_cmd_wroic(0x6D,  0x0010);               //$ Internal DAC Ctrl
 
@@ -654,6 +683,19 @@ void roic_3256_init(Profile_Def *profile){
     execute_cmd_wroic(0xBC,  0x0200);
     execute_cmd_wroic(0x81,  0x0000);
     execute_cmd_wroic(0x0B,  0x0006);
+
+    //$ Digital Offset Correction (Page 56)
+    // Calibration Time = 2 * AVG_NUM * tScan
+     execute_cmd_doc();
+
+    func_printf("\t Done\r\n");
+}
+
+#define DBG_3256 1
+void roic_3256_settingprofile(Profile_Def *profile){
+	u32 grab = func_grab_en;
+	u32 str_init = 0;
+    u32 T_tdef;
 
     //$ Timing Generator
     u32 mclk           = profile->mclk;
@@ -698,26 +740,28 @@ void roic_3256_init(Profile_Def *profile){
     			  T_lpf_min = 1600;
     }
 
-     u32 T_step         = (1<<str_init) * tmclk;    // When, str_init = 0, tmclk = 30Mhz => T_step = 33.333ns
-     u32 N_irst		= ceil(T_irst		/ T_step);
-     u32 N_shr_lpf1	= ceil(T_shr_lpf1	/ T_step);
-     u32 N_lpf1_min	= ceil(T_lpf_min	/ T_step);
-     u32 N_shs_lpf2	= ceil(T_shs_lpf2	/ T_step);
-     u32 N_lpf2_min	= ceil(T_lpf_min	/ T_step);
-     u32 N_tdef		= ceil(T_tdef		/ T_step);
-     u32 N_gate		= ceil(T_gate		/ T_step);	// not in roic datasheet
-    
-//    float T_step         = (1<<str_init) * tmclk;    // When, str_init = 0, tmclk = 30Mhz => T_step = 33.333ns
-//    u32 N_irst		= (u32)ceilf((float)T_irst		/ T_step);
-//    u32 N_shr_lpf1	= (u32)ceilf((float)T_shr_lpf1	/ T_step);
-//    u32 N_lpf1_min	= (u32)ceilf((float)T_lpf_min	/ T_step);
-//    u32 N_shs_lpf2	= (u32)ceilf((float)T_shs_lpf2	/ T_step);
-//    u32 N_lpf2_min	= (u32)ceilf((float)T_lpf_min	/ T_step);
-//    u32 N_tdef		= (u32)ceilf((float)T_tdef		/ T_step);
-//    u32 N_gate		= (u32)ceilf((float)T_gate		/ T_step);	// not in roic datasheet
-    u32 N_sig0		= T_sig0 / T_step + 1;
-    u32 N_sig1		= T_sig1 / T_step + 1;
-    u32 N_sig2		= T_sig2 / T_step + 1;
+    //  u32 T_step         = (1<<str_init) * tmclk;    // When, str_init = 0, tmclk = 30Mhz => T_step = 33.333ns
+    //  u32 N_irst		= ceil(T_irst		/ T_step);
+    //  u32 N_shr_lpf1	= ceil(T_shr_lpf1	/ T_step);
+    //  u32 N_lpf1_min	= ceil(T_lpf_min	/ T_step);
+    //  u32 N_shs_lpf2	= ceil(T_shs_lpf2	/ T_step);
+    //  u32 N_lpf2_min	= ceil(T_lpf_min	/ T_step);
+    //  u32 N_tdef		= ceil(T_tdef		/ T_step);
+    //  u32 N_gate		= ceil(T_gate		/ T_step);	// not in roic datasheet
+
+    //$ 260507 fix timing profile
+   float T_step         = (1<<str_init) * tmclk;    // When, str_init = 0, tmclk = 30Mhz => T_step = 33.333ns
+   u32 N_irst		= (T_irst		* mclk + 9999) / 10000;
+   u32 N_shr_lpf1	= (T_shr_lpf1	* mclk + 9999) / 10000;
+   u32 N_lpf1_min	= (T_lpf_min	* mclk + 9999) / 10000;
+   u32 N_shs_lpf2	= (T_shs_lpf2	* mclk + 9999) / 10000;
+   u32 N_lpf2_min	= (T_lpf_min	* mclk + 9999) / 10000;
+   u32 N_tdef		= (T_tdef		* mclk + 9999) / 10000;
+   u32 N_gate		= (T_gate		* mclk + 9999) / 10000;	// not in roic datasheet
+
+    u32 N_sig0		= (T_sig0		* mclk + 9999) / 10000;
+    u32 N_sig1		= (T_sig1		* mclk + 9999) / 10000;
+    u32 N_sig2		= (T_sig2		* mclk + 9999) / 10000;
 
     u32 N_TFT      	= 256 - (N_irst + N_shr_lpf1 + N_lpf1_min + N_lpf2_min ) - 4;
     u32 N_extra    	= 256 - (N_irst + N_shr_lpf1 + fmax(N_shs_lpf2,N_TFT)) - 4;
@@ -774,23 +818,23 @@ void roic_3256_init(Profile_Def *profile){
     execute_cmd_wroic(0x1A,  0x000F);
 //    execute_cmd_ifs(get_roic_data(1)); //$ to Get Analog Gain
 
-    /*DEB*/ if (DBG_3256) func_printf("\r\n MCLK_MHz =%dMhz       \r\n", (u32)MCLK_MHz);
-    /*DEB*/ if (DBG_3256) func_printf("(float)tmclk =%d(ns)       \r\n", (u32)tmclk);
-    /*DEB*/ if (DBG_3256) func_printf("T_step     = %d            \r\n", (u32) T_step);
-    /*DEB*/ if (DBG_3256) func_printf("N_irst     =%3d, %3d.%3dus \r\n", N_irst    , (u32)tmclk*N_irst    /1000,(u32)tmclk*N_irst    %1000);
-    /*DEB*/ if (DBG_3256) func_printf("N_shr_lpf1 =%3d, %3d.%3dus \r\n", N_shr_lpf1, (u32)tmclk*N_shr_lpf1/1000,(u32)tmclk*N_shr_lpf1%1000);
-    /*DEB*/ if (DBG_3256) func_printf("N_shs_lpf2 =%3d, %3d.%3dus \r\n", N_shs_lpf2, (u32)tmclk*N_shs_lpf2/1000,(u32)tmclk*N_shs_lpf2%1000);
-    /*DEB*/ if (DBG_3256) func_printf("N_TFT      =%3d, %3d.%3dus \r\n", N_TFT     , (u32)tmclk*N_TFT     /1000,(u32)tmclk*N_TFT     %1000);
-    /*DEB*/ if (DBG_3256) func_printf("N_extra    =%3d, %3d.%3dus \r\n", N_extra   , (u32)tmclk*N_extra   /1000,(u32)tmclk*N_extra   %1000);
-    /*DEB*/ if (DBG_3256) func_printf("N_lpf1     =%3d, %3d.%3dus \r\n", N_lpf1    , (u32)tmclk*N_lpf1    /1000,(u32)tmclk*N_lpf1    %1000);
-    /*DEB*/ if (DBG_3256) func_printf("N_lpf2     =%3d, %3d.%3dus \r\n", N_lpf2    , (u32)tmclk*N_lpf2    /1000,(u32)tmclk*N_lpf2    %1000);
-    /*DEB*/ if (DBG_3256) func_printf("N_shr      =%3d, %3d.%3dus \r\n", N_shr     , (u32)tmclk*N_shr     /1000,(u32)tmclk*N_shr     %1000);
-    /*DEB*/ if (DBG_3256) func_printf("N_shs      =%3d, %3d.%3dus \r\n", N_shs     , (u32)tmclk*N_shs     /1000,(u32)tmclk*N_shs     %1000);
-    /*DEB*/ if (DBG_3256) func_printf("N_tdef     =%3d, %3d.%3dus \r\n", N_tdef    , (u32)tmclk*N_tdef    /1000,(u32)tmclk*N_tdef    %1000);
-    /*DEB*/ if (DBG_3256) func_printf("N_gate     =%3d, %3d.%3dus \r\n", N_gate    , (u32)tmclk*N_gate    /1000,(u32)tmclk*N_gate    %1000);
-    /*DEB*/ if (DBG_3256) func_printf("N_SIG0     =%3d, %3d.%3dus \r\n", N_sig0    , (u32)tmclk*N_sig0    /1000,(u32)tmclk*N_sig0    %1000);                   
-    /*DEB*/ if (DBG_3256) func_printf("N_SIG1     =%3d, %3d.%3dus \r\n", N_sig1    , (u32)tmclk*N_sig1    /1000,(u32)tmclk*N_sig1    %1000);                   
-    /*DEB*/ if (DBG_3256) func_printf("N_SIG2     =%3d, %3d.%3dus \r\n", N_sig2    , (u32)tmclk*N_sig2    /1000,(u32)tmclk*N_sig2    %1000);                   
+    /*DEB*/ if (DBG_3256) func_printf("MCLK_MHz   =%dMhz          \r\n", (u32)MCLK_MHz);
+    /*DEB*/ if (DBG_3256) func_printf("tmclk      =%.3f(ns)       \r\n", tmclk);
+    /*DEB*/ if (DBG_3256) func_printf("T_step     =%.3f(ns)       \r\n", T_step);
+    /*DEB*/ if (DBG_3256) func_printf("N_irst     =%3d, %3d.%03dus \r\n", N_irst    , (N_irst     * 10000/mclk) /1000, (N_irst     * 10000/mclk)    %1000);
+    /*DEB*/ if (DBG_3256) func_printf("N_shr_lpf1 =%3d, %3d.%03dus \r\n", N_shr_lpf1, (N_shr_lpf1 * 10000/mclk) /1000, (N_shr_lpf1 * 10000/mclk)    %1000);
+    /*DEB*/ if (DBG_3256) func_printf("N_shs_lpf2 =%3d, %3d.%03dus \r\n", N_shs_lpf2, (N_shs_lpf2 * 10000/mclk) /1000, (N_shs_lpf2 * 10000/mclk)    %1000);
+    /*DEB*/ if (DBG_3256) func_printf("N_TFT      =%3d, %3d.%03dus \r\n", N_TFT     , (N_TFT      * 10000/mclk) /1000, (N_TFT      * 10000/mclk)    %1000);
+    /*DEB*/ if (DBG_3256) func_printf("N_extra    =%3d, %3d.%03dus \r\n", N_extra   , (N_extra    * 10000/mclk) /1000, (N_extra    * 10000/mclk)    %1000);
+    /*DEB*/ if (DBG_3256) func_printf("N_lpf1     =%3d, %3d.%03dus \r\n", N_lpf1    , (N_lpf1     * 10000/mclk) /1000, (N_lpf1     * 10000/mclk)    %1000);
+    /*DEB*/ if (DBG_3256) func_printf("N_lpf2     =%3d, %3d.%03dus \r\n", N_lpf2    , (N_lpf2     * 10000/mclk) /1000, (N_lpf2     * 10000/mclk)    %1000);
+    /*DEB*/ if (DBG_3256) func_printf("N_shr      =%3d, %3d.%03dus \r\n", N_shr     , (N_shr      * 10000/mclk) /1000, (N_shr      * 10000/mclk)    %1000);
+    /*DEB*/ if (DBG_3256) func_printf("N_shs      =%3d, %3d.%03dus \r\n", N_shs     , (N_shs      * 10000/mclk) /1000, (N_shs      * 10000/mclk)    %1000);
+    /*DEB*/ if (DBG_3256) func_printf("N_tdef     =%3d, %3d.%03dus \r\n", N_tdef    , (N_tdef     * 10000/mclk) /1000, (N_tdef     * 10000/mclk)    %1000);
+    /*DEB*/ if (DBG_3256) func_printf("N_gate     =%3d, %3d.%03dus \r\n", N_gate    , (N_gate     * 10000/mclk) /1000, (N_gate     * 10000/mclk)    %1000);
+    /*DEB*/ if (DBG_3256) func_printf("N_SIG0     =%3d, %3d.%03dus \r\n", N_sig0    , (N_sig0     * 10000/mclk) /1000, (N_sig0     * 10000/mclk)    %1000);
+    /*DEB*/ if (DBG_3256) func_printf("N_SIG1     =%3d, %3d.%03dus \r\n", N_sig1    , (N_sig1     * 10000/mclk) /1000, (N_sig1     * 10000/mclk)    %1000);
+    /*DEB*/ if (DBG_3256) func_printf("N_SIG2     =%3d, %3d.%03dus \r\n", N_sig2    , (N_sig2     * 10000/mclk) /1000, (N_sig2     * 10000/mclk)    %1000);
 
     //$ 251125 FPGA TFT SET
     u32 total_step	= N_irst + N_shr + N_shs + 4;
@@ -810,6 +854,7 @@ void roic_3256_init(Profile_Def *profile){
 	/*DEB*/ if (DBG_3256) func_printf("ADDR_ROIC_CDS2  (%4x) =%d  \r\n",ADDR_ROIC_CDS2  , REG(ADDR_ROIC_CDS2  ));
 	/*DEB*/ if (DBG_3256) func_printf("ADDR_GATE_OE    (%4x) =%d  \r\n",ADDR_GATE_OE    , REG(ADDR_GATE_OE    ));
     /*DEB*/ if (DBG_3256) func_printf("Total Step Count = %d \r\n", total_step);
+    /*DEB*/ if (DBG_3256) func_printf("Total Time =%3d.%03dus\r\n",  (total_step * 10000/mclk) /1000, (total_step * 10000/mclk) %1000);
 
     execute_cmd_tseq(func_tft_seq);
 
@@ -819,10 +864,6 @@ void roic_3256_init(Profile_Def *profile){
         return;
     }
 
-    //$ Digital Offset Correction (Page 56)
-    // Calibration Time = 2 * AVG_NUM * tScan
-    // execute_cmd_doc();
-
 //    REG(ADDR_TOPRST_CTRL)= 0xFFFB;
 //    msdelay(10);
 //    REG(ADDR_TOPRST_CTRL)= 0;
@@ -830,10 +871,14 @@ void roic_3256_init(Profile_Def *profile){
     execute_cmd_fmax2(mclk*100000);
     
     msdelay(200);
-    func_printf("\t AFE3256 Init Done\r\n");
+
 
     execute_cmd_wroic(0x1A, 0x0000);
+    // 2604250800 In FW bcal mode, skip auto bcal1 trigger - update_image() will
+    //            run bcalfw once at boot via temp branch. Prevents double bcal.
+//#if !BOOT_BCAL_USE_FW
     func_bcal1_token = 1;
+//#endif
 }
 
 void roic_init(void) {
@@ -1345,7 +1390,10 @@ static    u32 roicstr = 0; //# static for using fps calculation.
     func_printf("\t### roic_settimingprofile Done\r\n"); //$ 250219
     execute_cmd_wroic(0x10,    0); // Sync & Deskew Test Pattern return #250926
 //    func_grabbcal = 1; // call bcal with temperature setting.
+    // 2604250800 skip auto bcal1 trigger in FW bcal mode (prevents double bcal at boot)
+#if !BOOT_BCAL_USE_FW
     func_bcal1_token = 1; //# delete grabbcal #250926
+#endif
     // bw_align(); //# 220525
 }
 
@@ -1571,6 +1619,428 @@ void bw_align_fpga(u32 *bcalmid) {
         bcalmid++;
     }
     REG(ADDR_BCAL_CTRL) = 0; //# 220609 bug
+}
+
+// 2604242200 ==== FW-driven bit-align (separated bit_stable + word_align) ====
+// Goal: make alignment fully observable from FW; replace the HW FSM during
+//       diagnostics. HW FSM remains intact; choose via fw_mode_en bit.
+//
+// Hardware contract (from TI_LVDS_RX.vhd 2604242200 changes):
+//   - ADDR_BCAL_FW_CTRL: write fw_en/ch_sel + pulses (CE/RST/BS/PROBE auto-clear)
+//   - ADDR_BCAL_FW_PAR : read sdata_par(ch_sel)[23:0] + diff_lat[24] + ff00_lat[25]
+//                                                    + sdata_val[26] + bs_mode[27]
+//   - ADDR_BCAL_FW_STATUS: ocnt[4:0] + oser[9:5] + obs[14:10] + rdy[16]
+//   - sticky latch in rclk_ch domain auto-resets on any pulse
+//
+// Timing: 1 measurement window per tap. Runtime variable bcalfw_wait_us
+//   driven by run_all (DOUBLE_PASS toggles FAST/SLOW for comparison).
+//   Default at boot = SLOW (100us). FAST = 1us for short-window check.
+#define BCAL_FW_NUM_TAPS         32
+#define BCAL_FW_BS_MAX           (24*4)
+//# 2605081600 strict word_align: par must equal target FFF000, not just ff00_lat
+#define BCAL_FW_PAR_TARGET       0xFFF000u
+//# 2605081600 retry whole bit_stable+word_align up to N more times if par != target
+#define BCAL_FW_RETRY_MAX        3
+
+u32 bcalfw_wait_us = BCAL_FW_STABLE_WAIT_US_FAST;   // 2604251400 default FAST (1us)
+
+#define BCAL_FW_PAR_DIFF_LAT(x)  (((x) >> 24) & 1u)
+#define BCAL_FW_PAR_FF00_LAT(x)  (((x) >> 25) & 1u)
+#define BCAL_FW_PAR_VAL(x)       (((x) >> 26) & 1u)
+#define BCAL_FW_PAR_BSMODE(x)    (((x) >> 27) & 1u)
+#define BCAL_FW_PAR_DATA(x)      ((x) & 0xFFFFFFu)
+
+static u32 bcal_fw_ctrl_shadow = 0; // current ch_sel + fw_en (pulses always 0 in shadow)
+
+// 2604242300 ROIC mode keep across init/exit
+// 2604242330 strengthened: full keep/restore matching bw_align_fpga (avoid main-loop hang)
+static u32 bcal_fw_keep_d2m_en  = 0;
+static u32 bcal_fw_keep_out_en  = 0;
+static u32 bcal_fw_keep_grab_en = 0;
+static u8  bcal_fw_init_done    = 0; // guard: avoid double-keep if init called twice
+
+void bw_align_fw_init(void) {
+    BCALFW_DBG("[dbg] init> enter\r\n");
+    if (!bcal_fw_init_done) {
+        bcal_fw_keep_out_en  = REG(ADDR_OUT_EN);
+        bcal_fw_keep_d2m_en  = REG(ADDR_D2M_EN);
+        bcal_fw_keep_grab_en = func_grab_en;
+        bcal_fw_init_done    = 1;
+    }
+    REG(ADDR_OUT_EN) = 0;
+    REG(ADDR_D2M_EN) = 0;
+    REG(ADDR_SHUTTER_MODE) = 0;
+    REG(ADDR_TRIG_MODE)    = 0;
+    REG(ADDR_FRAME_TIME)   = 0;
+    REG(ADDR_EXP_TIME)     = 0;
+    REG(ADDR_SEXP_TIME)    = 0;
+    if (AFE3256_series) execute_cmd_wroic(0x1A, 0x000F);
+    else                execute_cmd_wroic(0x10, 0x03C0);
+    // 2604250100 do NOT call execute_cmd_grab(1) here - DDR framebuffer write
+    //            stays active during entire 14ch sweep with frame_time=0
+    //            -> memory corruption -> system reset.
+    //            SERDES alignment does not need grab; ROIC SPI test pattern is enough.
+    msdelay(10);
+    bcal_fw_ctrl_shadow = BCAL_FW_CTRL_EN_BIT;
+    REG(ADDR_BCAL_FW_CTRL) = bcal_fw_ctrl_shadow;
+    BCALFW_DBG("[dbg] init> done\r\n");
+}
+
+void bw_align_fw_exit(void) {
+    BCALFW_DBG("[dbg] exit> enter\r\n");
+    bcal_fw_ctrl_shadow = 0;
+    REG(ADDR_BCAL_FW_CTRL) = 0;
+    if (AFE3256_series) execute_cmd_wroic(0x1A, 0x0000);
+    else                execute_cmd_wroic(0x10, 0x0000);
+    if (!bcal_fw_init_done) { BCALFW_DBG("[dbg] exit> no init\r\n"); return; }
+    REG(ADDR_OUT_EN)  = bcal_fw_keep_out_en;
+    REG(ADDR_D2M_EN)  = bcal_fw_keep_d2m_en;
+    func_hwload_flag  = 0;        // safety: avoid update_hwload trigger
+    Token_wake        = 1;
+    bcal_fw_init_done = 0;
+    BCALFW_DBG("[dbg] exit> done\r\n");
+}
+
+void bw_align_fw_set_ch(u8 ch) {
+    if (ch >= ROIC_NUM) return;
+    bcal_fw_ctrl_shadow = (bcal_fw_ctrl_shadow & ~(0xFFu << BCAL_FW_CTRL_CH_SHIFT))
+                        | ((u32)ch << BCAL_FW_CTRL_CH_SHIFT)
+                        | BCAL_FW_CTRL_EN_BIT;
+    REG(ADDR_BCAL_FW_CTRL) = bcal_fw_ctrl_shadow;
+    BCALFW_DBG("[dbg] set_ch ch=%d CTRL=0x%08lX\r\n",
+               (int)ch, (unsigned long)bcal_fw_ctrl_shadow);
+}
+
+void bw_align_fw_pulse(bcal_fw_pulse_t type) {
+    u32 bit = 0;
+    switch (type) {
+        case BCAL_FW_PULSE_CE:    bit = BCAL_FW_CTRL_CE_PULSE;    break;
+        case BCAL_FW_PULSE_RST:   bit = BCAL_FW_CTRL_RST_PULSE;   break;
+        case BCAL_FW_PULSE_BS:    bit = BCAL_FW_CTRL_BS_PULSE;    break;
+        case BCAL_FW_PULSE_PROBE: bit = BCAL_FW_CTRL_PROBE_PULSE; break;
+    }
+    REG(ADDR_BCAL_FW_CTRL) = bcal_fw_ctrl_shadow | bit;
+    BCALFW_DBG("[dbg] pulse %s\r\n",
+               (type == BCAL_FW_PULSE_CE)    ? "CE" :
+               (type == BCAL_FW_PULSE_RST)   ? "RST" :
+               (type == BCAL_FW_PULSE_BS)    ? "BS"  : "PROBE");
+}
+
+u32 bw_align_fw_read_par(void)    { return REG(ADDR_BCAL_FW_PAR);    }
+u32 bw_align_fw_read_status(void) { return REG(ADDR_BCAL_FW_STATUS); }
+
+// Find the widest contiguous stable window in stable_map[0..31].
+// Returns 0 if found (eye_start/end/mid/width set), -1 if none.
+static int bcal_fw_find_widest_eye(const u8 *stable_map,
+                                   int *eye_start, int *eye_end,
+                                   int *eye_mid,   int *eye_width) {
+    int best_s = -1, best_e = -1, best_w = 0;
+    int cur_s = -1;
+    for (int t = 0; t < BCAL_FW_NUM_TAPS; t++) {
+        if (stable_map[t]) {
+            if (cur_s < 0) cur_s = t;
+            int w = t - cur_s + 1;
+            if (w > best_w) { best_w = w; best_s = cur_s; best_e = t; }
+        } else {
+            cur_s = -1;
+        }
+    }
+    if (best_s < 0) {
+        *eye_start = -1; *eye_end = -1; *eye_mid = -1; *eye_width = 0;
+        return -1;
+    }
+    *eye_start = best_s;
+    *eye_end   = best_e;
+    *eye_mid   = (best_s + best_e) / 2;
+    *eye_width = best_w;
+    return 0;
+}
+
+// Phase 5: Bit Stable - sweep IDELAY 0..31, measure sticky diff/ff00 per tap,
+//          find widest stable region, place IDELAY at mid.
+int bw_align_fw_bit_stable(u8 ch, bcal_fw_stable_result_t *res, u8 verbose) {
+    (void)verbose; // gated by DBG_BCALFW now
+    BCALFW_DBG("[dbg] bit_stable> ch=%d\r\n", ch);
+    if (res == NULL) return -1;
+    for (int i = 0; i < BCAL_FW_NUM_TAPS; i++) {
+        res->stable_map[i] = 0;
+        res->ff00_map[i]   = 0;
+        res->par_log[i]    = 0;
+    }
+    res->status = -1;
+
+    bw_align_fw_set_ch(ch);
+    bw_align_fw_pulse(BCAL_FW_PULSE_RST);     // tap=0 + latch reset
+    usdelay(bcalfw_wait_us);
+
+    BCALFW_DBG("[dbg] bit_stable sweep ch%d tap par      diff ff00 result\r\n", ch);
+
+    for (int tap = 0; tap < BCAL_FW_NUM_TAPS; tap++) {
+        u32 par_val = bw_align_fw_read_par();
+        u32 diff    = BCAL_FW_PAR_DIFF_LAT(par_val);
+        u32 ff00    = BCAL_FW_PAR_FF00_LAT(par_val);
+        u32 par24   = BCAL_FW_PAR_DATA(par_val);
+
+        res->par_log[tap]    = par24;
+        res->stable_map[tap] = (diff == 0) ? 1 : 0;
+        res->ff00_map[tap]   = (ff00 == 1) ? 1 : 0;
+
+        BCALFW_DBG("[dbg] ch%d t%2d 0x%06lX d%lu f%lu %s\r\n",
+                   ch, tap, (unsigned long)par24,
+                   (unsigned long)diff, (unsigned long)ff00,
+                   res->stable_map[tap] ? "STABLE" : "UNSTABLE");
+
+        bw_align_fw_pulse(BCAL_FW_PULSE_CE);
+        usdelay(bcalfw_wait_us);
+        gige_callback(0);
+    }
+
+    if (bcal_fw_find_widest_eye(res->stable_map,
+                                &res->eye_start, &res->eye_end,
+                                &res->eye_mid,   &res->eye_width) < 0) {
+        func_printf("ch%2d bit_stable FAIL (no eye)\r\n", ch);
+        res->status = -1;
+        return -1;
+    }
+
+    bw_align_fw_pulse(BCAL_FW_PULSE_RST);
+    usdelay(bcalfw_wait_us);
+    for (int i = 0; i < res->eye_mid; i++) {
+        bw_align_fw_pulse(BCAL_FW_PULSE_CE);
+        usdelay(2);
+    }
+    usdelay(bcalfw_wait_us);
+
+    if (verbose) {     // 2604250500 OK only on verbose=1; quiet for run_all
+        func_printf("ch%2d bit_stable OK  mid=%d width=%d (eye %d~%d)\r\n",
+                    ch, res->eye_mid, res->eye_width,
+                    res->eye_start, res->eye_end);
+    }
+    res->status = 0;
+    BCALFW_DBG("[dbg] bit_stable< ok\r\n");
+    return 0;
+}
+
+// Phase 6: Word Align - bitslip until ff00_lat=1 (FFF000 pattern matched).
+//          Assumes IDELAY is already placed at a stable position.
+int bw_align_fw_word_align(u8 ch, bcal_fw_word_result_t *res, u8 verbose) {
+    (void)verbose;
+    BCALFW_DBG("[dbg] word_align> ch=%d\r\n", ch);
+    if (res == NULL) return -1;
+    res->bitslip_count = -1;
+    res->par_at_match  = 0;
+    res->status        = -1;
+
+    bw_align_fw_set_ch(ch);
+    bw_align_fw_pulse(BCAL_FW_PULSE_PROBE);
+    usdelay(bcalfw_wait_us);
+
+    //# 2605081600 strict match: require par24 == 0xFFF000 (not just ff00_lat sticky)
+    //#            ff00_lat could fire on shifted patterns (e.g. 0x1FFE00) leading
+    //#            to false OK; track best partial match for diagnostic only.
+    int  best_bs   = -1;
+    u32  best_par  = 0;
+    u32  best_ff00 = 0;
+    for (int bs = 0; bs <= BCAL_FW_BS_MAX; bs++) {
+        u32 par_val = bw_align_fw_read_par();
+        u32 ff00    = BCAL_FW_PAR_FF00_LAT(par_val);
+        u32 par24   = BCAL_FW_PAR_DATA(par_val);
+
+        BCALFW_DBG("[dbg] ch%d bs=%2d par=0x%06lX f%lu\r\n",
+                   ch, bs, (unsigned long)par24, (unsigned long)ff00);
+
+        //# 2605081600 strict success: par24 must equal target word
+        if (par24 == BCAL_FW_PAR_TARGET) {
+            res->bitslip_count = bs;
+            res->par_at_match  = par24;
+            res->status        = 0;
+            if (verbose) {     // 2604250500 OK only on verbose=1
+                func_printf("ch%2d word_align OK  bs=%d par=0x%06lX\r\n",
+                            ch, bs, (unsigned long)par24);
+            }
+            return 0;
+        }
+
+        //# 2605081600 remember last ff00_lat hit for diagnostic on FAIL
+        if (ff00 && best_bs < 0) {
+            best_bs   = bs;
+            best_par  = par24;
+            best_ff00 = ff00;
+        }
+
+        if (bs == BCAL_FW_BS_MAX) break;
+        bw_align_fw_pulse(BCAL_FW_PULSE_BS);
+        usdelay(bcalfw_wait_us);
+        gige_callback(0);
+    }
+
+    //# 2605081600 expose best partial result so retry caller can decide
+    res->bitslip_count = best_bs;
+    res->par_at_match  = best_par;
+    res->status        = -1;
+    func_printf("ch%2d word_align FAIL (no 0x%06lX in %d bs; best bs=%d par=0x%06lX f%lu)\r\n",
+                ch, (unsigned long)BCAL_FW_PAR_TARGET,
+                BCAL_FW_BS_MAX, best_bs, (unsigned long)best_par,
+                (unsigned long)best_ff00);
+    return -1;
+}
+
+// Phase 7: Run both stages on one channel; continue word_align even if bit_stable
+// fails so the diagnostic captures both result sets.
+int bw_align_fw_run_one_ch(u8 ch, bcal_fw_full_result_t *res, u8 verbose) {
+    BCALFW_DBG("[dbg] run_one_ch> ch=%d\r\n", ch);
+    if (res == NULL) return -1;
+    bw_align_fw_init();
+
+    //# 2605081600 retry up to BCAL_FW_RETRY_MAX times until par == 0xFFF000 AND
+    //#            eye_mid is in valid range. Earlier code accepted ff00_lat alone
+    //#            and printed OK even for par=0x1FFE00.
+    int s = -1, w = -1;
+    int attempt = 0;
+    for (attempt = 0; attempt <= BCAL_FW_RETRY_MAX; attempt++) {
+        s = bw_align_fw_bit_stable(ch, &res->stable, verbose);
+        w = bw_align_fw_word_align(ch, &res->word,   verbose);
+
+        u8 mid_ok = (res->stable.status == 0 &&
+                     res->stable.eye_mid >= 0 &&
+                     res->stable.eye_mid < BCAL_FW_NUM_TAPS);
+        u8 par_ok = (res->word.status == 0 &&
+                     res->word.par_at_match == BCAL_FW_PAR_TARGET);
+        if (mid_ok && par_ok) {
+            if (attempt > 0) {
+                func_printf("ch%2d bcalfw retry%d OK  mid=%d par=0x%06lX\r\n",
+                            ch, attempt,
+                            res->stable.eye_mid,
+                            (unsigned long)res->word.par_at_match);
+            }
+            break;
+        }
+        if (attempt < BCAL_FW_RETRY_MAX) {
+            func_printf("ch%2d bcalfw retry%d (mid=%d par=0x%06lX target=0x%06lX)\r\n",
+                        ch, attempt + 1,
+                        res->stable.eye_mid,
+                        (unsigned long)res->word.par_at_match,
+                        (unsigned long)BCAL_FW_PAR_TARGET);
+        }
+    }
+
+    if (s < 0)      res->overall_status = 1;
+    else if (w < 0) res->overall_status = 2;
+    else            res->overall_status = 0;
+    return res->overall_status;
+}
+
+// 2604251000 Single sweep+report pass at the currently set bcalfw_wait_us.
+//             Used directly by run_all (single mode) and twice when
+//             BCAL_FW_DOUBLE_PASS=1 (FAST then SLOW comparison).
+static void bcalfw_one_pass(u8 verbose) {
+    // 2604250900 added stable_map[32] for O/X per-tap visualization in report
+    struct {
+        int s_mid; int s_width; int s_start; int s_end; int s_status;
+        int w_bs;  u32 w_par;   int w_status;
+        u8  stable_map[32];
+    } sum[ROIC_NUM];
+
+    func_printf("===== bcalfw pass start (wait_us=%lu, %lu ch) =====\r\n",
+                (unsigned long)bcalfw_wait_us, (unsigned long)ROIC_NUM);
+
+    for (u32 ch = 0; ch < ROIC_NUM; ch++) {
+        bcal_fw_stable_result_t s;
+        bcal_fw_word_result_t   w;
+        //# 2605081600 retry bit_stable+word_align until par == 0xFFF000 AND mid valid
+        //#            (was: accepted ff00_lat alone, allowing false OK at par=0x1FFE00)
+        for (int attempt = 0; attempt <= BCAL_FW_RETRY_MAX; attempt++) {
+        bw_align_fw_bit_stable((u8)ch, &s, verbose);
+        gige_callback(0); msdelay(20); gige_callback(0);
+        bw_align_fw_word_align((u8)ch, &w, verbose);
+        gige_callback(0); msdelay(20); gige_callback(0);
+
+            u8 mid_ok = (s.status == 0 && s.eye_mid >= 0 && s.eye_mid < BCAL_FW_NUM_TAPS);
+            u8 par_ok = (w.status == 0 && w.par_at_match == BCAL_FW_PAR_TARGET);
+            if (mid_ok && par_ok) {
+                if (attempt > 0) {
+                    func_printf("ch%2lu bcalfw retry%d OK  mid=%d par=0x%06lX\r\n",
+                                (unsigned long)ch, attempt,
+                                s.eye_mid, (unsigned long)w.par_at_match);
+                }
+                break;
+            }
+            if (attempt < BCAL_FW_RETRY_MAX) {
+                func_printf("ch%2lu bcalfw retry%d (mid=%d par=0x%06lX target=0x%06lX)\r\n",
+                            (unsigned long)ch, attempt + 1,
+                            s.eye_mid,
+                            (unsigned long)w.par_at_match,
+                            (unsigned long)BCAL_FW_PAR_TARGET);
+            }
+        }
+
+        sum[ch].s_mid    = s.eye_mid;
+        sum[ch].s_width  = s.eye_width;
+        sum[ch].s_start  = s.eye_start;
+        sum[ch].s_end    = s.eye_end;
+        sum[ch].s_status = s.status;
+        sum[ch].w_bs     = w.bitslip_count;
+        sum[ch].w_par    = w.par_at_match;
+        sum[ch].w_status = w.status;
+        for (int t = 0; t < 32; t++) {
+            sum[ch].stable_map[t] = s.stable_map[t];
+        }
+    }
+
+    func_printf("===== bcalfw report (wait_us=%lu) =====\r\n",
+                (unsigned long)bcalfw_wait_us);
+    // 2604251100 align tap index header with stable_map content position
+    //            ch 0  [OOO...]  -> '[' at col 7, first map char at col 8
+    func_printf("   tap=0         1         2         3            result\r\n");
+    func_printf("       01234567890123456789012345678901\r\n");
+    for (u32 ch = 0; ch < ROIC_NUM; ch++) {
+        char map_str[33];
+        // 2604251200 'O'=stable / '-'=unstable / '@'=mid position highlight
+        for (int t = 0; t < 32; t++) {
+            map_str[t] = sum[ch].stable_map[t] ? 'o' : '-';
+        }
+        if (sum[ch].s_status == 0 &&
+            sum[ch].s_mid >= 0 && sum[ch].s_mid < 32) {
+            map_str[sum[ch].s_mid] = '@';
+        }
+        map_str[32] = '\0';
+        //# 2605081600 OK only when mid valid AND par == 0xFFF000 (was: any w_status==0)
+        u8 rep_mid_ok = (sum[ch].s_status == 0 &&
+                         sum[ch].s_mid >= 0 && sum[ch].s_mid < 32);
+        u8 rep_par_ok = (sum[ch].w_status == 0 &&
+                         sum[ch].w_par == BCAL_FW_PAR_TARGET);
+        if (rep_mid_ok && rep_par_ok) {
+            func_printf("ch%2lu  [%s]  mid=%2d w=%2d bs=%2d par=0x%06lX  \033[32m  OK\033[0m\r\n",
+                        (unsigned long)ch, map_str,
+                        sum[ch].s_mid, sum[ch].s_width,
+                        sum[ch].w_bs, (unsigned long)sum[ch].w_par);
+        } else {
+            func_printf("ch%2lu  [%s]  s_st=%2d w_st=%2d mid=%2d bs=%2d  \033[31mFAIL\033[0m\r\n",
+                        (unsigned long)ch, map_str,
+                        sum[ch].s_status, sum[ch].w_status,
+                        sum[ch].s_mid, sum[ch].w_bs);
+        }
+    }
+}
+
+// 2604251000 Double-pass mode (#define BCAL_FW_DOUBLE_PASS 1) runs the sweep
+//             twice with bcalfw_wait_us=FAST then SLOW so user can compare
+//             stable_map between settle times.
+void bw_align_fw_run_all(u8 verbose) {
+    BCALFW_DBG("[dbg] run_all> ROIC_NUM=%lu DOUBLE_PASS=%d\r\n",
+               (unsigned long)ROIC_NUM, BCAL_FW_DOUBLE_PASS);
+
+    bw_align_fw_init();
+#if BCAL_FW_DOUBLE_PASS
+    bcalfw_wait_us = BCAL_FW_STABLE_WAIT_US_FAST;
+    bcalfw_one_pass(verbose);
+    bcalfw_wait_us = BCAL_FW_STABLE_WAIT_US_SLOW;
+    bcalfw_one_pass(verbose);
+#else
+    bcalfw_wait_us = BCAL_FW_STABLE_WAIT_US_FAST;   // 2604251400 single-pass uses FAST (1us)
+    bcalfw_one_pass(verbose);
+#endif
+    bw_align_fw_exit();
 }
 
 void tft_set(void) {
@@ -1834,6 +2304,67 @@ void update_defect(void) {
     }
 }
 
+// 2604221700 Boot-force port 0 + N-iteration debounce for SFP auto-switch
+#define SFP_STAB_CNT  500           // # of consecutive stable polls before commit (tune to main loop rate)
+void check_sfp_stat(void) {
+    static u8  first_run = 1;
+    static u32 prev      = 0;       // committed state (post-init: bit0=0)
+    static u32 pending   = 0;       // candidate being debounced
+    static u32 cnt       = 0;       // consecutive-stable counter
+
+    u32 cur = REG(ADDR_SFP_STAT);
+
+    // ---- Boot init: unconditionally force port 0 (RXAUI) ----
+    if (first_run) {
+        first_run = 0;
+        func_printf("[SFP_STAT] boot init: force execute_cmd_port(0) (RXAUI)\r\n");
+        execute_cmd_port(0);
+        prev    = 0;
+        pending = cur;
+        cnt     = 0;
+        return;
+    }
+
+    // ---- Stable at committed value: reset debounce, no action ----
+    if (cur == prev) {
+        cnt = 0;
+        return;
+    }
+
+    // ---- Candidate tracking ----
+    if (cur != pending) {
+        pending = cur;              // flicker to a new value -> restart count
+        cnt     = 0;
+        return;
+    }
+
+    cnt++;
+    if (cnt < SFP_STAB_CNT) return; // not yet stable
+
+    // ---- Stable for SFP_STAB_CNT iterations: commit and report ----
+    u32 diff = cur ^ prev;
+
+    if (diff & 0x01) {
+        u8 nb = (u8)(cur & 1);
+        func_printf("[SFP_STAT] sfp_phy_sel %u->%u (stable %u)\r\n",
+                    (u8)(prev & 1), nb, SFP_STAB_CNT);
+        execute_cmd_port(nb);
+        func_printf("[SFP_STAT] -> execute_cmd_port(%u), g_port_sel=%u\r\n",
+                    nb, g_port_sel);
+    }
+    if (diff & 0x02) {
+        func_printf("[SFP_STAT] sfp_rst_done %u->%u\r\n",
+                    (u8)((prev >> 1) & 1), (u8)((cur >> 1) & 1));
+    }
+    if (diff & 0x04) {
+        func_printf("[SFP_STAT] sfp_signal_detect %u->%u\r\n",
+                    (u8)((prev >> 2) & 1), (u8)((cur >> 2) & 1));
+    }
+
+    prev = cur;
+    cnt  = 0;
+}
+
 void update_trig(void) {
     static u32 prev = 0;
     float MCLK_MHz = FPGA_TFT_MAIN_CLK / 1000000.0;
@@ -1904,8 +2435,14 @@ void update_image(void) {
 
 //    Token_wake = 1; //# wake 220322mbh
 //    func_printf("\r\n######### ""bw_align();"" dose NOT excuted for burnnig aging"); // 210402 mbh
-    if (func_tempbcal == 1) // 220118mbh
+    // 2604250600 BOOT_BCAL_USE_FW switch (func_basic.h): 0=HW FSM, 1=FW-driven
+    if (func_tempbcal == 1) { // 220118mbh
+#if BOOT_BCAL_USE_FW
+        bw_align_fw_run_all(0);
+#else
         bw_align();
+#endif
+    }
 
 //    func_printf("bw end / rns valid Check %d \r\n", func_rns_valid);
 
@@ -1917,7 +2454,12 @@ void update_image(void) {
 void update_bcal1(void) {
     u32 keepx10 = execute_cmd_rroic(0x10);
     u32 keepx1A = execute_cmd_rroic(0x1A);
+    // 2604250700 BOOT_BCAL_USE_FW switch: 0=HW FSM, 1=FW-driven (also covers boot path)
+#if BOOT_BCAL_USE_FW
+    bw_align_fw_run_all(0);
+#else
     bw_align();
+#endif
     if(AFE3256_series)	execute_cmd_wroic(0x1A,keepx1A);
     else				execute_cmd_wroic(0x10,keepx10);
     execute_cmd_bcal_rdata();
@@ -1963,16 +2505,16 @@ void execute_calib_cmd(void) {
 
     switch(func_calib_cmd) {
         case 1    :    func_busy = 1;
-        			// if(AFE3256_series){ //$ 260305
-                    //     func_busy_time = 300;
-        			// 	execute_cmd_doc();
-        			// }
-        			// else{
+//        			if(AFE3256_series){ //$ 260305
+//                        func_busy_time = 300;
+//        				execute_cmd_doc();
+//        			}
+//        			else{
                     func_busy_time = (u32)(((1 << (user_avg_level)) / func_frate) * 1000);
                     execute_cmd_wddr(func_calib_map, user_avg_level);
 //                    if((func_calib_map == 1) && (func_check_gain_calib == 1))    // dskim - ti 사용하지 않음
 //                        execute_cmd_ucal();
-        			// }
+//        			}
                     break;
         case 2    :     execute_cmd_cddr(func_calib_map);
                     break;
@@ -2177,8 +2719,10 @@ void read_roic_temp(void) {
 	execute_cmd_wroic(0xE4, 0x0000);
 	execute_cmd_wroic(0xE4, 0x8000);
 
-	data = execute_cmd_rroic(0x78) & 0x01FF;
+	msdelay(1);
 
+	data = execute_cmd_rroic(0x78) & 0x01FF;
+	func_printf("ROIC Temp = %d\r\n",data);
 	func_roic_temp = (0.97 * (data -(512 * floor(data/256)))+108)/2.45;
 
 	//$ Disable Temp. Sensor
@@ -2572,7 +3116,7 @@ void system_config(void) {
     profile.init.tirst = TIRST_1000;
     profile.init.tshr_lpf1 = LPF1_1200;
     profile.init.tshs_lpf2 = LPF2_2000;
-    profile.init.tgate = TGATE_1000;
+    profile.init.tgate = TGATE_2000;
     profile.init.filter = FILTER_5;
     profile.init.m_clock = FPGA_TFT_MAIN_CLK;
     profile.d2.mclk = MCLK_200;
@@ -3175,7 +3719,7 @@ void flash_cp(u32 sourceaddr, u32 targetaddr, u32 cplength) {
     u32 saddr = ADDR_FLASH_READ_TEMP;
     u32 taddr = targetaddr;
     u32 blocklength = (u32)ceil((float)cplength/ 4 / FLASH_BUFFER_SIZE);
-    u32 data  = 0;
+//    u32 data  = 0;
 
     func_printf("blocklength = %d \r\n", blocklength);
     for(int i = 0; i < blocklength; i++)

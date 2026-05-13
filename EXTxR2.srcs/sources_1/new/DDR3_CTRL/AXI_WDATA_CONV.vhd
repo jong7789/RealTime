@@ -13,7 +13,8 @@ port(
 
     iwr_en     : in  std_logic;
     iwr_addr   : in  std_logic_vector(11 downto 0);
-    iwr_vcnt   : in  std_logic_vector(11 downto 0);
+--  iwr_vcnt   : in  std_logic_vector(11 downto 0);
+    iwr_vcnt   : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
     iwr_data   : in  std_logic_vector(DATA_DEPTH - 1 downto 0);
 
     ird_clk    : in  std_logic;
@@ -21,7 +22,8 @@ port(
 
     ird_en     : in  std_logic;
     ird_addr   : in  std_logic_vector(11 downto 0);
-    ird_vcnt   : in  std_logic_vector(11 downto 0);
+--  ird_vcnt   : in  std_logic_vector(11 downto 0);
+    ird_vcnt   : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
     ord_data   : out std_logic_vector(511 downto 0)
 );
 end entity AXI_WDATA_CONV;

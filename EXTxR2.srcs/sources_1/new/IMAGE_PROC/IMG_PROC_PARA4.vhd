@@ -20,7 +20,7 @@ entity IMG_PROC_PARA4 is
         ireg_BlurOffset  : in  std_logic_vector(16 - 1 downto 0);
 
         ireg_width       : in  std_logic_vector(11 downto 0);
-        ireg_height      : in  std_logic_vector(11 downto 0);
+        ireg_height      : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
         --# OSD
         isys_clk         : in  std_logic;
         iext_trig_in     : in  std_logic;
@@ -48,13 +48,13 @@ entity IMG_PROC_PARA4 is
         ihsync           : in  std_logic;
         ivsync           : in  std_logic;
         ihcnt            : in  std_logic_vector(11 downto 0);
-        ivcnt            : in  std_logic_vector(11 downto 0);
+        ivcnt            : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
         idata            : in  std_logic_vector(16 * 4 - 1 downto 0);
 
         ohsync           : out std_logic;
         ovsync           : out std_logic;
         ohcnt            : out std_logic_vector(11 downto 0);
-        ovcnt            : out std_logic_vector(11 downto 0);
+        ovcnt            : out std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
         odata            : out std_logic_vector(16 * 4 - 1 downto 0)
     );
 end entity IMG_PROC_PARA4;
@@ -92,11 +92,11 @@ architecture behavioral of IMG_PROC_PARA4 is
             i_hsync        : in  std_logic;
             i_vsync        : in  std_logic;
             i_hcnt         : in  std_logic_vector(12 - 1 downto 0);
-            i_vcnt         : in  std_logic_vector(12 - 1 downto 0);
+            i_vcnt         : in  std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
             i_data         : in  std_logic_vector(16 - 1 downto 0);
 
             i_reg_width    : in  std_logic_vector(12 - 1 downto 0);
-            i_reg_height   : in  std_logic_vector(12 - 1 downto 0);
+            i_reg_height   : in  std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
             i_reg_BNC_high : in  std_logic_vector(16 - 1 downto 0);
 
             o_brit         : out std_logic_vector(17 - 1 downto 0);
@@ -114,13 +114,13 @@ architecture behavioral of IMG_PROC_PARA4 is
             ihsync      : in  std_logic;
             ivsync      : in  std_logic;
             ihcnt       : in  std_logic_vector(11 downto 0);
-            ivcnt       : in  std_logic_vector(11 downto 0);
+            ivcnt       : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             idata       : in  std_logic_vector(15 downto 0);
 
             ohsync      : out std_logic;
             ovsync      : out std_logic;
             ohcnt       : out std_logic_vector(11 downto 0);
-            ovcnt       : out std_logic_vector(11 downto 0);
+            ovcnt       : out std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             odata       : out std_logic_vector(15 downto 0)
         );
     end component;
@@ -135,13 +135,13 @@ architecture behavioral of IMG_PROC_PARA4 is
             ihsync        : in  std_logic;
             ivsync        : in  std_logic;
             ihcnt         : in  std_logic_vector(11 downto 0);
-            ivcnt         : in  std_logic_vector(11 downto 0);
+            ivcnt         : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             idata         : in  std_logic_vector(15 downto 0);
 
             ohsync        : out std_logic;
             ovsync        : out std_logic;
             ohcnt         : out std_logic_vector(11 downto 0);
-            ovcnt         : out std_logic_vector(11 downto 0);
+            ovcnt         : out std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             odata         : out std_logic_vector(15 downto 0)
         );
     end component;
@@ -152,20 +152,20 @@ architecture behavioral of IMG_PROC_PARA4 is
             rstn          : in  std_logic;
 
             i_regHActive  : in  std_logic_vector(12 - 1 downto 0);
-            i_regVActive  : in  std_logic_vector(12 - 1 downto 0);
+            i_regVActive  : in  std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
             i_regEqCtrl   : in  std_logic_vector(16 - 1 downto 0);
             i_regEqTopVal : in  std_logic_vector(16 - 1 downto 0);
 
             i_hsyn        : in  std_logic;
             i_vsyn        : in  std_logic;
             i_hcnt        : in  std_logic_vector(11 downto 0);
-            i_vcnt        : in  std_logic_vector(11 downto 0);
+            i_vcnt        : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             i_data        : in  std_logic_vector(63 downto 0);
 
             o_hsyn        : out std_logic;
             o_vsyn        : out std_logic;
             o_hcnt        : out std_logic_vector(11 downto 0);
-            o_vcnt        : out std_logic_vector(11 downto 0);
+            o_vcnt        : out std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             o_data        : out std_logic_vector(63 downto 0)
         );
     end component;
@@ -211,13 +211,13 @@ architecture behavioral of IMG_PROC_PARA4 is
             i_hsyn          : in  std_logic;
             i_vsyn          : in  std_logic;
             i_hcnt          : in  std_logic_vector(12 - 1 downto 0);
-            i_vcnt          : in  std_logic_vector(12 - 1 downto 0);
+            i_vcnt          : in  std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
             i_data          : in  std_logic_vector(16 - 1 downto 0);
 
             o_hsyn          : out std_logic;
             o_vsyn          : out std_logic;
             o_hcnt          : out std_logic_vector(12 - 1 downto 0);
-            o_vcnt          : out std_logic_vector(12 - 1 downto 0);
+            o_vcnt          : out std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
             o_data          : out std_logic_vector(16 - 1 downto 0)
         );
     end component osd;
@@ -227,7 +227,7 @@ architecture behavioral of IMG_PROC_PARA4 is
             clk               : in  std_logic;
 
             i_reg_width       : in  std_logic_vector(11 downto 0);
-            i_reg_height      : in  std_logic_vector(11 downto 0);
+            i_reg_height      : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
             i_reg_edge_ctrl   : in  std_logic_vector(16 - 1 downto 0);
             i_reg_edge_value  : in  std_logic_vector(16 - 1 downto 0);
@@ -239,13 +239,13 @@ architecture behavioral of IMG_PROC_PARA4 is
             i_hsyn            : in  std_logic;
             i_vsyn            : in  std_logic;
             i_hcnt            : in  std_logic_vector(12 - 1 downto 0);
-            i_vcnt            : in  std_logic_vector(12 - 1 downto 0);
+            i_vcnt            : in  std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
             i_data            : in  std_logic_vector(16 - 1 downto 0);
 
             o_hsyn            : out std_logic;
             o_vsyn            : out std_logic;
             o_hcnt            : out std_logic_vector(12 - 1 downto 0);
-            o_vcnt            : out std_logic_vector(12 - 1 downto 0);
+            o_vcnt            : out std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
             o_data            : out std_logic_vector(16 - 1 downto 0)
         );
     end component EDGE;
@@ -253,30 +253,31 @@ architecture behavioral of IMG_PROC_PARA4 is
     constant PARA : integer := 4;
     type ty_para_syn  is array (PARA - 1 downto 0) of std_logic;
     type ty_para_cnt  is array (PARA - 1 downto 0) of std_logic_vector(12 - 1 downto 0);
+    type ty_para_vcnt is array (PARA - 1 downto 0) of std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
     type ty_para_edge is array (PARA - 1 downto 0) of std_logic_vector(16 - 1 downto 0);
 
     signal shsync_bright   : ty_para_syn;  --std_logic;
     signal svsync_bright   : ty_para_syn;  --std_logic;
     signal shcnt_bright    : ty_para_cnt;  --std_logic_vector(11 downto 0);
-    signal svcnt_bright    : ty_para_cnt;  --std_logic_vector(11 downto 0);
+    signal svcnt_bright    : ty_para_vcnt; --# 2604231608 Expand V-axis 12->13bit
     signal sdata_bright    : std_logic_vector(64 - 1 downto 0);
 
     signal shsync_contrast : ty_para_syn;  --std_logic;
     signal svsync_contrast : ty_para_syn;  --std_logic;
     signal shcnt_contrast  : ty_para_cnt;  --std_logic_vector(11 downto 0);
-    signal svcnt_contrast  : ty_para_cnt;  --std_logic_vector(11 downto 0);
+    signal svcnt_contrast  : ty_para_vcnt; --# 2604231608 Expand V-axis 12->13bit
     signal sdata_contrast  : std_logic_vector(64 - 1 downto 0);
 
     signal shsync_osd      : ty_para_syn;  -- : std_logic;
     signal svsync_osd      : ty_para_syn;  -- : std_logic;
     signal shcnt_osd       : ty_para_cnt;  -- : std_logic_vector(11 downto 0);
-    signal svcnt_osd       : ty_para_cnt;  -- : std_logic_vector(11 downto 0);
+    signal svcnt_osd       : ty_para_vcnt; --# 2604231608 Expand V-axis 12->13bit
     signal sdata_osd       : std_logic_vector(64 - 1 downto 0);
 
     signal shsync_edge     : ty_para_syn;  -- : std_logic;
     signal svsync_edge     : ty_para_syn;  -- : std_logic;
     signal shcnt_edge      : ty_para_cnt;  -- : std_logic_vector(11 downto 0);
-    signal svcnt_edge      : ty_para_cnt;  -- : std_logic_vector(11 downto 0);
+    signal svcnt_edge      : ty_para_vcnt; --# 2604231608 Expand V-axis 12->13bit
     signal sdata_edge      : std_logic_vector(64 - 1 downto 0);
 
     signal sreg_bnc_en       : std_logic;

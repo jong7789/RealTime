@@ -496,6 +496,18 @@ extern char HW_VER[16];
 #define ADDR_OUT_MODE        0x00A4
 #define ADDR_DEBUG           0x00A8
 #define ADDR_DDR_CH_EN       0x00AC
+	//$ 2604301700 ADDR_DDR_CH_EN bit masks (see AXI_SUB_IF.vhd)
+	#define DDR_CH_EN_W_ROIC     0x01    // bit0 : CH0 write (ROIC raw)
+	#define DDR_CH_EN_W_NUC      0x02    // bit1 : CH1 write (NUC, unused)
+	#define DDR_CH_EN_W_OFFSET   0x04    // bit2 : CH2 write (offset / d2m ref-avg)
+	#define DDR_CH_EN_W_CH3      0x08    // bit3 : CH3 write (unused)
+	#define DDR_CH_EN_R_ROIC     0x10    // bit4 : CH0 read  (ROIC raw)
+	#define DDR_CH_EN_R_NUC      0x20    // bit5 : CH1 read  (gain / NUC map)
+	#define DDR_CH_EN_R_OFFSET   0x40    // bit6 : CH2 read  (offset)
+	#define DDR_CH_EN_R_D2M      0x80    // bit7 : CH3 read  (D2M xray)
+	#define DDR_CH_EN_DEFAULT    (DDR_CH_EN_W_ROIC | DDR_CH_EN_R_ROIC)  // 0x11
+	//# 2605081700 explicit all-off mask for direct REG writes that must force-disable every DDR channel
+	#define DDR_CH_ALL_OFF       0x00
 #define ADDR_DDR_BASE_ADDR   0x00B0
 #define ADDR_DDR_CH0_WADDR   0x00B4
 #define ADDR_DDR_CH0_RADDR   0x00B8
@@ -705,6 +717,25 @@ extern char HW_VER[16];
 #define ADDR_EQ_CTRL		  0x0484
 #define ADDR_EQ_TOPVAL		  0x0488
 
+#define ADDR_SFP_STAT         0x048C  // 2604221600 SFP/RXAUI status RO: b0=sfp_phy_sel, b1=sfp_rst_done, b2=sfp_signal_detect
+
+// 2604242200 FW-driven bit-align registers
+#define ADDR_BCAL_FW_CTRL     0x0490  // [0]fw_en [4]ce [5]rst [6]bs [7]probe_rst (auto-clear) [15:8]ch_sel
+#define ADDR_BCAL_FW_PAR      0x0494  // [23:0]sdata_par [24]diff_lat [25]ff00_lat [26]val [27]bs_mode
+#define ADDR_BCAL_FW_STATUS   0x0498  // [4:0]ocnt [9:5]oser [14:10]obs [16]rdy
+#define ADDR_BCAL_FW_RSV      0x049C  // reserved
+
+// 2605071529 DDR AXI burst limit selector (2-bit mode: 00=32 / 01=64 / 10=128 / 11=256 beats)
+#define ADDR_DDR_BURST        0x04A0
+
+// 2604242200 BCAL_FW_CTRL bit positions
+#define BCAL_FW_CTRL_EN_BIT        (1u << 0)
+#define BCAL_FW_CTRL_CE_PULSE      (1u << 4)
+#define BCAL_FW_CTRL_RST_PULSE     (1u << 5)
+#define BCAL_FW_CTRL_BS_PULSE      (1u << 6)
+#define BCAL_FW_CTRL_PROBE_PULSE   (1u << 7)
+#define BCAL_FW_CTRL_CH_SHIFT      (8)
+
 #define ADDR_FPGA_REBOOT      0x1000
 
 #if defined EXT4343R // neg led ctrl 220118mbh
@@ -759,6 +790,7 @@ extern char HW_VER[16];
 #define TGATE_1100   1100
 #define TGATE_1500   1500
 #define TGATE_2000   2000
+#define TGATE_3000   3000
 #define TGATE_4000   4000
 #define TGATE_10000 10000
 
@@ -888,6 +920,9 @@ extern u32 ROIC_CH        ;
 extern u32 GATE_CH        ;
 extern u32 GATE_MAX_CH    ;
 extern u32 GATE_DUMMY_LINE;
+//$ 2604291608 Add EXT3643R sensor base offset (cropped border)
+extern u32 BASE_OFFSETX;
+extern u32 BASE_OFFSETY;
 extern u32 ROIC_DUMMY_LINE;
 extern u32 ROIC_DUMMY_CH  ;
 extern u32 ROIC_NUM       ;

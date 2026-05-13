@@ -6,14 +6,49 @@ use IEEE.STD_LOGIC_ARITH.ALL;
 package TOP_HEADER is
 
     constant SIMULATION : string := "OFF";
--- constant SIMULATION : string := "ON";
 -- constant GNR_MODEL  : string := "EXT1616R";
 
---constant FPGA_VER  : std_logic_vector(19 downto 0) := x"1_99_00"; --# 1st image
-constant FPGA_VER  : std_logic_vector(19 downto 0) := x"2_01_11"; --(ti1,adi0_MainVer_subVer)
-constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0421_09";
+constant FPGA_VER  : std_logic_vector(19 downto 0) := x"2_01_13";
+constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0512_16";
 
--- # 2_01_11 26_0421_09 :  $ ila cal par4
+-- # 2_01_13 26_0512_16 :  --$ 260512 ddr burst 11 -> 01
+-- # 2_01_13 26_0508_20 :  --# 2605082100 Stage2-a Read multi-outstanding - AXI_MASTER_IF read FSM rewrite (AR queue + R handler + outstanding counter, MAX=8); AXI_IF read s_READ pulse + s_DRAIN; tstate_read += s_DRAIN
+-- # 2_01_13 26_0508_19 :  --# 2605081600 Per-channel AXI ID propagation (Stage1) - AXI_IF/AXI_MASTER_IF/DDR3_TOP add wid/rid path; AWID/ARID = ch index instead of fixed 1
+-- # 2_01_13 26_0508_18 :  ddr strcit->normal, bankCore 4->8
+-- # 2_01_13 26_0508_11 :  --# 2605081100 sfp_phy_sel 256-cyc dbnc + 2FF sync
+-- # 2_01_13 26_0507_18 :  imple area
+-- # 2_01_13 26_0507_16 :  --# no sfp test 260507 //17 rollback
+-- # 2_01_13 26_0507_15 :  --# 2605071529 ddrburst reg @ 0x04A0 (runtime burst select)
+-- # 2_01_13 26_0507_14 :  --# 2605071454 AXI_MASTER_IF latch wlen (fix mid-burst race)
+-- # 2_01_13 26_0507_13 :  --# 2605071416 AXI_IF burst limit cfg (256/64)
+-- # 2_01_13 26_0507_12 :  axi crossbar rollback
+-- # 2_01_13 26_0507_11 :  axi crossbar priority +master fifo32(11)
+-- # 2_01_13 26_0506_19 :  4ddr perf monitor
+-- # 2_01_13 26_0506_18 :  2ddr perf monitor
+-- # 2_01_13 26_0506_17 :  dismiss --##### ddr rear bypass #####
+-- # 2_01_13 26_0506_16 :  --# 2605061542 Add ILA tpc_offset
+-- # 2_01_13 26_0427_15 :  roi underbit redo
+-- # 2_01_13 26_0427_14 :  roi rollback test with image unmatch 129
+-- # 2_01_13 26_0427_13 :  gate 4603
+-- # 2_01_13 26_0427_12 :  roi_proc has ajustment xoffset underbit 
+-- # 2_01_13 26_0427_11 :  changing gate xdc & header info 
+-- # 2_01_13 26_0424_22 :  --# 2604242200 Add FW-driven bit-align registers (BCAL_FW_CTRL/PAR/STATUS/RSV at 0x0490-0x049C) - sticky latch for diff/ff00 in rclk_ch domain, fw_mode_en mux on ce/rst/bitslip pulses
+-- # 2_01_12 26_0423_17 :  --# 2604231608 followup - AXI_RDATA/WDATA_CONV entity ports, TI_TFT_TOP svnct_lvds/srefvcnt, TI_DATA_ALIGN orefvcnt/ivcnt, TB port map drives all widened to 13bit
+-- # 2_01_12 26_0423_16 :  --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302 (REG_TOP height/offsety, EXTREAM_R, TFT_CTRL, DDR3_CTRL, CALIB, IMG_PROC, OUT_IF, TB_* all widened)
+-- # 2_01_11 26_0423_14 :  --# 2604231520 Add set_input_delay for ROIC_DOUT (360MHz DDR, +/-0.35ns per DCLK group) to fix ch9 alignment
+-- # 2_01_11 26_0423_13 :  --# 2604231200 PHY_RESET_N decoupled from xgmii_rst (use ext_rst only) to prevent Marvell hard-reset on SFP<->RXAUI transition
+-- # 2_01_11 26_0423_12 :  --# 2604231100 MDIO IOBUF gating to protect Marvell during SFP mode
+-- # 2_01_11 26_0423_11 :  --# rst not ctrl by sfp #2604231130
+-- # 2_01_11 26_0422_16 :  --# 2604221600 SFP_STAT 3FF CDC pipeline (ireg_sfp_stat -> sreg_sfp_stat_1d/2d/3d -> sreg_sfp_stat)
+-- # 2_01_11 26_0422_15 :  --# 2604221500 Add ADDR_SFP_STAT (SFP/RXAUI status register, read-only)
+-- # 2_01_11 26_0422_13 :  --# 2604221355 RXAUI fallback MUX fix (mac_dcm_lock, xgmii_rst gating)
+-- # 2_01_11 26_0422_12 :  --# 2604221355 SFP clk mux hardwire & ILA freq counter (rxaui_clk156, sfp_coreclk 100ms latch)
+-- # 2_01_11 26_0422_11 :  #async 26042211
+-- # 2_01_11 26_0422_10 :  --# SFP logic update
+-- # 2_01_11 26_0420_20 :  --# SFP MDIO #26042020
+-- # 2_01_11 26_0420_19 :  --# disable test #26042019
+-- # 2_01_11 26_0420_18 :  --# force rxaui #26042018
+-- # 2_01_11 26_0420_10 :  --$ 260420 sdata_ff00_latch
 -- # 2_01_11 26_0414_14 :  $ ila gev drop
 -- # 2_01_11 26_0414_09 :  $ ila ddr sync gen / qos
 -- # 2_01_11 26_0413_13 :  --$ 260413 state ddr - write error
@@ -157,6 +192,12 @@ constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0421_09";
 -- fix constant
     constant DDR3_ADDR_NUM : integer := 14; -- 14:4Gx2 13:2Gx2
     constant DDR3_ADDR_14  : string  := "AA13";
+
+--# 2605071416 AXI burst length limit for AXI_IF.vhd (DDR3_TOP)
+--#   256 = original (max AXI4 burst, best DDR3 throughput, blocks short bursts)
+--#    64 = new      (GEV TX 32-beat fairness, slight throughput trade-off)
+--#   Other supported in AXI_IF: 128 / 32
+    constant AXI_BURST_LIMIT : integer := 64;
 
 -- ▄█ ▄▀▀▄ ▀█ █░█
 -- ░█ █  █ █▀ █▄█
@@ -507,6 +548,7 @@ constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0421_09";
     constant GEN_ILA_tpc_proc         : string := "OFF";
     constant GEN_ILA_defect_proc      : string := "OFF";
     constant GEN_ILA_defectline_proc  : string := "OFF";
+
     -- IMG_PROC
     constant GEN_2DDNR    : std_logic := '0';
     constant GEN_ACC      : std_logic := '0'; -- #210928
@@ -796,6 +838,18 @@ constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0421_09";
 
     constant ADDR_EQ_CTRL         : std_logic_vector(15 downto 0) := x"0484"; --# 230817
     constant ADDR_EQ_TOPVAL       : std_logic_vector(15 downto 0) := x"0488"; --# 230817
+    --# 2604221500 SFP/RXAUI status (read-only): bit0=sfp_phy_sel, bit1=sfp_rst_done, bit2=sfp_signal_detect
+    constant ADDR_SFP_STAT        : std_logic_vector(15 downto 0) := x"048C";
+
+    --# 2604242200 FW-driven bit-align registers (closest free slot in 0x4xx; 0x0400-0x048C all used)
+    constant ADDR_BCAL_FW_CTRL    : std_logic_vector(15 downto 0) := x"0490"; --# [0]fw_en [4]ce [5]rst [6]bs [7]probe_rst (auto-clear) [15:8]ch_sel
+    constant ADDR_BCAL_FW_PAR     : std_logic_vector(15 downto 0) := x"0494"; --# [23:0]sdata_par [24]diff_lat [25]ff00_lat [26]val [27]bs_mode
+    constant ADDR_BCAL_FW_STATUS  : std_logic_vector(15 downto 0) := x"0498"; --# [4:0]ocnt [9:5]oser [14:10]obs [16]idelayctrl_rdy
+    constant ADDR_BCAL_FW_RSV     : std_logic_vector(15 downto 0) := x"049C"; --# reserved
+
+--# 2605071529 DDR3 AXI burst limit selector (runtime, applied next AXI transaction)
+--#   reg[1:0] : 00=32 / 01=64 (default) / 10=128 / 11=256 beats
+    constant ADDR_DDR_BURST       : std_logic_vector(15 downto 0) := x"04A0";
 --# 221110 fpga reboot
     constant ADDR_FPGA_REBOOT       : std_logic_vector(15 downto 0) := x"1000";
 
@@ -1113,7 +1167,8 @@ constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0421_09";
         s_READY,
         s_WAIT,
         s_READ,
-        s_CHECK
+        s_CHECK,
+        s_DRAIN  --# 2605082100 Stage2-a: wait for outstanding R data to drain after all chunks issued
     );
 
     type tstate_write_ddr_mast  is  (
@@ -1589,7 +1644,7 @@ PACKAGE BODY TOP_HEADER is
             elsif(s = "EXT4343RCI_1") then val := 512;
             elsif(s = "EXT4343RCI_2") then val := 512;
             elsif(s = "EXT4343RD"   ) then val := 512;
-            elsif(s = "EXT3643R"    ) then val := 478;
+            elsif(s = "EXT3643R"    ) then val := 512; --# 478?->512 #2604271
             end if;
         end if;
         return (val);
@@ -1662,7 +1717,7 @@ PACKAGE BODY TOP_HEADER is
 
     function max_height (s : string) return integer is
 --        variable val    : integer range 0 to 3072;
-        variable val    : integer range 0 to 4302;
+        variable val    : integer range 0 to 8191;
     begin
         if(simulation = "on") then
             val     := 8;
@@ -1689,7 +1744,7 @@ PACKAGE BODY TOP_HEADER is
             elsif(s = "EXT4343RCI_1") then val := 3072;
             elsif(s = "EXT4343RCI_2") then val := 3072;
             elsif(s = "EXT4343RD"   ) then val := 3072;
-            elsif(s = "EXT3643R"    ) then val := 4302;
+            elsif(s = "EXT3643R"    ) then val := 4608;
             end if;
         end if;
         return val;
@@ -1943,7 +1998,7 @@ PACKAGE BODY TOP_HEADER is
             elsif(s = "EXT4343RCI_1") then val    := 0;
             elsif(s = "EXT4343RCI_2") then val    := 0;
             elsif(s = "EXT4343RD"   ) then val    := 0;
-            elsif(s = "EXT3643R"    ) then val    := 34;
+            elsif(s = "EXT3643R"    ) then val    := 0; --# 34??-> 0 2604271400
             end if;
         end if;
         return val;

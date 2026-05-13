@@ -89,9 +89,9 @@ entity TI_TFT_TOP is
         oreg_ext_frame_time : out   std_logic_vector(31 downto 0);
 
         ireg_width   : in    std_logic_vector(11 downto 0);
-        ireg_height  : in    std_logic_vector(11 downto 0);
+        ireg_height  : in    std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
         ireg_offsetx : in    std_logic_vector(11 downto 0);
-        ireg_offsety : in    std_logic_vector(11 downto 0);
+        ireg_offsety : in    std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
         ireg_roic_en    : in    std_logic;
         ireg_roic_addr  : in    std_logic_vector(7 downto 0);
@@ -113,6 +113,12 @@ entity TI_TFT_TOP is
 
         ireg_bcal_ctrl : in    std_logic_vector(31 downto 0);
         oreg_bcal_data : out   std_logic_vector(31 downto 0);
+
+        --# 2604242200 FW-driven bit-align pass-through
+        ireg_bcal_fw_ctrl   : in  std_logic_vector(31 downto 0);
+        ireg_bcal_fw_rsv    : in  std_logic_vector(31 downto 0);
+        oreg_bcal_fw_par    : out std_logic_vector(31 downto 0);
+        oreg_bcal_fw_status : out std_logic_vector(31 downto 0);
 
         --# d2m port
         ireg_d2m_en         : in  std_logic;
@@ -142,7 +148,7 @@ entity TI_TFT_TOP is
         ohsync : out   std_logic;
         ovsync : out   std_logic;
         ohcnt  : out   std_logic_vector(9 downto 0);
-        ovcnt  : out   std_logic_vector(11 downto 0);
+        ovcnt  : out   std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
         odata  : out   std_logic_vector(63 downto 0);
 
         ireg_sync_ctrl        : in  std_logic_vector(31 downto 0);
@@ -257,9 +263,9 @@ architecture behavioral of ti_tft_top is
             oreg_ext_frame_time : out   std_logic_vector(31 downto 0);
 
             ireg_offsetx : in    std_logic_vector(11 downto 0);
-            ireg_offsety : in    std_logic_vector(11 downto 0);
+            ireg_offsety : in    std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             ireg_width   : in    std_logic_vector(11 downto 0);
-            ireg_height  : in    std_logic_vector(11 downto 0);
+            ireg_height  : in    std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
             --# d2m port
             ireg_d2m_en         : in  std_logic;
@@ -358,10 +364,16 @@ architecture behavioral of ti_tft_top is
             iroic_data   : in    std_logic_vector(ROIC_NUM(GNR_MODEL)-1 downto 0);
 
             ireg_width  : in    std_logic_vector(11 downto 0);
-            ireg_height : in    std_logic_vector(11 downto 0);
+            ireg_height : in    std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
             ireg_bcal_ctrl : in    std_logic_vector(31 downto 0);
             oreg_bcal_data : out   std_logic_vector(31 downto 0);
+
+            --# 2604242200 FW-driven bit-align pass-through
+            ireg_bcal_fw_ctrl   : in  std_logic_vector(31 downto 0);
+            ireg_bcal_fw_rsv    : in  std_logic_vector(31 downto 0);
+            oreg_bcal_fw_par    : out std_logic_vector(31 downto 0);
+            oreg_bcal_fw_status : out std_logic_vector(31 downto 0);
 
             oen_array     : out   std_logic_vector(ROIC_NUM(GNR_MODEL)-1 downto 0);
 --            odata_array : out   tdata_par;
@@ -369,8 +381,8 @@ architecture behavioral of ti_tft_top is
             oalign_done   : out   std_logic;
             oroic_clk_sel : out   std_logic_vector(ROIC_NUM(GNR_MODEL)-1 downto 0); --# 241202
 
-            irefvcnt : in    std_logic_vector(12 - 1 downto 0);
-            ovcnt    : out   std_logic_vector(12 - 1 downto 0) -- for ila
+            irefvcnt : in    std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
+            ovcnt    : out   std_logic_vector(13 - 1 downto 0) --# 2604231608 Expand V-axis 12->13bit
         );
     end component;
 
@@ -389,16 +401,16 @@ architecture behavioral of ti_tft_top is
             iroic_clk_sel : in    std_logic_vector(ROIC_NUM(GNR_MODEL)-1 downto 0); --# 241202
 
             ireg_width  : in    std_logic_vector(11 downto 0);
-            ireg_height : in    std_logic_vector(11 downto 0);
+            ireg_height : in    std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
             ohsync : out   std_logic;
             ovsync : out   std_logic;
             ohcnt  : out   std_logic_vector(9 downto 0);
-            ovcnt  : out   std_logic_vector(11 downto 0);
+            ovcnt  : out   std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             odata  : out   std_logic_vector(63 downto 0);
 
-            orefvcnt                : out   std_logic_vector(11 downto 0);
-            ivcnt                   : in    std_logic_vector(12 - 1 downto 0);
+            orefvcnt                : out   std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
+            ivcnt                   : in    std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
             ostate_dpram_data_align : out   tstate_dpram_data_align
         );
     end component;
@@ -410,20 +422,20 @@ architecture behavioral of ti_tft_top is
 
             ireg_img_mode : in    std_logic_vector(2 downto 0);
             ireg_offsetx  : in    std_logic_vector(11 downto 0);
-            ireg_offsety  : in    std_logic_vector(11 downto 0);
+            ireg_offsety  : in    std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             ireg_width    : in    std_logic_vector(11 downto 0);
-            ireg_height   : in    std_logic_vector(11 downto 0);
+            ireg_height   : in    std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
             ihsync : in    std_logic;
             ivsync : in    std_logic;
             ihcnt  : in    std_logic_vector(9 downto 0);
-            ivcnt  : in    std_logic_vector(11 downto 0);
+            ivcnt  : in    std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             idata  : in    std_logic_vector(63 downto 0);
 
             ohsync : out   std_logic;
             ovsync : out   std_logic;
             ohcnt  : out   std_logic_vector(9 downto 0);
-            ovcnt  : out   std_logic_vector(11 downto 0);
+            ovcnt  : out   std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             odata  : out   std_logic_vector(63 downto 0);
 
             ostate_dpram_roi : out   tstate_dpram_roi
@@ -443,19 +455,19 @@ architecture behavioral of ti_tft_top is
             ireg_tp_value  : in std_logic_vector(15 downto 0); --# 230717
 
             ireg_width  : in    std_logic_vector(11 downto 0);
-            ireg_height : in    std_logic_vector(11 downto 0);
+            ireg_height : in    std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             id2m_dark   : in    std_logic;
 
             ihsync : in    std_logic;
             ivsync : in    std_logic;
             ihcnt  : in    std_logic_vector(9 downto 0);
-            ivcnt  : in    std_logic_vector(11 downto 0);
+            ivcnt  : in    std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             idata  : in    std_logic_vector(63 downto 0);
 
             ohsync : out   std_logic;
             ovsync : out   std_logic;
             ohcnt  : out   std_logic_vector(9 downto 0);
-            ovcnt  : out   std_logic_vector(11 downto 0);
+            ovcnt  : out   std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             odata  : out   std_logic_vector(63 downto 0)
         );
     end component;
@@ -485,23 +497,28 @@ architecture behavioral of ti_tft_top is
     signal shsync_data_align : std_logic;
     signal svsync_data_align : std_logic;
     signal shcnt_data_align  : std_logic_vector(9 downto 0);
-    signal svcnt_data_align  : std_logic_vector(11 downto 0);
+--  signal svcnt_data_align  : std_logic_vector(11 downto 0);
+    signal svcnt_data_align  : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sdata_data_align  : std_logic_vector(63 downto 0);
 
     signal shsync_roi_proc : std_logic;
     signal svsync_roi_proc : std_logic;
     signal shcnt_roi_proc  : std_logic_vector(9 downto 0);
-    signal svcnt_roi_proc  : std_logic_vector(11 downto 0);
+--  signal svcnt_roi_proc  : std_logic_vector(11 downto 0);
+    signal svcnt_roi_proc  : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sdata_roi_proc  : std_logic_vector(63 downto 0);
 
     signal shsync_test_pattern : std_logic;
     signal svsync_test_pattern : std_logic;
     signal shcnt_test_pattern  : std_logic_vector(9 downto 0);
-    signal svcnt_test_pattern  : std_logic_vector(11 downto 0);
+--  signal svcnt_test_pattern  : std_logic_vector(11 downto 0);
+    signal svcnt_test_pattern  : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sdata_test_pattern  : std_logic_vector(63 downto 0);
 
-    signal svnct_lvds : std_logic_vector(12 - 1 downto 0);
-    signal srefvcnt   : std_logic_vector(12 - 1 downto 0);
+--  signal svnct_lvds : std_logic_vector(12 - 1 downto 0);
+--  signal srefvcnt   : std_logic_vector(12 - 1 downto 0);
+    signal svnct_lvds : std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
+    signal srefvcnt   : std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302
 
     --* test point
 
@@ -747,6 +764,12 @@ begin
 
             ireg_bcal_ctrl => ireg_bcal_ctrl,
             oreg_bcal_data => oreg_bcal_data,
+
+            --# 2604242200 FW-driven bit-align pass-through
+            ireg_bcal_fw_ctrl   => ireg_bcal_fw_ctrl,
+            ireg_bcal_fw_rsv    => ireg_bcal_fw_rsv,
+            oreg_bcal_fw_par    => oreg_bcal_fw_par,
+            oreg_bcal_fw_status => oreg_bcal_fw_status,
 
             oen_array     => sen_array,
             odata_array   => sdata_array,

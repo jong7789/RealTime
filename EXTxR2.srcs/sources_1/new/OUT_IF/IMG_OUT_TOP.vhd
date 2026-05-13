@@ -14,12 +14,12 @@ entity IMG_OUT_TOP is
         ireg_out_en   : in  std_logic;
         ireg_out_mode : in  std_logic_vector(3 downto 0);
         ireg_width    : in  std_logic_vector(11 downto 0);
-        ireg_height   : in  std_logic_vector(11 downto 0);
+        ireg_height   : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
         ihsync : in  std_logic;
         ivsync : in  std_logic;
         ihcnt  : in  std_logic_vector(11 downto 0);
-        ivcnt  : in  std_logic_vector(11 downto 0);
+        ivcnt  : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
         idata  : in  std_logic_vector(15 downto 0);
 
         ofb_frame : out std_logic;
@@ -40,12 +40,12 @@ architecture Behavioral of IMG_OUT_TOP is
 
             ireg_out_en : in  std_logic;
             ireg_width  : in  std_logic_vector(11 downto 0);
-            ireg_height : in  std_logic_vector(11 downto 0);
+            ireg_height : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
             ihsync : in  std_logic;
             ivsync : in  std_logic;
             ihcnt  : in  std_logic_vector(11 downto 0);
-            ivcnt  : in  std_logic_vector(11 downto 0);
+            ivcnt  : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             idata  : in  std_logic_vector(15 downto 0);
 
             ofb_frame : out std_logic;
@@ -60,7 +60,7 @@ architecture Behavioral of IMG_OUT_TOP is
     signal shsync_gev : std_logic;
     signal svsync_gev : std_logic;
     signal shcnt_gev  : std_logic_vector(11 downto 0);
-    signal svcnt_gev  : std_logic_vector(11 downto 0);
+    signal svcnt_gev  : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal sdata_gev  : std_logic_vector(15 downto 0);
 
     signal sreg_out_mode    : std_logic_vector(3 downto 0);

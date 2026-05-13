@@ -14,7 +14,7 @@ port(
     ireg_line_time   : in  std_logic_vector(15 downto 0);
     ireg_sd_wen      : in  std_logic;
     ireg_width       : in  std_logic_vector(11 downto 0);
-    ireg_height      : in  std_logic_vector(11 downto 0);
+    ireg_height      : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
     ireq_data        : in  std_logic;
     istate_tftd      : in  tstate_tft;
@@ -22,12 +22,12 @@ port(
     ihsync           : in  std_logic;
     ivsync           : in  std_logic;
     ihcnt            : in  std_logic_vector(9 downto 0);
-    ivcnt            : in  std_logic_vector(11 downto 0);
+    ivcnt            : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
     ohsync           : out std_logic;
     ovsync           : out std_logic;
     ohcnt            : out std_logic_vector(11 downto 0);
-    ovcnt            : out std_logic_vector(11 downto 0);
+    ovcnt            : out std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     ostate_sync_ddr  : out tstate_sync_ddr
 );
 end entity DDR3_SYNC_GEN;
@@ -48,12 +48,14 @@ architecture behavioral of DDR3_SYNC_GEN is
     signal shsync_out      : std_logic;
     signal svsync_out      : std_logic;
     signal shcnt_out       : std_logic_vector(11 downto 0);
-    signal svcnt_out       : std_logic_vector(11 downto 0);
+--  signal svcnt_out       : std_logic_vector(11 downto 0);
+    signal svcnt_out       : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
     signal sreg_line_time  : std_logic_vector(15 downto 0);
     signal sreg_sd_wen     : std_logic;
     signal sreg_width      : std_logic_vector(11 downto 0);
-    signal sreg_height     : std_logic_vector(11 downto 0);
+--  signal sreg_height     : std_logic_vector(11 downto 0);
+    signal sreg_height     : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
     signal sreq_data_1d    : std_logic;
     signal sreq_data_2d    : std_logic;

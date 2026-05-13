@@ -33,20 +33,20 @@ entity EQ_CTRL_1x1_para4 is
         rstn : in  std_logic;
 
         i_regHActive  : in std_logic_vector(12-1 downto 0);
-        i_regVActive  : in std_logic_vector(12-1 downto 0);
+        i_regVActive  : in std_logic_vector(13-1 downto 0); --# 2604231608 Expand V-axis 12->13bit
         i_regEqCtrl   : in std_logic_vector(16-1 downto 0);
         i_regEqTopVal : in std_logic_vector(16-1 downto 0);
 
         i_hsyn : in  std_logic;
         i_vsyn : in  std_logic;
         i_hcnt : in  std_logic_vector(12-1 downto 0);
-        i_vcnt : in  std_logic_vector(12-1 downto 0);
+        i_vcnt : in  std_logic_vector(13-1 downto 0); --# 2604231608 Expand V-axis 12->13bit
         i_data : in  std_logic_vector(64-1 downto 0);
 
         o_hsyn : out std_logic;
         o_vsyn : out std_logic;
         o_hcnt : out std_logic_vector(12-1 downto 0);
-        o_vcnt : out std_logic_vector(12-1 downto 0);
+        o_vcnt : out std_logic_vector(13-1 downto 0); --# 2604231608 Expand V-axis 12->13bit
         o_data : out std_logic_vector(64-1 downto 0)
     );
 end EQ_CTRL_1x1_para4;
@@ -59,7 +59,7 @@ architecture Behavioral of EQ_CTRL_1x1_para4 is
             rstn : in  std_logic;
 
             i_regHActive  : in std_logic_vector(12-1 downto 0);
-            i_regVActive  : in std_logic_vector(12-1 downto 0);
+            i_regVActive  : in std_logic_vector(13-1 downto 0); --# 2604231608 Expand V-axis 12->13bit
             i_regEqCtrl   : in std_logic_vector(16-1 downto 0);
             i_regEqTopVal : in std_logic_vector(16-1 downto 0);
 
@@ -69,30 +69,31 @@ architecture Behavioral of EQ_CTRL_1x1_para4 is
             i_hsyn : in  std_logic;
             i_vsyn : in  std_logic;
             i_hcnt : in  std_logic_vector(11 downto 0);
-            i_vcnt : in  std_logic_vector(11 downto 0);
+            i_vcnt : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             i_data : in  std_logic_vector(15 downto 0);
 
             o_hsyn : out std_logic;
             o_vsyn : out std_logic;
             o_hcnt : out std_logic_vector(11 downto 0);
-            o_vcnt : out std_logic_vector(11 downto 0);
+            o_vcnt : out std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
             o_data : out std_logic_vector(15 downto 0)
         );
     end component;
 
     constant zero12 : std_logic_vector(12-1 downto 0) := (others => '0');
+    constant zero13 : std_logic_vector(13-1 downto 0) := (others => '0'); --# 2604231608 Expand V-axis 12->13bit
 
     signal HActStt : std_logic_vector(12-1 downto 0);
-    signal VActStt : std_logic_vector(12-1 downto 0);
+    signal VActStt : std_logic_vector(13-1 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal HActEnd : std_logic_vector(12-1 downto 0);
-    signal VActEnd : std_logic_vector(12-1 downto 0);
+    signal VActEnd : std_logic_vector(13-1 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
     signal ibp_hsyn : std_logic;
     signal ibp_vsyn : std_logic;
     signal iac_hsyn : std_logic;
     signal iac_vsyn : std_logic;
     signal iac_hcnt : std_logic_vector(12-1 downto 0);
-    signal iac_vcnt : std_logic_vector(12-1 downto 0);
+    signal iac_vcnt : std_logic_vector(13-1 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal iac_data : std_logic_vector(64-1 downto 0);
 
     signal oeq_hsyn : std_logic_vector(4-1 downto 0);
@@ -102,11 +103,12 @@ architecture Behavioral of EQ_CTRL_1x1_para4 is
     signal oeq_data : std_logic_vector(64-1 downto 0);
 
     type type_4a_12b is array (0 to 4-1) of std_logic_vector(12-1 downto 0);
+    type type_4a_13b is array (0 to 4-1) of std_logic_vector(13-1 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal oeq_hcnt : type_4a_12b;
-    signal oeq_vcnt : type_4a_12b;
+    signal oeq_vcnt : type_4a_13b; --# 2604231608 Expand V-axis 12->13bit
 
     signal act_HActive : std_logic_vector(12-1 downto 0);
-    signal act_VActive : std_logic_vector(12-1 downto 0);
+    signal act_VActive : std_logic_vector(13-1 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal pr4_HActive : std_logic_vector(12-1 downto 0);
 
 begin
@@ -122,18 +124,18 @@ begin
                                 i_regHActive(12-1 downto 2) +
                                 i_regHActive(12-1 downto 3) +
                                 i_regHActive(12-1 downto 4); --# 94.75 %
-            VActStt <= zero12 + i_regVActive(12-1 downto 4); --# 6.25%
-            VActEnd <= zero12 + i_regVActive(12-1 downto 1) +
-                                i_regVActive(12-1 downto 2) +
-                                i_regVActive(12-1 downto 3) +
-                                i_regVActive(12-1 downto 4); --# 94.75 %
+            VActStt <= zero13 + i_regVActive(13-1 downto 4); --# 2604231608 Expand V-axis 12->13bit (6.25%)
+            VActEnd <= zero13 + i_regVActive(13-1 downto 1) +
+                                i_regVActive(13-1 downto 2) +
+                                i_regVActive(13-1 downto 3) +
+                                i_regVActive(13-1 downto 4); --# 2604231608 Expand V-axis 12->13bit (94.75%)
             act_HActive <= zero12 + i_regHActive(12-1 downto 1) + -- 87.5%
                                     i_regHActive(12-1 downto 2) +
                                     i_regHActive(12-1 downto 3);
             pr4_HActive <= zero12 + act_HActive(12-1 downto 2);
-            act_VActive <= zero12 + i_regVActive(12-1 downto 1) +
-                                    i_regVActive(12-1 downto 2) +
-                                    i_regVActive(12-1 downto 3);
+            act_VActive <= zero13 + i_regVActive(13-1 downto 1) +
+                                    i_regVActive(13-1 downto 2) +
+                                    i_regVActive(13-1 downto 3); --# 2604231608 Expand V-axis 12->13bit
 
             -- Active H sync
             if HActStt <= i_hcnt and i_hcnt < HActEnd and

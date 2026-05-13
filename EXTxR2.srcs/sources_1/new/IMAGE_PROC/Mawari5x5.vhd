@@ -16,18 +16,18 @@ entity Mawari5x5 is
     port (
         i_clk        : in  std_logic;
         i_RegHActive : in  std_logic_vector(12 - 1 downto 0);
-        i_RegVActive : in  std_logic_vector(12 - 1 downto 0);
+        i_RegVActive : in  std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
         i_hsyn : in  std_logic;
         i_vsyn : in  std_logic;
         i_hcnt : in  std_logic_vector(12 - 1 downto 0);
-        i_vcnt : in  std_logic_vector(12 - 1 downto 0);
+        i_vcnt : in  std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
         i_data : in  std_logic_vector(16 - 1 downto 0);
 
         o_hsyn : out std_logic;
         o_vsyn : out std_logic;
         o_hcnt : out std_logic_vector(12 - 1 downto 0);
-        o_vcnt : out std_logic_vector(12 - 1 downto 0);
+        o_vcnt : out std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
         o_data : out std_logic_vector(16 * 25 - 1 downto 0)
     );
 end entity mawari5x5;
@@ -51,15 +51,16 @@ architecture behavioral of mawari5x5 is
     signal clk : std_logic;
 
     type   type_reg12b is array (4 - 1 downto 0) of std_logic_vector(12 - 1 downto 0);
+    type   type_reg13b is array (4 - 1 downto 0) of std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal RegHActiveArr : type_reg12b;
-    signal RegVActiveArr : type_reg12b;
+    signal RegVActiveArr : type_reg13b; --# 2604231608 Expand V-axis 12->13bit
 
     signal RegHActive       : std_logic_vector(12 - 1 downto 0) := (others => '0');
-    signal RegVActive       : std_logic_vector(12 - 1 downto 0) := (others => '0');
+    signal RegVActive       : std_logic_vector(13 - 1 downto 0) := (others => '0'); --# 2604231608 Expand V-axis 12->13bit
     signal RegHActiveMinus1 : std_logic_vector(12 - 1 downto 0) := (others => '0');
-    signal RegVActiveMinus1 : std_logic_vector(12 - 1 downto 0) := (others => '0');
+    signal RegVActiveMinus1 : std_logic_vector(13 - 1 downto 0) := (others => '0'); --# 2604231608 Expand V-axis 12->13bit
     signal RegHActiveMinus2 : std_logic_vector(12 - 1 downto 0) := (others => '0');
-    signal RegVActiveMinus2 : std_logic_vector(12 - 1 downto 0) := (others => '0');
+    signal RegVActiveMinus2 : std_logic_vector(13 - 1 downto 0) := (others => '0'); --# 2604231608 Expand V-axis 12->13bit
 
     signal wwea  : std_logic_vector(4 downto 0)  := (others => '0');
     signal addra : std_logic_vector(11 downto 0) := (others => '0');
@@ -79,8 +80,8 @@ architecture behavioral of mawari5x5 is
     signal HSyn  : std_logic;
     signal VSyn  : std_logic;
     signal HCnt  : std_logic_vector(12 - 1 downto 0);
-    signal VCnt  : std_logic_vector(12 - 1 downto 0);
-    signal VCnt0 : std_logic_vector(12 - 1 downto 0);
+    signal VCnt  : std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal VCnt0 : std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal DAta  : std_logic_vector(16 - 1 downto 0);
     signal HSyn0 : std_logic;
     signal VSyn0 : std_logic;
@@ -98,14 +99,15 @@ architecture behavioral of mawari5x5 is
     signal GenHSynArr : std_logic_vector(8 - 1 downto 0) := (others => '0');
     signal GenVSynArr : std_logic_vector(8 - 1 downto 0) := (others => '0');
 
-    type   type_gencntarr is array (8 - 1 downto 0) of std_logic_vector(12 - 1 downto 0);
-    signal GenVCntArr : type_gencntarr;
+    type   type_gencntarr  is array (8 - 1 downto 0) of std_logic_vector(12 - 1 downto 0);
+    type   type_genvcntarr is array (8 - 1 downto 0) of std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
+    signal GenVCntArr : type_genvcntarr; --# 2604231608 Expand V-axis 12->13bit
     signal GenHCntArr : type_gencntarr;
 
     signal BrHSyn : std_logic;
     signal BrVSyn : std_logic;
     signal BrHCnt : std_logic_vector(12 - 1 downto 0);
-    signal BrVCnt : std_logic_vector(12 - 1 downto 0);
+    signal BrVCnt : std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal BrD5x5 : std_logic_vector(16 * 25 - 1 downto 0);
     signal Cnt5   : std_logic_vector(4 - 1 downto 0);
 

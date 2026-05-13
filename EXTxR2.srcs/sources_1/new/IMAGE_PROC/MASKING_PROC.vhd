@@ -13,18 +13,18 @@ port (
     ireg_iproc_mode : in  std_logic_vector(3 downto 0);
 
     ireg_width      : in  std_logic_vector(11 downto 0);
-    ireg_height     : in  std_logic_vector(11 downto 0);
+    ireg_height     : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
     ihsync          : in  std_logic;
     ivsync          : in  std_logic;
     ihcnt           : in  std_logic_vector(11 downto 0);
-    ivcnt           : in  std_logic_vector(11 downto 0);
+    ivcnt           : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     idata           : in  std_logic_vector(15 downto 0);
 
     ohsync          : out std_logic;
     ovsync          : out std_logic;
     ohcnt           : out std_logic_vector(11 downto 0);
-    ovcnt           : out std_logic_vector(11 downto 0);
+    ovcnt           : out std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     odata           : out std_logic_vector(15 downto 0)
 );
 end MASKING_PROC;
@@ -37,18 +37,18 @@ architecture Behavioral of MASKING_PROC is
         idata_rstn  : in  std_logic;
 
         ireg_width  : in  std_logic_vector(11 downto 0);
-        ireg_height : in  std_logic_vector(11 downto 0);
+        ireg_height : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
         ihsync      : in  std_logic;
         ivsync      : in  std_logic;
         ihcnt       : in  std_logic_vector(11 downto 0);
-        ivcnt       : in  std_logic_vector(11 downto 0);
+        ivcnt       : in  std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
         idata       : in  std_logic_vector(15 downto 0);
 
         ohsync_2x2  : out std_logic;
         ovsync_2x2  : out std_logic;
         ohcnt_2x2   : out std_logic_vector(11 downto 0);
-        ovcnt_2x2   : out std_logic_vector(11 downto 0);
+        ovcnt_2x2   : out std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
         odata_1x1   : out std_logic_vector(15 downto 0);
         odata_1x2   : out std_logic_vector(15 downto 0);
@@ -77,7 +77,7 @@ architecture Behavioral of MASKING_PROC is
     signal shsync_2x2          : std_logic;
     signal svsync_2x2          : std_logic;
     signal shcnt_2x2           : std_logic_vector(11 downto 0);
-    signal svcnt_2x2           : std_logic_vector(11 downto 0);
+    signal svcnt_2x2           : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
     signal sdata_1x1           : std_logic_vector(15 downto 0);
     signal sdata_1x2           : std_logic_vector(15 downto 0);
@@ -103,42 +103,42 @@ architecture Behavioral of MASKING_PROC is
 
     signal shsync_2x2_1d      : std_logic;
     signal svsync_2x2_1d      : std_logic;
-    signal svcnt_2x2_1d        : std_logic_vector(11 downto 0);
+    signal svcnt_2x2_1d        : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal shcnt_2x2_1d        : std_logic_vector(11 downto 0);
     signal sdata_2x2_1d       : std_logic_vector(15 downto 0);
     signal shsync_2x2_2d      : std_logic;
     signal svsync_2x2_2d      : std_logic;
-    signal svcnt_2x2_2d        : std_logic_vector(11 downto 0);
+    signal svcnt_2x2_2d        : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal shcnt_2x2_2d        : std_logic_vector(11 downto 0);
     signal sdata_2x2_2d       : std_logic_vector(15 downto 0);
     signal shsync_2x2_3d      : std_logic;
     signal svsync_2x2_3d      : std_logic;
-    signal svcnt_2x2_3d        : std_logic_vector(11 downto 0);
+    signal svcnt_2x2_3d        : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal shcnt_2x2_3d        : std_logic_vector(11 downto 0);
     signal sdata_2x2_3d       : std_logic_vector(15 downto 0);
     signal shsync_2x2_4d      : std_logic;
     signal svsync_2x2_4d      : std_logic;
-    signal svcnt_2x2_4d        : std_logic_vector(11 downto 0);
+    signal svcnt_2x2_4d        : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal shcnt_2x2_4d        : std_logic_vector(11 downto 0);
     signal sdata_2x2_4d       : std_logic_vector(15 downto 0);
     signal shsync_2x2_5d      : std_logic;
     signal svsync_2x2_5d      : std_logic;
-    signal svcnt_2x2_5d        : std_logic_vector(11 downto 0);
+    signal svcnt_2x2_5d        : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal shcnt_2x2_5d        : std_logic_vector(11 downto 0);
     signal sdata_2x2_5d       : std_logic_vector(15 downto 0);
     signal shsync_2x2_6d      : std_logic;
     signal svsync_2x2_6d      : std_logic;
-    signal svcnt_2x2_6d        : std_logic_vector(11 downto 0);
+    signal svcnt_2x2_6d        : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal shcnt_2x2_6d        : std_logic_vector(11 downto 0);
     signal sdata_2x2_6d       : std_logic_vector(15 downto 0);
     signal shsync_2x2_7d      : std_logic;
     signal svsync_2x2_7d      : std_logic;
-    signal svcnt_2x2_7d        : std_logic_vector(11 downto 0);
+    signal svcnt_2x2_7d        : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal shcnt_2x2_7d        : std_logic_vector(11 downto 0);
     signal sdata_2x2_7d       : std_logic_vector(15 downto 0);
     signal shsync_2x2_8d      : std_logic;
     signal svsync_2x2_8d      : std_logic;
-    signal svcnt_2x2_8d        : std_logic_vector(11 downto 0);
+    signal svcnt_2x2_8d        : std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
     signal shcnt_2x2_8d        : std_logic_vector(11 downto 0);
     signal sdata_2x2_8d       : std_logic_vector(15 downto 0);
 
