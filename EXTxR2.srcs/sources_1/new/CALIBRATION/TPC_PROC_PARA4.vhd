@@ -267,6 +267,24 @@ architecture behavioral of TPC_PROC_PARA4 is
     );
     END COMPONENT;
 
+    --# 2605061542 Add ILA for offset path debug (1 pixel slice, video/offset/sub stages)
+    COMPONENT ila_tpc_offset0
+    PORT (
+        clk     : IN STD_LOGIC;
+        probe0  : IN STD_LOGIC_VECTOR( 0 DOWNTO 0); --# hsync
+        probe1  : IN STD_LOGIC_VECTOR( 0 DOWNTO 0); --# vsync
+        probe2  : IN STD_LOGIC_VECTOR(11 DOWNTO 0); --# hcnt
+        probe3  : IN STD_LOGIC_VECTOR(12 DOWNTO 0); --# vcnt 13bit
+        probe4  : IN STD_LOGIC_VECTOR( 0 DOWNTO 0); --# Ref0MinusEn
+        probe5  : IN STD_LOGIC_VECTOR(15 DOWNTO 0); --# video_in   1px
+        probe6  : IN STD_LOGIC_VECTOR(15 DOWNTO 0); --# offset_in  1px
+        probe7  : IN STD_LOGIC_VECTOR(16 DOWNTO 0); --# minuend    1px (xray_offcut_4d)
+        probe8  : IN STD_LOGIC_VECTOR(17 DOWNTO 0); --# sub_raw    1px (sXraySubRef_5d)
+        probe9  : IN STD_LOGIC_VECTOR(15 DOWNTO 0); --# sub_sat    1px (sXraySubRef_cut_6d)
+        probe10 : IN STD_LOGIC_VECTOR(15 DOWNTO 0)  --# sub_out    1px (sXraySubRef_8d)
+    );
+    END COMPONENT;
+
 -- █▄▄ █▀▀ █▄░█
 -- █▄█ █▄█ █░▀█ %bgn
 begin
@@ -614,5 +632,26 @@ begin
 --);
 
 -- end generate ILA_DEBUG1;
+
+    --# 2605061542 Add ILA for offset(wddr/offset cmd) path debug, 1 pixel slice
+    GEN_ILA_OFFSET : if (GEN_ILA_tpc_proc = "ON") generate
+    begin
+        U0_ILA_TPC_OFFSET : ila_tpc_offset0
+        port map (
+            clk        => idata_clk,
+            probe0(0)  => shsync_shft(5),                                --# 1b  hsync (aligned to sub stage)
+            probe1(0)  => svsync_shft(5),                                --# 1b  vsync
+            probe2     => shcnt_shft(5),                                 --# 12b hcnt
+            probe3     => svcnt_shft(5),                                 --# 13b vcnt
+            probe4(0)  => sreg_Ref0MinusEn,                              --# 1b  offset enable
+            probe5     => sdata_shft(4)(16 - 1 downto 0),                --# 16b video_in  px0
+            probe6     => soffs_shft(4)(16 - 1 downto 0),                --# 16b offset_in px0
+            probe7     => xray_offcut_4d(17 - 1 downto 0),               --# 17b minuend   px0 (+posoffset)
+            probe8     => sXraySubRef_5d(18 - 1 downto 0),               --# 18b sub_raw   px0
+            probe9     => sXraySubRef_cut_6d(16 - 1 downto 0),           --# 16b sub_sat   px0
+            --# probe10    => sdata_outsXraySubRef_8d(16 - 1 downto 0)                --# 16b sub_out   px0
+            probe10    => sdata_out(16 - 1 downto 0)                --# 16b sub_out   px0
+        );
+    end generate GEN_ILA_OFFSET;
 
 end architecture behavioral;

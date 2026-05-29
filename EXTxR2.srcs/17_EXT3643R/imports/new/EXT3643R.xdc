@@ -56,26 +56,47 @@ set_property PACKAGE_PIN A12 [get_ports GATE_SHIFT_CLK1L];       #CPV1
 set_property PACKAGE_PIN B11 [get_ports GATE_SHIFT_CLK2L];       #CPV2
 set_property PACKAGE_PIN G11 [get_ports GATE_SHIFT_CLK1R];       ##### no use
 set_property PACKAGE_PIN F10 [get_ports GATE_SHIFT_CLK2R];       ##### no use
+# # DIO1
+# set_property PACKAGE_PIN B15 [get_ports {GATE_START_PULSE1[0]}]; #DIO1_1
+# set_property PACKAGE_PIN A15 [get_ports {GATE_START_PULSE1[1]}]; #DIO1_2
+# set_property PACKAGE_PIN B20 [get_ports {GATE_START_PULSE1[2]}]; #DIO1_3
+# set_property PACKAGE_PIN A20 [get_ports {GATE_START_PULSE1[3]}]; #DIO1_4
+# set_property PACKAGE_PIN B21 [get_ports {GATE_START_PULSE1[4]}]; #DIO1_5
+# set_property PACKAGE_PIN C21 [get_ports {GATE_START_PULSE1[5]}]; #DIO1_6
+# set_property PACKAGE_PIN A23 [get_ports {GATE_START_PULSE1[6]}]; #DIO1_7
+# set_property PACKAGE_PIN A24 [get_ports {GATE_START_PULSE1[7]}]; #DIO1_8
+# set_property PACKAGE_PIN C22 [get_ports {GATE_START_PULSE1[8]}]; #DIO1_9
+# # DIO2
+# set_property PACKAGE_PIN D25 [get_ports {GATE_START_PULSE2[0]}]; #DIO2_1
+# set_property PACKAGE_PIN D21 [get_ports {GATE_START_PULSE2[1]}]; #DIO2_2
+# set_property PACKAGE_PIN E22 [get_ports {GATE_START_PULSE2[2]}]; #DIO2_3
+# set_property PACKAGE_PIN E21 [get_ports {GATE_START_PULSE2[3]}]; #DIO2_4
+# set_property PACKAGE_PIN E23 [get_ports {GATE_START_PULSE2[4]}]; #DIO2_5
+# set_property PACKAGE_PIN G22 [get_ports {GATE_START_PULSE2[5]}]; #DIO2_6
+# set_property PACKAGE_PIN H22 [get_ports {GATE_START_PULSE2[6]}]; #DIO2_7
+# set_property PACKAGE_PIN B9  [get_ports {GATE_START_PULSE2[7]}]; #DIO2_8
+# set_property PACKAGE_PIN A9  [get_ports {GATE_START_PULSE2[8]}]; #DIO2_9
+### gate sequence reverse pin order ### 2604271028
 # DIO1
-set_property PACKAGE_PIN B15 [get_ports {GATE_START_PULSE1[0]}]; #DIO1_1
-set_property PACKAGE_PIN A15 [get_ports {GATE_START_PULSE1[1]}]; #DIO1_2
-set_property PACKAGE_PIN B20 [get_ports {GATE_START_PULSE1[2]}]; #DIO1_3
-set_property PACKAGE_PIN A20 [get_ports {GATE_START_PULSE1[3]}]; #DIO1_4
+set_property PACKAGE_PIN C22 [get_ports {GATE_START_PULSE1[0]}]; #DIO1_1
+set_property PACKAGE_PIN A24 [get_ports {GATE_START_PULSE1[1]}]; #DIO1_2
+set_property PACKAGE_PIN A23 [get_ports {GATE_START_PULSE1[2]}]; #DIO1_3
+set_property PACKAGE_PIN C21 [get_ports {GATE_START_PULSE1[3]}]; #DIO1_4
 set_property PACKAGE_PIN B21 [get_ports {GATE_START_PULSE1[4]}]; #DIO1_5
-set_property PACKAGE_PIN C21 [get_ports {GATE_START_PULSE1[5]}]; #DIO1_6
-set_property PACKAGE_PIN A23 [get_ports {GATE_START_PULSE1[6]}]; #DIO1_7
-set_property PACKAGE_PIN A24 [get_ports {GATE_START_PULSE1[7]}]; #DIO1_8
-set_property PACKAGE_PIN C22 [get_ports {GATE_START_PULSE1[8]}]; #DIO1_9
+set_property PACKAGE_PIN A20 [get_ports {GATE_START_PULSE1[5]}]; #DIO1_6
+set_property PACKAGE_PIN B20 [get_ports {GATE_START_PULSE1[6]}]; #DIO1_7
+set_property PACKAGE_PIN A15 [get_ports {GATE_START_PULSE1[7]}]; #DIO1_8
+set_property PACKAGE_PIN B15 [get_ports {GATE_START_PULSE1[8]}]; #DIO1_9
 # DIO2
-set_property PACKAGE_PIN D25 [get_ports {GATE_START_PULSE2[0]}]; #DIO2_1
-set_property PACKAGE_PIN D21 [get_ports {GATE_START_PULSE2[1]}]; #DIO2_2
-set_property PACKAGE_PIN E22 [get_ports {GATE_START_PULSE2[2]}]; #DIO2_3
-set_property PACKAGE_PIN E21 [get_ports {GATE_START_PULSE2[3]}]; #DIO2_4
+set_property PACKAGE_PIN A9  [get_ports {GATE_START_PULSE2[0]}]; #DIO2_1
+set_property PACKAGE_PIN B9  [get_ports {GATE_START_PULSE2[1]}]; #DIO2_2
+set_property PACKAGE_PIN H22 [get_ports {GATE_START_PULSE2[2]}]; #DIO2_3
+set_property PACKAGE_PIN G22 [get_ports {GATE_START_PULSE2[3]}]; #DIO2_4
 set_property PACKAGE_PIN E23 [get_ports {GATE_START_PULSE2[4]}]; #DIO2_5
-set_property PACKAGE_PIN G22 [get_ports {GATE_START_PULSE2[5]}]; #DIO2_6
-set_property PACKAGE_PIN H22 [get_ports {GATE_START_PULSE2[6]}]; #DIO2_7
-set_property PACKAGE_PIN B9  [get_ports {GATE_START_PULSE2[7]}]; #DIO2_8
-set_property PACKAGE_PIN A9  [get_ports {GATE_START_PULSE2[8]}]; #DIO2_9
+set_property PACKAGE_PIN E21 [get_ports {GATE_START_PULSE2[5]}]; #DIO2_6
+set_property PACKAGE_PIN E22 [get_ports {GATE_START_PULSE2[6]}]; #DIO2_7
+set_property PACKAGE_PIN D21 [get_ports {GATE_START_PULSE2[7]}]; #DIO2_8
+set_property PACKAGE_PIN D25 [get_ports {GATE_START_PULSE2[8]}]; #DIO2_9
 # GOE
 set_property PACKAGE_PIN A10 [get_ports GATE_OUT_EN1L];          #GOE1
 set_property PACKAGE_PIN C9  [get_ports GATE_OUT_EN2L];          #GOE2
@@ -354,7 +375,7 @@ set_clock_groups -asynchronous \
   -group [get_clocks clk_out4_PLL_20M_100M_200M_250M] \
   -group [get_clocks clk_out1_PLL_240M] \
   -group [get_clocks clk_pll_i]
-  
+
 set_clock_groups -asynchronous -group [get_clocks {ROIC_DCLK_P0 ROIC_DCLK_P1 ROIC_DCLK_P2 ROIC_DCLK_P3 ROIC_DCLK_P4}] -group [get_clocks -of_objects [get_pins U0_TI_TFT_TOP/U0_TI_CLOCK_MANAGER/CLK_GEN/inst/plle2_adv_inst/CLKOUT1]]
 set_clock_groups -asynchronous -group [get_clocks {ROIC_DCLK_P0 ROIC_DCLK_P1 ROIC_DCLK_P2 ROIC_DCLK_P3 ROIC_DCLK_P4}] -group [get_clocks -of_objects [get_pins GEV_CPU0.CPU_2DDR/cpu_i/sdram_0/u_cpu_sdram_0_0_mig/u_ddr3_infrastructure/gen_mmcm.mmcm_i/CLKFBOUT]]
 set_clock_groups -asynchronous -group [get_clocks {ROIC_DCLK_P0 ROIC_DCLK_P1 ROIC_DCLK_P2 ROIC_DCLK_P3 ROIC_DCLK_P4}] -group [get_clocks -of_objects [get_pins U0_TI_TFT_TOP/U0_TI_CLOCK_MANAGER/CLK_GEN/inst/plle2_adv_inst/CLKOUT1]]
@@ -372,3 +393,31 @@ set_clock_groups -asynchronous -group [get_clocks -of_objects [get_pins GEV_CPU0
 set_clock_groups -asynchronous -group [get_clocks GEV_RXAUI/U1/U0/rxaui_block_i/gt0_wrapper_i/gtxe2_i/TXOUTCLK] -group [get_clocks sfp_ref_clk_p]
 set_clock_groups -asynchronous -group [get_clocks -of_objects [get_pins U0_TI_TFT_TOP/U0_TI_CLOCK_MANAGER/CLK_GEN/inst/plle2_adv_inst/CLKOUT1]] -group [get_clocks sfp_ref_clk_p]
 set_clock_groups -asynchronous -group [get_clocks {sfp_ref_clk_p[0]}] -group [get_clocks -of_objects [get_pins U0_TI_TFT_TOP/U0_TI_CLOCK_MANAGER/CLK_GEN/inst/plle2_adv_inst/CLKOUT1]]
+
+# 2605071900 RXAUI CDC constraints (ported from xgvrd_kc705_n.xdc; hierarchy fixed: RXAUI_INST/U0 -> GEV_RXAUI/U1/U0). Required to bound async reset/CDC paths inside the RXAUI block; missing constraints are a likely cause of GigE link drops.
+# RXAUI bridge asynchronous paths - reset156 sync chain (sys_clk -> clk156)
+set_max_delay -to [get_pins GEV_RXAUI/U1/U0/rxaui_block_i/rxaui_cl_resets_i/reset156_r1_reg/S] 6.4
+set_max_delay -to [get_pins GEV_RXAUI/U1/U0/rxaui_block_i/rxaui_cl_resets_i/reset156_r2_reg/S] 6.4
+set_max_delay -to [get_pins GEV_RXAUI/U1/U0/rxaui_block_i/rxaui_cl_resets_i/reset156_r3_reg/S] 6.4
+set_property ASYNC_REG true [get_cells GEV_RXAUI/U1/U0/rxaui_block_i/rxaui_cl_resets_i/reset156_r1_reg]
+set_property ASYNC_REG true [get_cells GEV_RXAUI/U1/U0/rxaui_block_i/rxaui_cl_resets_i/reset156_r2_reg]
+set_property ASYNC_REG true [get_cells GEV_RXAUI/U1/U0/rxaui_block_i/rxaui_cl_resets_i/reset156_r3_reg]
+
+# 2605071900 RXAUI GT power-down / sync counter reset CDC bounds
+set_max_delay -to [get_pins {GEV_RXAUI/U1/U0/rxaui_block_i/gt0_wrapper_i/gtxe2_i/TXPD[*]}]     6.4
+set_max_delay -to [get_pins {GEV_RXAUI/U1/U0/rxaui_block_i/gt1_wrapper_i/gtxe2_i/TXPD[*]}]     6.4
+set_max_delay -to [get_pins {GEV_RXAUI/U1/U0/rxaui_block_i/uclk_sync_counter_reg[*]/R}]        6.4
+set_max_delay -to [get_pins {*rxaui_rst_cnt_reg[*]/CE}]                                        6.4
+set_max_delay -to [get_pins {*rxaui_rst_cnt_reg[*]/PRE}]                                       6.4
+set_max_delay -to [get_pins rxaui_rst_reg/PRE]                                                 6.4
+
+# 2605071900 RXAUI reset to MGT powerdown CDC (sys_clk -> uclk)
+set_max_delay -datapath_only -from [get_pins rxaui_rst_reg/C] -to [get_pins GEV_RXAUI/U1/U0/rxaui_block_i/mgt_powerdown_r_reg/D]            6.4
+set_max_delay -datapath_only -from [get_pins rxaui_rst_reg/C] -to [get_pins GEV_RXAUI/U1/U0/rxaui_block_i/uclk_mgt_powerdown_falling_reg/D] 6.4
+
+set_clock_groups -asynchronous -group [get_clocks ROIC_DCLK_P0]  -group [get_clocks ROIC_DCLK_P1]  -group [get_clocks ROIC_DCLK_P2]  -group [get_clocks ROIC_DCLK_P3]  -group [get_clocks ROIC_DCLK_P4] \
+ -group [get_clocks -of_objects [get_pins CPU_2DDR/cpu_i/sdram_0/u_cpu_sdram_0_0_mig/u_ddr3_infrastructure/gen_mmcm.mmcm_i/CLKFBOUT]] \
+ -group [get_clocks -of_objects [get_pins CPU_2DDR/cpu_i/clk_wiz_0/inst/CLK_CORE_DRP_I/clk_inst/mmcm_adv_inst/CLKOUT0]] \
+ -group [get_clocks -of_objects [get_pins CPU_2DDR/cpu_i/clk_wiz_0/inst/CLK_CORE_DRP_I/clk_inst/mmcm_adv_inst/CLKOUT1]] \
+ -group [get_clocks -of_objects [get_pins U0_TI_TFT_TOP/U0_TI_CLOCK_MANAGER/CLK_GEN/inst/plle2_adv_inst/CLKOUT1]] \
+ -group [get_clocks -of_objects [get_pins CPU_2DDR/cpu_i/clk_wiz_0/inst/CLK_CORE_DRP_I/clk_inst/mmcm_adv_inst/CLKOUT0]]

@@ -981,7 +981,7 @@ begin
 
     end generate ILA_DEBUG_SYNC_COUNTER;
 
-    ila_debug : if (GEN_ILA_claib_top = "ON") generate
+    ila_debug : if (GEN_ILA_calib_top = "ON") generate
 
         component ila_calib_top0
             port

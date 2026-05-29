@@ -254,7 +254,7 @@ begin
         u_sync_counter8 : sync_counter
             generic map (
                 sysclkhz => CSYSCLKHZ,
-                vio      => GEN_VIO_SYNC_COUNTER1,
+                vio      => GEN_VIO_SYNC_COUNTER2,
                 para     => 1
             )
             port map (
@@ -282,7 +282,7 @@ begin
         u_sync_counter9 : sync_counter
             generic map (
                 sysclkhz => CSYSCLKHZ,
-                vio      => GEN_VIO_SYNC_COUNTER1,
+                vio      => GEN_VIO_SYNC_COUNTER2,
                 para     => 4
             )
             port map (

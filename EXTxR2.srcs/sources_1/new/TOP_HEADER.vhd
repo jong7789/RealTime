@@ -9,11 +9,53 @@ package TOP_HEADER is
 -- constant GNR_MODEL  : string := "EXT1616R";
 
 constant FPGA_VER  : std_logic_vector(19 downto 0) := x"2_01_13";
-constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0512_16";
+constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0528_13";
 
+-- # 2_01_13 26_0528_13 :  --$ 2605281211 MASK_PARA4: clean rewrite (functional equiv to 2605271746..2605281121 fix chain)
+-- # 2_01_13 26_0528_12 :  --$ 2605281121 MASK_PARA4: inj_active_now combinational early-exit (fix next-frame row0 word0)
+-- # 2_01_13 26_0528_11 :  --$ 2605281049 MASK_PARA4: advance inj_wait by 1cyc (fix 1st word of row 3071 mux+addr)
+-- # 2_01_13 26_0528_10 :  --$ 2605281013 MASK_PARA4: inj_wait phase (fix addr offset for psel4 horiz ramp)
+-- # 2_01_13 26_0528_09 :  --$ 2605280937 MASK_PARA4: last_line_active flag + wea_raw/mux split (Step2 rollback + Step3 add)
+-- # 2_01_13 26_0528_08 :  --$ 2605280849 MASK_PARA4: ext_fsm trigger i_vcnt=H (fix line H-1 preempt)
+-- # 2_01_13 26_0527_17 :  --$ 2605271746 MASK_PARA4: wea gating @ inj_act (last-line BUF preserve)
+-- # 2_01_13 26_0527_16 :  --$ 260527 mask para4
+-- # 2_01_13 26_0527_10 :  --$ 260527 ila_defect_para4
+-- # 2_01_13 26_0527_09 :  --$ 260527 AXI_SUB_IF: DUAL ROIC sch0_warea 0 -> 1
+-- # 2_01_13 26_0526_14 :  --$ 260526 warea 0 test
+-- # 2_01_13 26_0526_10 :  --$ 260526 warea 0 -> 1
+-- # 2_01_13 26_0526_09 :  --# 2605260943 AXI_SUB_IF: enable ILA (probe25 sch1_wtrig->sch0_rarea) for DDR double-buf chk
+-- # 2_01_13 26_0522_15 :  --# 2605221914 EXTREAM_R CPU_4DDR: arregion/awregion tied low + axi2_*id 4b->6b pad/shim (fix Synth 8-9486 / 8-549 after axi0 width regen)
+-- # 2_01_13 26_0522_14 :  --# 2605221747 EXTREAM_R cpu_wrapper port map: vec(0)-indexed scalars, 6b s0_axi_*id shim, drop arregion/awregion
+-- # 2_01_13 26_0522_13 :  --# 2605221727 Unify framebuf 256-bit (2DDR+4DDR via framebuf_2); DDR_AXI* funcs simplified
+-- # 2_01_13 26_0522_12 :  --# 2605221642 FB_DATA_CONV: G_ODATA_WIDTH generic (256/512) + FB_DATA_WIDTH_BY_MODEL
+-- # 2_01_13 26_0522_11 :  --# 3643R/4343RD merge
+-- # 2_01_13 26_0521_19 :  --$ 2605211930 fb_data_conv oframe frame-envelope (first oen rise..last oen fall) + TB rbframe gate
+-- # 2_01_13 26_0521_15 :  --$ 2605211500 fb_data_conv L108 width fix (drop '0' &; srd_num is 7-bit, RHS was 8-bit)
+-- # 2_01_13 26_0521_14 :  --$ 2605211430 fb_data_conv single end-of-line burst (96-cycle oen, addr 0..95 aligned to D0)
+-- # 2_01_13 26_0520_17 :  --$ ila
+-- # 2_01_13 26_0519_11 :  --$ 26051915 AXI_SUB_IF sddr_waddr_pre comb pre-advance (fix 1-clk wdata shift)
+-- # 2_01_13 26_0519_10 :  --$ 26051910 ila top ddr3 + wdata
+-- # 2_01_13 26_0518_18 :  --$ 260518 ila top ddr3
+-- # 2_01_13 26_0518_11 :  --$ 26051811 axi_crossbar interface
+-- # 2_01_13 26_0518_10 :  --$ 260518 axi_master_if write
+-- # 2_01_13 26_0518_09 :  --$ 260518 for ila
+-- # 2_01_13 26_0515_15 :  --$ 26051515 ila ddr topa
+-- # 2_01_13 26_0515_14 :  --$ 26051514 192 -> 96 + 96
+-- # 2_01_13 26_0514_13 :  --$ 26051413 axi crossbar fix
+-- # 2_01_13 26_0513_17 :  --$ 26051318
 -- # 2_01_13 26_0512_16 :  --$ 260512 ddr burst 11 -> 01
 -- # 2_01_13 26_0508_20 :  --# 2605082100 Stage2-a Read multi-outstanding - AXI_MASTER_IF read FSM rewrite (AR queue + R handler + outstanding counter, MAX=8); AXI_IF read s_READ pulse + s_DRAIN; tstate_read += s_DRAIN
 -- # 2_01_13 26_0508_19 :  --# 2605081600 Per-channel AXI ID propagation (Stage1) - AXI_IF/AXI_MASTER_IF/DDR3_TOP add wid/rid path; AWID/ARID = ch index instead of fixed 1
+
+-- # 2_01_13 26_0520_02 :  --# 2605201123 MASK_PARA4: extender trigger fix (hsyn fall + H-1)
+-- # 2_01_13 26_0520_01 :  --# 2605201056 MASK_PARA4: frame extender (last line scan fix)
+-- # 2_01_13 26_0519_15 :  --# 2605191759 MASK_PARA4: sync tap (1)->(2) BRAM 1cyc align
+-- # 2_01_13 26_0519_14 :  sync ila
+-- # 2_01_13 26_0518_03 :  --# 2605181523 TEST_PATTERN: defect-check tp_sel=E (dots+lines, 100/10000 toggle)
+-- # 2_01_13 26_0515_02 :  --# 2605151823 FW_BUSY mask byte-swap for GEV Mono16 BE viewer (dec 400)
+-- # 2_01_13 26_0515_01 :  --# 2605151605 FW_BUSY mask value: x"FFFF" -> x"0190" 
+-- # 2_01_13 26_0508_20 :  --# 2605082100 Stage2-a Read multi-outstanding 
+-- # 2_01_13 26_0508_19 :  --# 2605081600 Per-channel AXI ID propagation (Stage1)
 -- # 2_01_13 26_0508_18 :  ddr strcit->normal, bankCore 4->8
 -- # 2_01_13 26_0508_11 :  --# 2605081100 sfp_phy_sel 256-cyc dbnc + 2FF sync
 -- # 2_01_13 26_0507_18 :  imple area
@@ -32,11 +74,11 @@ constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0512_16";
 -- # 2_01_13 26_0427_13 :  gate 4603
 -- # 2_01_13 26_0427_12 :  roi_proc has ajustment xoffset underbit 
 -- # 2_01_13 26_0427_11 :  changing gate xdc & header info 
--- # 2_01_13 26_0424_22 :  --# 2604242200 Add FW-driven bit-align registers (BCAL_FW_CTRL/PAR/STATUS/RSV at 0x0490-0x049C) - sticky latch for diff/ff00 in rclk_ch domain, fw_mode_en mux on ce/rst/bitslip pulses
--- # 2_01_12 26_0423_17 :  --# 2604231608 followup - AXI_RDATA/WDATA_CONV entity ports, TI_TFT_TOP svnct_lvds/srefvcnt, TI_DATA_ALIGN orefvcnt/ivcnt, TB port map drives all widened to 13bit
--- # 2_01_12 26_0423_16 :  --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302 (REG_TOP height/offsety, EXTREAM_R, TFT_CTRL, DDR3_CTRL, CALIB, IMG_PROC, OUT_IF, TB_* all widened)
--- # 2_01_11 26_0423_14 :  --# 2604231520 Add set_input_delay for ROIC_DOUT (360MHz DDR, +/-0.35ns per DCLK group) to fix ch9 alignment
--- # 2_01_11 26_0423_13 :  --# 2604231200 PHY_RESET_N decoupled from xgmii_rst (use ext_rst only) to prevent Marvell hard-reset on SFP<->RXAUI transition
+-- # 2_01_13 26_0424_22 :  --# 2604242200 Add FW-driven bit-align registers (BCAL_FW_CTRL/PAR/STATUS/RSV at 0x0490-0x049C)
+-- # 2_01_12 26_0423_17 :  --# 2604231608 followup - AXI_RDATA/WDATA_CONV entity ports, TI_TFT_TOP svnct_lvds/srefvcnt
+-- # 2_01_12 26_0423_16 :  --# 2604231608 Expand V-axis 12->13bit for EXT3643R H=4302 
+-- # 2_01_11 26_0423_14 :  --# 2604231520 Add set_input_delay for ROIC_DOUT 
+-- # 2_01_11 26_0423_13 :  --# 2604231200 PHY_RESET_N decoupled from xgmii_rst
 -- # 2_01_11 26_0423_12 :  --# 2604231100 MDIO IOBUF gating to protect Marvell during SFP mode
 -- # 2_01_11 26_0423_11 :  --# rst not ctrl by sfp #2604231130
 -- # 2_01_11 26_0422_16 :  --# 2604221600 SFP_STAT 3FF CDC pipeline (ireg_sfp_stat -> sreg_sfp_stat_1d/2d/3d -> sreg_sfp_stat)
@@ -544,7 +586,7 @@ constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0512_16";
     constant GEN_ILA_axi_master_if    : string := "OFF";
     -- CALIB
     constant GEN_ILA_avg              : string := "OFF";
-    constant GEN_ILA_claib_top        : string := "OFF";
+    constant GEN_ILA_calib_top        : string := "OFF";
     constant GEN_ILA_tpc_proc         : string := "OFF";
     constant GEN_ILA_defect_proc      : string := "OFF";
     constant GEN_ILA_defectline_proc  : string := "OFF";
@@ -564,7 +606,7 @@ constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0512_16";
     constant GEN_ILA_SPI              : string := "OFF";
 
     constant GEN_SYNC_COUNTER         : string := ILA_ON;
-    constant GEN_SM_PROBE             : string := ILA_ON;
+    constant GEN_SM_PROBE             : string :=  "OFF"; --# 260515
     constant GEN_VIO_CLK_COUNTER      : std_logic := '0';
     constant GEN_VIO_SYNC_COUNTER0    : std_logic := '0'; -- video sync ila on
     constant GEN_VIO_SYNC_COUNTER1    : std_logic := '0'; -- video sync ila on //# 230919
@@ -909,10 +951,13 @@ constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0512_16";
     function DDR_BIT_R3             (s : string) return integer;
     function DDR_BIT_R4             (s : string) return integer;
     function DDR_BY_MODEL           (s : string) return integer;
+    function FB_DATA_WIDTH_BY_MODEL (s : string) return integer;   --# 2605221642 256/512 (FB_DATA_CONV packed-word width)
     function DDR_DM                 (s : string) return integer;
     function DDR_DQS                (s : string) return integer;
     function DDR_DQ                 (s : string) return integer;
     function DDR_AXI2               (s : string) return integer;
+    function DDR_AXI0_DATA          (s : string) return integer;
+    function DDR_AXI0_STRB          (s : string) return integer;
 
     function ROIC_SYNC_DCLK           (s : string) return integer;
     function ROIC_SYNC_ACLK           (s : string) return integer;
@@ -1037,15 +1082,27 @@ constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0512_16";
     constant G10p_DDR_BIT_R3 : integer := 64;
     constant G10p_DDR_BIT_R4 : integer := 64;
 
-    constant DDR_DM_2    : integer := 4;
-    constant DDR_DQS_2   : integer := 4;
-    constant DDR_DQ_2    : integer := 32;
-    constant DDR_AXI2_2  : integer := 4;
-    
-    constant DDR_DM_4    : integer := 8;
-    constant DDR_DQS_4   : integer := 8;
-    constant DDR_DQ_4    : integer := 64;
-    constant DDR_AXI2_4  : integer := 6;
+    constant DDR_DM_2        : integer := 4;
+    constant DDR_DQS_2       : integer := 4;
+    constant DDR_DQ_2        : integer := 32;
+--# 2605221727 Unify AXI0 width to framebuf_2 (256b din/m0_wdata, 4b ID); ext s0_axi on cpu.bd = 256/ID4
+--    constant DDR_AXI2_2      : integer := 4;
+--    constant DDR_AXI0_DATA_2 : integer := 128;
+--    constant DDR_AXI0_STRB_2 : integer := 16;
+    constant DDR_AXI2_2      : integer := 4;    --# 2605221727 BD s0_axi ID_WIDTH (smartconnect prepends 2b inside to MIG 6b)
+    constant DDR_AXI0_DATA_2 : integer := 256;  --# 2605221727 framebuf_2 m0_axi_wdata
+    constant DDR_AXI0_STRB_2 : integer := 32;   --# 2605221727 framebuf_2 m0_axi_wstrb (256/8)
+
+    constant DDR_DM_4        : integer := 8;
+    constant DDR_DQS_4       : integer := 8;
+    constant DDR_DQ_4        : integer := 64;
+--# 2605221727 4DDR also moves to framebuf_2 (256b) — BD s0_axi to be re-cfg manually to 256/ID4
+--    constant DDR_AXI2_4      : integer := 6;
+--    constant DDR_AXI0_DATA_4 : integer := 512;
+--    constant DDR_AXI0_STRB_4 : integer := 64;
+    constant DDR_AXI2_4      : integer := 4;    --# 2605221727 cpu4ddr.bd s0_axi ID_WIDTH (was 4 externally already)
+    constant DDR_AXI0_DATA_4 : integer := 256;  --# 2605221727 framebuf_2 m0_axi_wdata (was 512)
+    constant DDR_AXI0_STRB_4 : integer := 32;   --# 2605221727 framebuf_2 m0_axi_wstrb (was 64)
 --    constant DDR_AXI2_4  : integer := 4; --$ 260409 SmartConnect native slave ID width (crossbar prepended 2bits, no longer needed)
     
     type tstate_grab            is (
@@ -1168,7 +1225,7 @@ constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0512_16";
         s_WAIT,
         s_READ,
         s_CHECK,
-        s_DRAIN  --# 2605082100 Stage2-a: wait for outstanding R data to drain after all chunks issued
+        s_DRAIN --# 2605082100 Stage2-a: wait for outstanding R data to drain after all chunks issued
     );
 
     type tstate_write_ddr_mast  is  (
@@ -1377,7 +1434,18 @@ PACKAGE BODY TOP_HEADER is
         end if;
         return (val);
     end DDR_BY_MODEL;
-    
+
+    --# 2605221642 FB_DATA_CONV packed-word width per model (must be 256 or 512)
+    -- Keep 512 as default for backward-compat; switch to 256 per model when 256x240 BRAM IP is preferred
+    function FB_DATA_WIDTH_BY_MODEL (s : string) return integer is
+        variable val : integer;
+    begin
+        if(s = "EXT4343RD"  ) then val := 256;
+        else                       val := 256;   --# 2605221642 change to 256 to use DPRAM_64x960_256x240
+        end if;
+        return (val);
+    end FB_DATA_WIDTH_BY_MODEL;
+
 --##### BY MODEL #####
 --####################
 
@@ -2407,12 +2475,30 @@ begin
     else                          return DDR_DQ_2;
     end if;
 end function DDR_DQ;
+--# 2605221727 DDR_AXI* funcs: DDR_BY_MODEL branch is now redundant
+--# (2DDR and 4DDR both expose 256b data / 32b strb / 4b ID at framebuf<->BD boundary)
+--# Old per-DDR if-else kept commented for reference; new body returns 2-suffix constants directly.
 function DDR_AXI2 (s : string) return integer is
 begin
-    if(DDR_BY_MODEL(s) = 4 ) then return DDR_AXI2_4;
-    else                          return DDR_AXI2_2;
-    end if;
+--    if(DDR_BY_MODEL(s) = 4 ) then return DDR_AXI2_4;
+--    else                          return DDR_AXI2_2;
+--    end if;
+    return DDR_AXI2_2;  --# 2605221727 unified 4b ID
 end function DDR_AXI2;
+function DDR_AXI0_DATA (s : string) return integer is
+begin
+--    if(DDR_BY_MODEL(s) = 4 ) then return DDR_AXI0_DATA_4;
+--    else                          return DDR_AXI0_DATA_2;
+--    end if;
+    return DDR_AXI0_DATA_2;  --# 2605221727 unified 256b data
+end function DDR_AXI0_DATA;
+function DDR_AXI0_STRB (s : string) return integer is
+begin
+--    if(DDR_BY_MODEL(s) = 4 ) then return DDR_AXI0_STRB_4;
+--    else                          return DDR_AXI0_STRB_2;
+--    end if;
+    return DDR_AXI0_STRB_2;  --# 2605221727 unified 32b strb
+end function DDR_AXI0_STRB;
 
     --# 260320 SFP port count: 1=SFP used, 0=null array (ports disappear)
     function FUNC_SFP_NUM (s : string) return integer is

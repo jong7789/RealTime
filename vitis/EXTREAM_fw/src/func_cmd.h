@@ -206,6 +206,7 @@ extern u32 func_img_avg_dose1;
 extern u32 func_img_avg_dose2;
 extern u32 func_img_avg_dose3;
 extern u32 func_img_avg_dose4;
+extern u32 func_img_avg_dose5; //# 2605141540 add extern for disp_cmd_rddr
 extern u32 func_ref_avg_max;
 extern u32 func_ref_num;
 extern u32 func_defect_sens;
@@ -307,6 +308,7 @@ extern u8 is_factory_map_mode;
 extern u8 func_gainmap_limit;
 
 extern u32 func_acc_value;
+extern u8  func_acc_enabled;    //# 2605131355 runtime ACC on/off flag, set by execute_cmd_acc; update_acc skips when 0
 extern u8 func_triglog_on;
 
 extern u32 func_image_topvalue;
@@ -374,6 +376,7 @@ void execute_cmd_bwns3(void);
 void execute_cmd_bwns4(void);
 u8 execute_cmd_rns_info(void);
 u8 execute_cmd_rns(void);
+void rns_display(void);   //# 2605211347 read-only rns diagnostic dump
 u8 execute_cmd_brns(void);
 u8 execute_cmd_brns_old(void);
 void execute_cmd_wds(void);

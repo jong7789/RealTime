@@ -20,7 +20,15 @@
 #include "user.h"
 
 #include "clk_wiz_header.h" //mbh
-#include "xaxipmon.h"      //# 2605062100 APM driver for 'apm' command
+//#include "xaxipmon.h"      //# 2605062100 APM driver for 'apm' command
+//# 2605191537 Guard APM driver — axi_perf_mon_0 may be absent from BD
+#ifdef XPAR_AXI_PERF_MON_0_DEVICE_ID
+  #include "xaxipmon.h"
+  #define APM_PRESENT 1
+#else
+  #define APM_PRESENT 0
+#endif
+#include "int.h"           //# 2605181144 fb_tx_dot_en / fb_err_msg_en runtime toggles
 
 const CMD_STRUCT CMD_MAT[MAX_CMD_NUM] = {
     {"h"        , UART_CMD_h            , "Display All of Command Descriptions"        , 0 },
@@ -46,7 +54,8 @@ const CMD_STRUCT CMD_MAT[MAX_CMD_NUM] = {
     {"iproc"    , UART_CMD_iproc        , "Select Image Processing Mode"               , 0 },
     {"wus"      , UART_CMD_wus          , "Write Current User Setting"                 , 0 },
     {"rus"      , UART_CMD_rus          , "Read Current User Setting"                  , 0 },
-    {"debug"    , UART_CMD_debug        , "Read Current User Setting(Debug)"           , 0 }, // dskim
+//    {"debug"    , UART_CMD_debug        , "Read Current User Setting(Debug)"           , 0 }, // dskim
+    {"rus2"     , UART_CMD_rus2         , "Read User Setting + NUC Info (Debug)"       , 0 }, //# 2605201841 renamed from "debug"
     {"rtime"    , UART_CMD_rtime        , "Display Running Time"                       , 0 },
     {"rtemp"    , UART_CMD_rtemp        , "Read Temperature"                           , 0 },
     {"reboot"   , UART_CMD_reboot       , "Rebooting"                                  , 0 },
@@ -91,10 +100,17 @@ const CMD_STRUCT CMD_MAT[MAX_CMD_NUM] = {
 	{"romread"  , UART_CMD_romread      , "rom read"                                   , 0 }, // mbh 231017
 	{"ropertime", UART_CMD_ropertime    , "read operation time"                        , 0 }, // mbh 231121
 	{"port"     , UART_CMD_port         , "Select PHY Port (0:Marvell 1:SFP)"          , 0 }, //# 260421 add port cmd
+	{"m88deinit", UART_CMD_m88deinit    , "Manually run m88x33xx_deinit()"             , 0 }, //# 2605121343 manual M88X debug cmds
+	{"m88initx" , UART_CMD_m88initx     , "Manually run m88x33xx_initx(RXAUI)"         , 0 }, //# 2605121343
+	{"m88inity" , UART_CMD_m88inity     , "Manually run m88x33xx_inity(RXAUI)"         , 0 }, //# 2605121343
+	{"m88init"  , UART_CMD_m88init      , "Manually run m88x33xx_init(RXAUI)"          , 0 }, //# 2605121343
+	{"m88rst"   , UART_CMD_m88rst       , "Hard reset PHY (PHY_RESET_N pulse)"         , 0 }, //# 2605121451
+	{"gigeinit" , UART_CMD_gigeinit     , "Run gige_init + set_data_rates/link/sceba"  , 0 }, //# 2605121447
 //	{"apm"      , UART_CMD_apm          , "APM bandwidth [ms/dir] (default 200)"       , 0 }, //# 2605062100 APM bandwidth (Gbps + %)
 //	{"apm"      , UART_CMD_apm          , "APM BW+stall [ms] (default 200, parallel)"  , 0 }, //# 2605071100 8-counter parallel: bytes+tran+avgLat+idle
 	{"apm"      , UART_CMD_apm          , "APM 3-slot BW [ms] (default 200, seq)"      , 0 }, //# 2605071158 3 slots sequential: M00/GEV/Sensor
 	{"ddrburst" , UART_CMD_ddrburst     , "DDR AXI burst [N] (32/64/128/256, runtime)" , 0 }, //# 2605071529 quantize-down then map to mode 0..3
+	{"watch"    , UART_CMD_watch        , "REG watch: 1=on 0=off [+addrs to add/remove]", 0 }, //# 2605131158
 
     {"tser"     , UART_CMD_tser         , "Access TFT Serial Number"                   , 0 },
     {"pser"     , UART_CMD_pser         , "Access Panel Serial Number"                 , 0 },
@@ -152,6 +168,8 @@ const CMD_STRUCT CMD_MAT[MAX_CMD_NUM] = {
     {"finit"    , UART_CMD_finit        , "Initialize FrameBuffer"                     , 0 },
     {"fclr"     , UART_CMD_fclr         , "Clear FrameBuffer"                          , 0 },
     {"fov"      , UART_CMD_fov          , "Display FrameBuffer OVFLW summary"          , 0 },   //# 2605081100
+    {"fdot"     , UART_CMD_fdot         , "Toggle FB TX-dot UART progress (0/1)"       , 0 },   //# 2605181144
+    {"ferr"     , UART_CMD_ferr         , "Toggle FB overflow UART message (0/1)"      , 0 },   //# 2605181144
     {"pdbg"     , UART_CMD_pdbg         , "Select PHY Debug Mode"                      , 0 },
     {"prev"     , UART_CMD_prev         , "Display PHY Revision"                       , 0 },
     {"grab"     , UART_CMD_grab         , "TFT Operation Enable / Disable"             , 0 },
@@ -291,6 +309,8 @@ u8 UART_CMD_auth (u8 num, u32* data) {
         return CMD_ERR3;
 }
 
+//# 2605191537 Whole APM impl gated on BD presence; falls back to stub when axi_perf_mon_0 absent
+#if APM_PRESENT
 //# 2605062100 APM bandwidth command on SLOT0 (axi_crossbar_0_M00_AXI, 256-bit @ sdram_0_ui_clk)
 //   NUM_OF_COUNTERS=1 -> sequential R then W. byte counter is u32: window kept short to avoid wrap.
 //#define APM_SLOT0_DATA_WIDTH    256U          //# bus width in bits (from cpu.hwh SLOT_0_AXI)
@@ -301,8 +321,7 @@ u8 UART_CMD_auth (u8 num, u32* data) {
 
 //# 2605071100 APM upgraded to 8 parallel counters (R/W bytes + tran cnt + latency sum + idle) for stall diagnosis
 //# 2605071158 APM extended to 3 slots (M00 / GEV TX read / Sensor write), measured sequentially per slot
-//#define APM_SLOT0_DATA_WIDTH    256U          //# bus width in bits (from cpu.hwh SLOT_x_AXI, all 3 slots same width)
-#define APM_SLOT0_DATA_WIDTH    512U          //$ 260513 EXT4343RD AXI bus width 256->512 (cpu4ddr.bd axi_dwidth_converter MI_DATA_WIDTH=512)
+#define APM_SLOT0_DATA_WIDTH    256U          //# bus width in bits (from cpu.hwh SLOT_x_AXI, all 3 slots same width)
 #define APM_SLOT0_CLK_FREQ_HZ   187546887U    //# slot_x_axi_aclk = sdram_0_ui_clk (all 3 slots same domain)
 #define APM_DEFAULT_MS          200U          //# per-slot window; 3 slots -> total ~600ms
 #define APM_MIN_MS              10U
@@ -325,10 +344,8 @@ static const struct {
     const char  *name;
 } apm_slot_map[APM_NUM_SLOTS] = {
     { 0U, "SLOT0 M00 (DDR3 agg)"     },
-//    { 1U, "SLOT1 GEV TX read (S02)"  },
-    { 1U, "SLOT1 GEV TX read (S03)"  }, //$ 260513 Fix label: HW SLOT1=S03_AXI not S02
-//    { 2U, "SLOT2 Sensor write (S03)" },
-    { 2U, "SLOT2 Sensor write (S02)" }, //$ 260513 Fix label: HW SLOT2=S02_AXI not S03
+    { 1U, "SLOT1 GEV TX read (S02)"  },
+    { 2U, "SLOT2 Sensor write (S03)" },
 };
 
 static XAxiPmon apm_inst;
@@ -417,10 +434,8 @@ static void apm_print_slot(const char *name, const apm_slot_t *m) {
 
     r_gbps_x100  = ((u64)m->r_bytes * 8ULL * APM_SLOT0_CLK_FREQ_HZ / clk) / 10000000ULL;
     w_gbps_x100  = ((u64)m->w_bytes * 8ULL * APM_SLOT0_CLK_FREQ_HZ / clk) / 10000000ULL;
-    //r_util_x100  = (u32)(((u64)m->r_bytes * 10000ULL) / (clk * 32ULL));
-    r_util_x100  = (u32)(((u64)m->r_bytes * 10000ULL) / (clk * 64ULL)); //$ 260513 512-bit bus: bytes_per_cycle=512/8=64
-    //w_util_x100  = (u32)(((u64)m->w_bytes * 10000ULL) / (clk * 32ULL));
-    w_util_x100  = (u32)(((u64)m->w_bytes * 10000ULL) / (clk * 64ULL)); //$ 260513 512-bit bus: bytes_per_cycle=512/8=64
+    r_util_x100  = (u32)(((u64)m->r_bytes * 10000ULL) / (clk * 32ULL));
+    w_util_x100  = (u32)(((u64)m->w_bytes * 10000ULL) / (clk * 32ULL));
     r_idle_x100  = (u32)(((u64)m->r_idle  * 10000ULL) / clk);
     w_idle_x100  = (u32)(((u64)m->w_idle  * 10000ULL) / clk);
     r_avglat_x10 = (m->r_tran == 0) ? 0U : (u32)(((u64)m->r_latsum * 10ULL) / m->r_tran);
@@ -475,6 +490,15 @@ u8 UART_CMD_apm (u8 num, u32* data) {
     return CMD_OK;
 }
 
+#else /* !APM_PRESENT : axi_perf_mon_0 removed from BD */
+//# 2605191537 Stub keeps 'apm' UART entry & prototype valid when APM IP is absent
+u8 UART_CMD_apm (u8 num, u32* data) {
+    (void)num; (void)data;
+    func_printf("APM not present in this build (axi_perf_mon_0 removed from BD)\r\n");
+    return CMD_ERR2;
+}
+#endif /* APM_PRESENT */
+
 //# 2605071529 DDR AXI burst limit runtime selector (register 0x04A0, 2-bit mode)
 //   Quantize input down to nearest power of 2 then map to mode 0..3.
 //   Tier:  N <= 32 -> mode 0 (32),  N <= 64 -> mode 1 (64),
@@ -501,6 +525,143 @@ u8 UART_CMD_ddrburst (u8 num, u32* data) {
         return CMD_OK;
     }
     return CMD_ERR3;
+}
+
+//# 2605131158 REG() access watcher (simplified: add/remove + ALL on/off).
+//             Pairs with the REG/FREG macro wrapper in fpga_info.h + dbg_watch_check()
+//             in func_basic.c. Each occupied slot always runs R+W dual triggers.
+// Usage:
+//   watch                       -> print usage + current state.
+//   watch 1                     -> ALL mode ON (sample every REG access, 1/DBG_WATCH_ALL_DIV).
+//   watch 0                     -> ALL mode OFF (slots untouched).
+//   watch 1 <addr> [addr...]    -> add each addr to the slot table (no-op if present).
+//   watch 0 <addr> [addr...]    -> remove each addr from the slot table (no-op if absent).
+u8 UART_CMD_watch (u8 num, u32* data) {
+    if (num == 0) {                                                 //# list + usage
+        disp_cmd_watch();
+        return CMD_OK;
+    }
+    u32 flag = data[0];
+    if (flag != 0 && flag != 1) {
+        func_printf("[watch] first arg must be 0 (off/remove) or 1 (on/add)\r\n");
+        return CMD_ERR4;
+    }
+    if (num == 1) {
+        //# 1-arg form toggles ALL mode flag only; slots untouched.
+        if (flag) {
+            dbg_watch_flags |=  DBG_WATCH_FLAG_ALL;
+            func_printf("[watch] ALL mode ON (sampled 1/%u). UART may flood.\r\n",
+                        (unsigned)DBG_WATCH_ALL_DIV);
+        } else {
+            dbg_watch_flags &= ~DBG_WATCH_FLAG_ALL;
+            func_printf("[watch] ALL mode OFF\r\n");
+        }
+        disp_cmd_watch();
+        return CMD_OK;
+    }
+    //# num >= 2: data[0] = 0/1, data[1..num-1] = addrs to add/remove.
+    for (u8 ai = 1; ai < num; ai++) {
+        u32 a = data[ai];
+        if (!a) {
+            func_printf("[watch] skip addr=0 (sentinel for empty slot)\r\n");
+            continue;
+        }
+        int found = -1;
+        for (int i = 0; i < DBG_WATCH_MAX; i++) {
+            if (dbg_watch_addr[i] == a) { found = i; break; }
+        }
+        if (flag) {                                                 //# add
+            if (found >= 0) {
+                func_printf("[watch] 0x%04x already in slot %d (no-op)\r\n",
+                            (unsigned)a, found);
+                continue;
+            }
+            int slot = -1;
+            for (int i = 0; i < DBG_WATCH_MAX; i++) {
+                if (!dbg_watch_addr[i]) { slot = i; break; }
+            }
+            if (slot < 0) {
+                func_printf("[watch] no empty slot for 0x%04x (max %d)\r\n",
+                            (unsigned)a, DBG_WATCH_MAX);
+                return CMD_ERR4;
+            }
+            dbg_watch_addr[slot] = a;
+            dbg_watch_prev[slot] = FREG(a);                         //# seed with current value
+            func_printf("[watch] + slot %d  addr 0x%04x  seed 0x%08x %u\r\n",
+                        slot, (unsigned)a,
+                        (unsigned)dbg_watch_prev[slot], (unsigned)dbg_watch_prev[slot]);
+        } else {                                                    //# remove
+            if (found < 0) {
+                func_printf("[watch] 0x%04x not in any slot (no-op)\r\n", (unsigned)a);
+                continue;
+            }
+            dbg_watch_addr[found] = 0;
+            dbg_watch_prev[found] = 0;
+            func_printf("[watch] - slot %d  addr 0x%04x removed\r\n",
+                        found, (unsigned)a);
+        }
+    }
+    disp_cmd_watch();
+    return CMD_OK;
+}
+
+//# 2605121343 Manual M88X33xx step commands (debug). Each runs a single stage
+//             of the cold-boot sequence: deinit -> initx -> inity -> init.
+//             Return code of underlying function is printed; CMD_OK is always
+//             returned to UART parser so subsequent commands stay enabled.
+u8 UART_CMD_m88deinit (u8 num, u32* data) {
+    int ret = m88x33xx_deinit();
+    func_printf("m88x33xx_deinit() -> %d\r\n", ret);
+    return CMD_OK;
+}
+
+u8 UART_CMD_m88initx (u8 num, u32* data) {
+    int ret = m88x33xx_initx(RXAUI);
+    func_printf("m88x33xx_initx(RXAUI) -> %d\r\n", ret);
+    return CMD_OK;
+}
+
+u8 UART_CMD_m88inity (u8 num, u32* data) {
+    int ret = m88x33xx_inity(RXAUI);
+    func_printf("m88x33xx_inity(RXAUI) -> %d\r\n", ret);
+    return CMD_OK;
+}
+
+u8 UART_CMD_m88init (u8 num, u32* data) {
+    int ret = m88x33xx_init(RXAUI);
+    func_printf("m88x33xx_init(RXAUI) -> %d\r\n", ret);
+    return CMD_OK;
+}
+
+//# 2605121451 Hard reset the external PHY chip via the PHY_RESET_N pin.
+//             Use this when m88x33xx_init returns 0x1001 (PHY MCU app code not started)
+//             and m88inity also fails to recover. After this command, re-run the init
+//             sequence manually: m88inity -> gigeinit -> m88init.
+//             Mirrors the pattern at tn80xx.c:30-32: set GCSR_RST_PHY, FPGA generates
+//             the reset pulse, bit auto-clears when pulse completes, then 100ms settle.
+u8 UART_CMD_m88rst (u8 num, u32* data) {
+    func_printf("PHY hard reset (PHY_RESET_N pulse)...\r\n");
+    gige_gcsr |= GCSR_RST_PHY;
+    while (gige_gcsr & GCSR_RST_PHY) {}
+    usleep(100000);   // 100ms PHY power-on settle
+    func_printf("done. Recommended next: m88inity -> gigeinit -> m88init\r\n");
+    return CMD_OK;
+}
+
+//# 2605121447 Manually run the GigE core init sequence (Marvell/RXAUI path).
+//             Mirrors execute_cmd_port(0) NEW path block at func_cmd.c:360-366,
+//             so it can be invoked standalone for debugging without going through
+//             the full m88x_init gate.
+u8 UART_CMD_gigeinit (u8 num, u32* data) {
+    func_printf("gige_init(RXAUI/Marvell)...\r\n");
+    gige_init(0, XPAR__CPU4DDR_I_M1_AXI_GEV_BASEADDR, DEV_MODE_TX, XPAR_CPU_M_AXI_DP_FREQ_HZ,
+                 PHY_NBASET_MRVL, 0, 2500000, 0, SCPS_MAX, DBG_ICMP);
+    gige_set_data_rates(200, 10000);                    // tx_stm_clk = 200MHz, 10Gbps Ethernet link
+    gige_set_link_config_cap(LINK_CONFIG_CAP_SL);       // Physical link configuration capabilities
+    gige_set_link_config(LINK_CONFIG_SL);               // Current physical link configuration
+    gige_set_sceba(0, MAP_SCEBA);                       // Stream channel extended bootstrap address
+    func_printf("gige_init sequence done\r\n");
+    return CMD_OK;
 }
 
 //# 260421 add port cmd (Marvell/SFP select)
@@ -1047,7 +1208,11 @@ u8 UART_CMD_rus (u8 num, u32* data) {
         return CMD_ERR3;
 }
 
-u8 UART_CMD_debug (u8 num, u32* data) {
+//# 2605201841 UART_CMD_debug -> UART_CMD_rus2 (also dumps NUC info via execute_cmd_rus2)
+// Name aligned with execute_cmd_rus2() backend; reachable via UART "rus2".
+// "rus2"        -> dump table func_table
+// "rus2 1 N"    -> dump table N (0..3)
+u8 UART_CMD_rus2 (u8 num, u32* data) {
     if (num == 0) {
         execute_cmd_rus2(func_table);
         return CMD_OK;
@@ -1790,6 +1955,80 @@ u8 UART_CMD_fov (u8 num, u32* data) {
         return CMD_ERR3;
 }
 
+/* //# 2605181144 fdot (initial, superseded by 2605181217 mutex version below)
+u8 UART_CMD_fdot (u8 num, u32* data) {
+    if (num == 0) {
+        func_printf("[FDOT] EN=%d\r\n", fb_tx_dot_en);
+        return CMD_OK;
+    }
+    if (num == 1) {
+        if (data[0] > 1) return CMD_ERR4;
+        fb_tx_dot_en = (u8)data[0];
+        func_printf("[FDOT] EN=%d\r\n", fb_tx_dot_en);
+        return CMD_OK;
+    }
+    return CMD_ERR3;
+}
+//# 2605181144 ferr (initial, superseded by 2605181217 mutex version below)
+u8 UART_CMD_ferr (u8 num, u32* data) {
+    if (num == 0) {
+        func_printf("[FERR] EN=%d\r\n", fb_err_msg_en);
+        return CMD_OK;
+    }
+    if (num == 1) {
+        if (data[0] > 1) return CMD_ERR4;
+        fb_err_msg_en = (u8)data[0];
+        func_printf("[FERR] EN=%d\r\n", fb_err_msg_en);
+        return CMD_OK;
+    }
+    return CMD_ERR3;
+}
+*/
+
+//# 2605181217 fdot: runtime toggle for ISR '.' progress (fb_tx_dot_en).
+//# Mutex with ferr: turning fdot ON forces fb_err_msg_en=0 (other auto-OFF).
+//# No arg = report both states. 1 arg (0/1) = set fdot.
+u8 UART_CMD_fdot (u8 num, u32* data) {
+    if (num == 0) {
+        func_printf("[FDOT] EN=%d FERR=%d\r\n", fb_tx_dot_en, fb_err_msg_en);
+        return CMD_OK;
+    }
+    if (num == 1) {
+        if (data[0] > 1) return CMD_ERR4;
+        fb_tx_dot_en = (u8)data[0];
+        if (fb_tx_dot_en && fb_err_msg_en) {        // mutex: ON forces other OFF
+            fb_err_msg_en = 0;
+            func_printf("[FDOT] EN=1 (FERR auto-OFF)\r\n");
+        } else {
+            func_printf("[FDOT] EN=%d FERR=%d\r\n", fb_tx_dot_en, fb_err_msg_en);
+        }
+        return CMD_OK;
+    }
+    return CMD_ERR3;
+}
+
+//# 2605181217 ferr: runtime toggle for ISR overflow rising-edge msg (fb_err_msg_en).
+//# Mutex with fdot: turning ferr ON forces fb_tx_dot_en=0 (other auto-OFF).
+//# No arg = report both states. 1 arg (0/1) = set ferr.
+u8 UART_CMD_ferr (u8 num, u32* data) {
+    if (num == 0) {
+        func_printf("[FERR] EN=%d FDOT=%d\r\n", fb_err_msg_en, fb_tx_dot_en);
+        return CMD_OK;
+    }
+    if (num == 1) {
+        if (data[0] > 1) return CMD_ERR4;
+        fb_err_msg_en = (u8)data[0];
+        if (fb_err_msg_en && fb_tx_dot_en) {        // mutex: ON forces other OFF
+            fb_tx_dot_en = 0;
+            func_printf("[FERR] EN=1 (FDOT auto-OFF)\r\n");
+        } else {
+            func_printf("[FERR] EN=%d FDOT=%d\r\n", fb_err_msg_en, fb_tx_dot_en);
+        }
+        return CMD_OK;
+    }
+    return CMD_ERR3;
+}
+
 u8 UART_CMD_pdbg (u8 num, u32* data) {
     if (num == 1) {
         func_printf("@@@@ PHY DEBUG (select option number)\r\n");
@@ -1942,6 +2181,7 @@ u8 UART_CMD_wddr(u8 num, u32* data) {
 u8 UART_CMD_rddr(u8 num, u32* data) {
     if(num == 0) {
 //      disp_cmd_wddr();
+        disp_cmd_rddr(); //# 2605141540 bare 'rddr' now prints dose0..5 cache
         return CMD_OK;
     }
     else if(num == 1) {
@@ -2490,11 +2730,17 @@ u8 UART_CMD_rns(u8 num, u32* data) {
     u32 grab = func_grab_en;
 
     if(num == 0) {
-        if(REG(ADDR_OUT_EN))                return CMD_ERR5;
-
-        execute_cmd_grab(0);
-        if(execute_cmd_rns())               return CMD_ERR9;
-        execute_cmd_grab(grab);
+//        if(REG(ADDR_OUT_EN))                return CMD_ERR5;
+//
+//        execute_cmd_grab(0);
+//        if(execute_cmd_rns())               return CMD_ERR9;
+//        execute_cmd_grab(grab);
+        //# 2605211347 UART 'rns' (no arg) -> read-only rns_display() dump
+        // Why: original path actually performs ROM->DDR load and hangs on
+        //      corrupted headers (flash_ref_num=0). Replace with diagnostic
+        //      dump only. brns (rns 1) and XML calib path keep original.
+        (void)grab;
+        rns_display();
         return CMD_OK;
     }
 
@@ -2621,6 +2867,14 @@ u8 UART_CMD_mac(u8 num, u32* data) {
 u8 UART_CMD_ip(u8 num, u32* data) {
     if(num == 0) {
         disp_cmd_ip();
+        //# 2605121743 Dump the 3 conditions used by check_sfp_stat to gate the deferred m88x init
+        {
+            u32 ip = XREG(XGIGE_ADDR_IP);
+            func_printf("[ip cond] g_port_sel=%u  once88m=%d  XREG(IP)=0x%08x (nz=%u)\r\n",
+                        (u32)g_port_sel, once88m, ip, (ip != 0));
+            func_printf("[ip cond] combined ((port_sel==0)&&(once88m==0)&&(IP!=0)) = %u\r\n",
+                        ((g_port_sel == 0) && (once88m == 0) && (ip != 0)));
+        }
         return CMD_OK;
     }
     if(num == 1) {

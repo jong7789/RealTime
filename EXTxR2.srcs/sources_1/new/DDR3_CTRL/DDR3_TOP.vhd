@@ -37,7 +37,7 @@ entity DDR3_TOP is
         ireg_height         : in std_logic_vector(12 downto 0); --# 2604231608 Expand V-axis 12->13bit
 
         --# 2605071529 DDR burst limit selector (00=32 / 01=64 / 10=128 / 11=256)
-        ireg_ddr_burst      : in std_logic_vector(1 downto 0);
+--$260514        ireg_ddr_burst      : in std_logic_vector(1 downto 0);
 
         istate_tftd         : in tstate_tft;
 
@@ -126,7 +126,27 @@ entity DDR3_TOP is
         ostate_sync_ddr     : out tstate_sync_ddr;
         ostate_ddr_sub      : out tstate_ddr_sub;
         ostate_write_if     : out tstate_write;
-        ostate_read_if      : out tstate_read
+        ostate_read_if      : out tstate_read;
+        
+        axi0_araddr         : in std_logic_vector(31 downto 0);
+        axi0_arburst        : in std_logic_vector( 1 downto 0);
+        axi0_arlen          : in std_logic_vector( 7 downto 0);
+        axi0_arready        : in std_logic;
+        axi0_arvalid        : in std_logic;
+                    
+        axi0_awaddr         : in std_logic_vector(31 downto 0);
+        axi0_awburst        : in std_logic_vector( 1 downto 0);
+        axi0_awlen          : in std_logic_vector( 7 downto 0);
+        axi0_awready        : in std_logic;
+        axi0_awvalid        : in std_logic;
+                    
+        axi0_rlast          : in std_logic;
+        axi0_rready         : in std_logic;
+        axi0_rvalid         : in std_logic;
+                    
+        axi0_wlast          : in std_logic;
+        axi0_wready         : in std_logic;
+        axi0_wvalid         : in std_logic
     );
 end DDR3_TOP;
 
@@ -309,7 +329,7 @@ architecture Behavioral of DDR3_TOP is
             ireg_width  : in std_logic_vector(11 downto 0);
 
             --# 2605071529 DDR burst limit selector (00=32 / 01=64 / 10=128 / 11=256)
-            ireg_ddr_burst : in std_logic_vector(1 downto 0);
+--$260514            ireg_ddr_burst : in std_logic_vector(1 downto 0);
 
             -- For AXI MASTER IF
             oconv_wlen  : out std_logic_vector(7 downto 0);
@@ -325,7 +345,7 @@ architecture Behavioral of DDR3_TOP is
             iconv_rbusy : in std_logic;
 
             --# 2605082100 Stage2-a Read multi-outstanding idle indicator
-            iconv_r_idle : in std_logic;
+--$260514            iconv_r_idle : in std_logic;
 
             -- For Output
             iconv_clk   : in std_logic;
@@ -343,11 +363,11 @@ architecture Behavioral of DDR3_TOP is
             ostate_write : out tstate_write;
             owrite_ch    : out std_logic_vector(4 - 1 downto 0);
             ostate_read  : out tstate_read;
-            oread_ch     : out std_logic_vector(4 - 1 downto 0);
+            oread_ch     : out std_logic_vector(4 - 1 downto 0)
 
             --# 2605081600 Per-channel AXI ID propagation
-            oconv_wid    : out std_logic_vector(2 downto 0);
-            oconv_rid    : out std_logic_vector(2 downto 0)
+--$260514              oconv_wid    : out std_logic_vector(2 downto 0);
+--$260514              oconv_rid    : out std_logic_vector(2 downto 0)
         );
     end component;
 
@@ -415,7 +435,9 @@ architecture Behavioral of DDR3_TOP is
             axi_rresp   : in std_logic_vector(1 downto 0);
             axi_rlast   : in std_logic;
             axi_rvalid  : in std_logic;
-            axi_rready  : out std_logic
+            axi_rready  : out std_logic;
+            
+            axi_wcnt    : out std_logic_vector(7 downto 0) --$ 260518 for ila
         );
     end component;
 
@@ -551,6 +573,8 @@ architecture Behavioral of DDR3_TOP is
     signal sconv_r_idle : std_logic;
 
     signal i_data_rstn_sync : std_logic;
+    signal saxi_wcnt        : std_logic_vector(7 downto 0); --$ 260518 for ila
+    signal sstate_ddr_sub   : tstate_ddr_sub;               --$ 260518 for ila
 
 begin
 
@@ -681,7 +705,8 @@ begin
         och4_raddr          => sch4_raddr,
         och4_rvcnt          => sch4_rvcnt
     );
-
+    ostate_ddr_sub <= sstate_ddr_sub;
+    
     U0_AXI_IF : AXI_IF
     generic map (
         GNR_MODEL => GNR_MODEL
@@ -732,7 +757,7 @@ begin
         ireg_width  => sreg_width_x32,
 
         --# 2605071529 DDR burst limit selector
-        ireg_ddr_burst => ireg_ddr_burst,
+--$260514        ireg_ddr_burst => ireg_ddr_burst,
 
         -- For AXI MASTER IF
         oconv_wlen  => sconv_wlen,
@@ -748,7 +773,7 @@ begin
         iconv_rbusy => sconv_rbusy,
 
         --# 2605082100 Stage2-a Read multi-outstanding
-        iconv_r_idle => sconv_r_idle,
+--$260514        iconv_r_idle => sconv_r_idle,
 
         -- For Output
         iconv_clk   => idata_clk,
@@ -766,11 +791,11 @@ begin
         ostate_write => sstate_write,
         owrite_ch    => swrite_ch,
         ostate_read  => sstate_read,
-        oread_ch     => sread_ch,
+        oread_ch     => sread_ch
 
         --# 2605081600 Per-channel AXI ID
-        oconv_wid    => sconv_wid,
-        oconv_rid    => sconv_rid
+--$260514        oconv_wid    => sconv_wid,
+--$260514        oconv_rid    => sconv_rid
     );
 
     ostate_write_if <= sstate_write;
@@ -836,7 +861,9 @@ begin
         axi_rresp   => saxi_rresp,
         axi_rlast   => saxi_rlast,
         axi_rvalid  => saxi_rvalid,
-        axi_rready  => saxi_rready
+        axi_rready  => saxi_rready,
+        
+        axi_wcnt    => saxi_wcnt    --$ 260518 for ila
     );
 
     axi_awid    <= saxi_awid;    -- out
@@ -975,57 +1002,83 @@ ila_debug_ddr3 : if GEN_ILA_ddr3_top = "ON" generate
             probe0  : in STD_LOGIC;                     -- _VECTOR(0 DOWNTO 0);
             probe1  : in STD_LOGIC;                     -- _VECTOR(0 DOWNTO 0);
             probe2  : in STD_LOGIC_VECTOR(9 downto 0);
-            probe3  : in STD_LOGIC_VECTOR(11 downto 0);
+            probe3  : in STD_LOGIC_VECTOR(12 downto 0);
             probe4  : in STD_LOGIC;                     -- _VECTOR(0 DOWNTO 0);
             probe5  : in STD_LOGIC;                     -- _VECTOR(0 DOWNTO 0);
             probe6  : in STD_LOGIC_VECTOR(11 downto 0);
-            probe7  : in STD_LOGIC_VECTOR(11 downto 0);
+            probe7  : in STD_LOGIC_VECTOR(12 downto 0);
             probe8  : in STD_LOGIC;                     -- _VECTOR(0 DOWNTO 0);
-            probe9  : in STD_LOGIC_VECTOR(11 downto 0);
+            probe9  : in STD_LOGIC_VECTOR(12 downto 0);
             probe10 : in STD_LOGIC;                     -- _VECTOR(0 DOWNTO 0);
-            probe11 : in STD_LOGIC_VECTOR(11 downto 0);
+            probe11 : in STD_LOGIC_VECTOR(12 downto 0);
             probe12 : in STD_LOGIC;                     -- _VECTOR(0 DOWNTO 0);
-            probe13 : in STD_LOGIC_VECTOR(11 downto 0);
+            probe13 : in STD_LOGIC_VECTOR(12 downto 0);
             probe14 : in tstate_write;                  --STD_LOGIC_VECTOR(2 DOWNTO 0);
             probe15 : in STD_LOGIC_VECTOR(4 downto 0);
             probe16 : in tstate_read;                   --STD_LOGIC_VECTOR(2 DOWNTO 0);
             probe17 : in STD_LOGIC_VECTOR(4 downto 0);
             probe18 : in STD_LOGIC_VECTOR(3 downto 0);
             probe19 : in STD_LOGIC_VECTOR(7 downto 0);
-            probe20 : in STD_LOGIC_VECTOR(2 downto 0);
-            probe21 : in STD_LOGIC_VECTOR(1 downto 0);
-            probe22 : in STD_LOGIC_VECTOR(0 downto 0);
+--            probe20 : in STD_LOGIC_VECTOR(2 downto 0);
+--            probe21 : in STD_LOGIC_VECTOR(1 downto 0);
+--            probe22 : in STD_LOGIC_VECTOR(0 downto 0);
+            probe20 : in STD_LOGIC_VECTOR(63 downto 0);
+            probe21 : in STD_LOGIC;                     -- _VECTOR(0 DOWNTO 0);
+            probe22 : in STD_LOGIC;                     -- _VECTOR(0 DOWNTO 0);
             probe23 : in STD_LOGIC;                     -- _VECTOR(0 DOWNTO 0);
             probe24 : in STD_LOGIC;                     -- _VECTOR(0 DOWNTO 0);
             probe25 : in STD_LOGIC;                     -- _VECTOR(0 DOWNTO 0);
-            probe26 : in STD_LOGIC;                     -- _VECTOR(0 DOWNTO 0);
-            probe27 : in STD_LOGIC;                     -- _VECTOR(0 DOWNTO 0);
-            probe28 : in STD_LOGIC_VECTOR(3 downto 0);
+--            probe26 : in STD_LOGIC_VECTOR(5 downto 0);
+--            probe27 : in STD_LOGIC_VECTOR(1 downto 0);
+--            probe28 : in STD_LOGIC;                     -- _VECTOR(0 DOWNTO 0);
+--            probe29 : in STD_LOGIC;                     -- _VECTOR(0 DOWNTO 0);
+            probe26 : in STD_LOGIC_VECTOR(3 downto 0);
+            probe27 : in STD_LOGIC_VECTOR(7 downto 0);
+            probe28 : in STD_LOGIC_VECTOR(2 downto 0);
             probe29 : in STD_LOGIC_VECTOR(1 downto 0);
-            probe30 : in STD_LOGIC;                     -- _VECTOR(0 DOWNTO 0);
+            probe30 : in STD_LOGIC_VECTOR(0 downto 0);
             probe31 : in STD_LOGIC;                     -- _VECTOR(0 DOWNTO 0);
-            probe32 : in STD_LOGIC_VECTOR(3 downto 0);
-            probe33 : in STD_LOGIC_VECTOR(7 downto 0);
-            probe34 : in STD_LOGIC_VECTOR(2 downto 0);
-            probe35 : in STD_LOGIC_VECTOR(1 downto 0);
-            probe36 : in STD_LOGIC_VECTOR(0 downto 0);
-            probe37 : in STD_LOGIC;                     -- _VECTOR(0 DOWNTO 0);
-            probe38 : in STD_LOGIC;                     -- _VECTOR(0 DOWNTO 0);
-            probe39 : in STD_LOGIC_VECTOR(3 downto 0);
-            probe40 : in STD_LOGIC_VECTOR(1 downto 0);
-            probe41 : in STD_LOGIC;                     -- _VECTOR(0 DOWNTO 0);
-            probe42 : in STD_LOGIC;                     -- _VECTOR(0 DOWNTO 0);
-            probe43 : in STD_LOGIC                      -- _VECTOR(0 DOWNTO 0)
+            probe32 : in STD_LOGIC;                     -- _VECTOR(0 DOWNTO 0);
+            probe33 : in STD_LOGIC_VECTOR(3 downto 0);
+            probe34 : in STD_LOGIC_VECTOR(1 downto 0);
+            probe35 : in STD_LOGIC;                     -- _VECTOR(0 DOWNTO 0);
+            probe36 : in STD_LOGIC;                     -- _VECTOR(0 DOWNTO 0);
+            probe37 : in STD_LOGIC;                      -- _VECTOR(0 DOWNTO 0)
+            probe38 : in STD_LOGIC_VECTOR(7 downto 0);
+            probe39 : in STD_LOGIC_VECTOR(31 downto 0);
+            probe40 : in tstate_ddr_sub;
+            probe41 : in STD_LOGIC_VECTOR(31 downto 0);
+            
+            probe42 : in STD_LOGIC_VECTOR(31 downto 0);
+            probe43 : in STD_LOGIC_VECTOR( 1 downto 0);
+            probe44 : in STD_LOGIC_VECTOR( 7 downto 0);
+            probe45 : in STD_LOGIC;
+            probe46 : in STD_LOGIC;
+            
+            probe47 : in STD_LOGIC_VECTOR(31 downto 0);
+            probe48 : in STD_LOGIC_VECTOR( 1 downto 0);
+            probe49 : in STD_LOGIC_VECTOR( 7 downto 0);
+            probe50 : in STD_LOGIC;
+            probe51 : in STD_LOGIC;
+            
+            probe52 : in STD_LOGIC;
+            probe53 : in STD_LOGIC;
+            probe54 : in STD_LOGIC;
+            
+            probe55 : in STD_LOGIC;
+            probe56 : in STD_LOGIC;
+            probe57 : in STD_LOGIC;
+            probe58 : in STD_LOGIC_VECTOR(63 downto 0)
         );
     end component;
 
-    signal pmap_5b_0 : STD_LOGIC_VECTOR(5 - 1 downto 0); --# 231117
-    signal pmap_5b_1 : STD_LOGIC_VECTOR(5 - 1 downto 0);
+    signal ila_swrite_ch : STD_LOGIC_VECTOR(5 - 1 downto 0); --# 231117
+    signal ila_sread_ch : STD_LOGIC_VECTOR(5 - 1 downto 0);
 
 begin
 
-    pmap_5b_0 <= '0' & swrite_ch;
-    pmap_5b_1 <= '0' & sread_ch;
+    ila_swrite_ch <= '0' & swrite_ch;
+    ila_sread_ch <= '0' & sread_ch;
 
     u_ila_ddr3_topa : ila_ddr3_topa
     port map (
@@ -1033,47 +1086,74 @@ begin
         probe0  => ihsync,        --
         probe1  => ivsync,        --
         probe2  => ihcnt,         -- 10
-        probe3  => ivcnt,         -- 12
+        probe3  => ivcnt,         -- 13
         probe4  => sconv_hsync,   --
         probe5  => sconv_vsync,   --
         probe6  => sconv_hcnt,    -- 12
-        probe7  => sconv_vcnt,    -- 12
+        probe7  => sconv_vcnt,    -- 13
         probe8  => sch0_rtrig,    --
-        probe9  => sch0_rvcnt,    -- 12
+        probe9  => sch0_rvcnt,    -- 13
         probe10 => sch1_rtrig,    --
-        probe11 => sch1_rvcnt,    -- 12
+        probe11 => sch1_rvcnt,    -- 13
         probe12 => sch2_rtrig,    --
-        probe13 => sch2_rvcnt,    -- 12
+        probe13 => sch2_rvcnt,    -- 13
         probe14 => sstate_write,  -- 3
-        probe15 => pmap_5b_0,     -- '0' & swrite_ch, -- 5
+        probe15 => ila_swrite_ch,     -- '0' & swrite_ch, -- 5
         probe16 => sstate_read,   -- 3
-        probe17 => pmap_5b_1,     -- '0' & sread_ch, -- 5
-        probe18 => saxi_awid,     -- 4
+        probe17 => ila_sread_ch,     -- '0' & sread_ch, -- 5
+        probe18 => saxi_awid,     -- 6
         probe19 => saxi_awlen,    -- 8
-        probe20 => saxi_awsize,   -- 3
-        probe21 => saxi_awburst,  -- 2
-        probe22 => saxi_awlock,   --
-        probe23 => saxi_awvalid,  --
-        probe24 => saxi_awready,  --
-        probe25 => saxi_wlast,    --
-        probe26 => saxi_wvalid,   --
-        probe27 => saxi_wready,   --
-        probe28 => saxi_bid,      -- 4
-        probe29 => saxi_bresp,    -- 2
-        probe30 => saxi_bvalid,   --
-        probe31 => saxi_bready,   --
-        probe32 => saxi_arid,     -- 4
-        probe33 => saxi_arlen,    -- 8
-        probe34 => saxi_arsize,   -- 3
-        probe35 => saxi_arburst,  -- 2
-        probe36 => saxi_arlock,   --
-        probe37 => saxi_arvalid,  --
-        probe38 => saxi_arready,  --
-        probe39 => saxi_rid,      -- 4
-        probe40 => saxi_rresp,    -- 2
-        probe41 => saxi_rlast,    --
-        probe42 => saxi_rvalid,   --
-        probe43 => saxi_rready    --
+--        probe20 => saxi_awsize,   -- 3
+--        probe21 => saxi_awburst,  -- 2
+--        probe22 => saxi_awlock,   --
+        probe20 => saxi_wdata(63 downto 0),   --$ 26051910
+        probe21 => saxi_awvalid,  --
+        probe22 => saxi_awready,  --
+        probe23 => saxi_wlast,    --
+        probe24 => saxi_wvalid,   --
+        probe25 => saxi_wready,   --
+--        probe26 => saxi_bid,      -- 6
+--        probe27 => saxi_bresp,    -- 2
+--        probe28 => saxi_bvalid,   --
+--        probe29 => saxi_bready,   --
+        probe26 => saxi_arid,     -- 6
+        probe27 => saxi_arlen,    -- 8
+        probe28 => saxi_arsize,   -- 3
+        probe29 => saxi_arburst,  -- 2
+        probe30 => saxi_arlock,   --
+        probe31 => saxi_arvalid,  --
+        probe32 => saxi_arready,  --
+        probe33 => saxi_rid,      -- 6
+        probe34 => saxi_rresp,    -- 2
+        probe35 => saxi_rlast,    --
+        probe36 => saxi_rvalid,   --
+        probe37 => saxi_rready,    --
+        probe38 => saxi_wcnt,    --
+        probe39 => saxi_awaddr,    --
+        probe40 => sstate_ddr_sub,    --
+        probe41 => saxi_araddr,
+            --
+        probe42 => axi0_araddr,    --
+        probe43 => axi0_arburst,    --
+        probe44 => axi0_arlen,    --
+        probe45 => axi0_arready,    --
+        probe46 => axi0_arvalid,    --
+        
+        probe47 => axi0_awaddr,    --
+        probe48 => axi0_awburst,    --
+        probe49 => axi0_awlen,    --
+        probe50 => axi0_awready,    --
+        probe51 => axi0_awvalid,    --
+        
+        probe52 => axi0_rlast,    --
+        probe53 => axi0_rready,    --
+        probe54 => axi0_rvalid,    --
+        
+        probe55 => axi0_wlast,    --
+        probe56 => axi0_wready,    --
+        probe57 => axi0_wvalid,    --
+        probe58 => saxi_rdata(63 downto 0)    --
+        
     );
 
 end generate ila_debug_ddr3;

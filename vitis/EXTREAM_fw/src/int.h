@@ -15,6 +15,7 @@
 #ifndef _INT_H_
 #define _INT_H_
 
+#include "xil_types.h"      //# 2605181144 u8 for fb_tx_dot_en / fb_err_msg_en
 
 // ---- Global variables -------------------------------------------------------
 
@@ -23,6 +24,10 @@ extern int _start1;
 extern int _exception_handler;
 extern int _hw_exception_handler;
 extern int __interrupt_handler;
+
+//# 2605181144 fdot/ferr UART cmd: ISR runtime toggles (defined in int.c)
+extern volatile u8 fb_tx_dot_en;
+extern volatile u8 fb_err_msg_en;
 
 
 // ---- Register bits ----------------------------------------------------------

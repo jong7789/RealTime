@@ -351,6 +351,11 @@ void execute_cmd_port(u32 data) {
 // 2604231030 Cold-boot order for data==0: gige_init -> inity -> [app code poll] -> init
 //            NEW path (#define SFP_PORT0_APP_POLL): skip deinit, poll PHY app ready
 //            OLD path (#undef): keep deinit + usleep(1s) + IP wait (fallback)
+
+//# 2605121610 Cleaned WIP leftover (execute_cmd_ip(0,0,0,0), inserted initx/inity/init
+//             attempts, broken m88x33xx_initx() no-arg call on data==1, and the trailing
+//             hardcoded execute_cmd_ip(192,168,250,145)). Restored to the post-2605121219
+//             state: gate init on m88x33xx_wait_app_ready, defer to background retry.
 void execute_cmd_port(u32 data) {
     if (data == 0) {
         int ret;
@@ -358,24 +363,28 @@ void execute_cmd_port(u32 data) {
 #ifdef SFP_PORT0_APP_POLL
         // 2604231130 NEW path: skip 2nd inity (main.c:270 already uploaded firmware)
         //            Calling inity twice resets PHY MCU and prevents app code reboot -> 0x1001
+        execute_cmd_ip(0,0,0,0);
         gige_init(0, XPAR__CPU4DDR_I_M1_AXI_GEV_BASEADDR, DEV_MODE_TX, XPAR_CPU_M_AXI_DP_FREQ_HZ,
                      PHY_NBASET_MRVL, 0, 2500000, 0, SCPS_MAX, DBG_ICMP);
-
-    gige_set_data_rates(200, 10000);                    // f(tx_stm_clk) = 200MHz, 10Gbps Ethernet link
-    gige_set_link_config_cap(LINK_CONFIG_CAP_SL);       // Physical link configuration capabilities
-    gige_set_link_config(LINK_CONFIG_SL);               // Current physical link configuration
-    gige_set_sceba(0, MAP_SCEBA);                       // Set stream channel extended bootstrap address
-
-//        func_printf("Ethernet m88x33xx_inity set...");
-//        m88x33xx_inity(RXAUI);     // 2604231130 removed: 2nd call corrupts running PHY state
-//        func_printf("Done\r\n");
-
-        // Wait for PHY internal firmware (app code) to be ready — usually already running from main.c:270
-        (void)m88x33xx_wait_app_ready(5000);
-
-        // m88x33xx_initx(RXAUI);
-        func_printf("Ethernet m88x33xx_init set...");
-        ret = m88x33xx_init(RXAUI);
+        gige_set_data_rates(200, 10000);                    // f(tx_stm_clk) = 200MHz, 10Gbps Ethernet link
+        gige_set_link_config_cap(LINK_CONFIG_CAP_SL);
+        gige_set_link_config(LINK_CONFIG_SL);
+        gige_set_sceba(0, MAP_SCEBA);
+        
+        m88x33xx_rst();
+        m88x33xx_inity(RXAUI);
+        //# 2605121219 Gate init on app-ready; if not ready, defer to background retry (check_sfp_stat)
+//      {
+//          int wait_ret = m88x33xx_wait_app_ready(1000);
+//          if (wait_ret == 0) {
+//              func_printf("Ethernet m88x33xx_init set...");
+//              ret = m88x33xx_init(RXAUI);
+//          } else {
+//              func_printf("[port0] m88x app code NOT ready (ret=0x%x); defer init -- auto-retry when ready\r\n", wait_ret);
+//              g_m88x_init_pending = 1;
+//              ret = 0;  // suppress misleading "m88x33xx_init FAILED" log below; retry will run later
+//          }
+//      }
 #else
         // 2604221800 OLD path: deinit + fixed usleep(1sec) + IP wait (fallback)
         u32 wait_cnt;
@@ -427,7 +436,8 @@ void execute_cmd_port(u32 data) {
         g_port_sel = 0;
     }
     else if (data == 1) {
-        //# 260421 SFP path: deinit Marvell then init AEL2005
+        //# 260421 SFP path: deinit Marvell then init PCS/PMA
+//#     m88x33xx_initx();   //# 2605121610 broken (no arg) -- restored to deinit below
         m88x33xx_deinit();
 //        ael2005_init();
         gige_init(0, XPAR_M1_AXI_GEV_BASEADDR, DEV_MODE_TX, XPAR_CPU_M_AXI_DP_FREQ_HZ,
@@ -438,8 +448,10 @@ void execute_cmd_port(u32 data) {
         gige_init(0, XPAR_M1_AXI_GEV_BASEADDR, DEV_MODE_TX, XPAR_CPU_M_AXI_DP_FREQ_HZ,
                   PHY_10G_PCS_PMA, 0x00, 2500000, 0, SCPS_MAX, DBG_ICMP);
 
+        execute_cmd_ip(192,168,250,145);
         g_port_sel = 1;
     }
+//#  execute_cmd_ip(192, 168, 250, 145);  //# 2605121610 removed -- would overwrite operator's saved IP on every port switch
 }
 void execute_cmd_psel_val(u32 data, u32 val) {
     REG(ADDR_TP_SEL) = 15;
@@ -471,19 +483,20 @@ void execute_cmd_psel(u32 data) {
             execute_cmd_wroic(0x10, 0); //# roic tp off
     }
 
-    if((data != 0) && (func_access_level == 0)) {
-        REG(ADDR_GAIN_CAL) = 0;
-//      REG(ADDR_OFFSET_CAL) = 0;
-        REG(ADDR_MPC_CTRL) = 0; // dskim - 21.03.08 - offset 먼저 subtraction 하도록 변경
-        REG(ADDR_DEFECT_CAL) = 0;
-        REG(ADDR_IPROC_MODE) = 0;
-    }
-    else {
-        execute_cmd_gain(func_gain_cal);
-        execute_cmd_offset(func_offset_cal);
-        execute_cmd_defect(func_defect_cal);
-        execute_cmd_iproc(func_img_proc);
-    }
+//# only psel do, not sure why needed it //#260514
+//      if((data != 0) && (func_access_level == 0)) {
+//          REG(ADDR_GAIN_CAL) = 0;
+//  //      REG(ADDR_OFFSET_CAL) = 0;
+//          REG(ADDR_MPC_CTRL) = 0; // dskim - 21.03.08 - offset 먼저 subtraction 하도록 변경
+//          REG(ADDR_DEFECT_CAL) = 0;
+//          REG(ADDR_IPROC_MODE) = 0;
+//      }
+//      else {
+//          execute_cmd_gain(func_gain_cal);
+//          execute_cmd_offset(func_offset_cal);
+//          execute_cmd_defect(func_defect_cal);
+//          execute_cmd_iproc(func_img_proc);
+//      }
 }
 
 void execute_cmd_gmode(u32 num, u32 val) {
@@ -815,11 +828,11 @@ void execute_cmd_roi(u32 offsetx, u32 offsety, u32 width, u32 height) {
     if(DBG_roi)func_printf("#[DBG_roi] func_width=%d func_height=%d\r\n",func_width, func_height);
 
     //$ 2604291608 Add sensor base offset before binning scale (EXT3643R border crop)
-    offsetx += BASE_OFFSETX;
-    offsety += BASE_OFFSETY;
+    // offsetx += BASE_OFFSETX;
+    // offsety += BASE_OFFSETY;
     //$ 2604291608 Trace: confirm execute_cmd_roi runs at boot and BASE_OFFSET applied
-    if(DBG_roi)func_printf("#[DBG_roi] BASE_X=%d BASE_Y=%d offsetx=%d offsety=%d bin=%d\r\n",
-                BASE_OFFSETX, BASE_OFFSETY, offsetx, offsety, func_binning_mode);
+    // if(DBG_roi)func_printf("#[DBG_roi] BASE_X=%d BASE_Y=%d offsetx=%d offsety=%d bin=%d\r\n",
+    //             BASE_OFFSETX, BASE_OFFSETY, offsetx, offsety, func_binning_mode);
 
     switch (func_binning_mode) {
         case 0  :
@@ -861,8 +874,13 @@ void execute_cmd_roi(u32 offsetx, u32 offsety, u32 width, u32 height) {
 //  msdelay(200);
 
 //  REG(ADDR_OFFSETX) = offsetx;        // dskim - 21.02.10 - x값 y값과 동일하게 변경되도록 수정
-    REG(ADDR_OFFSETX) = offsetx_fpga;
-    REG(ADDR_OFFSETY) = offsety_fpga;
+//  REG(ADDR_OFFSETX) = offsetx_fpga;
+//  REG(ADDR_OFFSETY) = offsety_fpga;
+//#26051912 3643R Binning positoion fix
+    REG(ADDR_OFFSETX) = offsetx_fpga + BASE_OFFSETX;
+    REG(ADDR_OFFSETY) = offsety_fpga + BASE_OFFSETY;
+    if(DBG_roi)func_printf("#[DBG_roi] BASE_X=%d BASE_Y=%d offsetx=%d offsety=%d bin=%d\r\n",
+                BASE_OFFSETX, BASE_OFFSETY, REG(ADDR_OFFSETX), REG(ADDR_OFFSETY), func_binning_mode);
 
 
 //  REG(ADDR_DDR_CH_EN) = 0b00000000; // 211213mbh preventing nuc gabage from wddr ch0 // --220106 rollback stop img--
@@ -1269,6 +1287,7 @@ void execute_cmd_fmax2(u32 MAIN_CLK) {
     else                        func_frate_max = (1000000 / (frame_time_us + trst_time_us + MIN_EWT));
 
     REG(ADDR_LINE_TIME)     = (u32)((float)(FPGA_DATA_CLK) / (func_height * func_frate_max)) - 100;
+    func_printf("fmax2_line_time = %d\r\n",REG(ADDR_LINE_TIME));
 
     // dskim - 21.03.15 - HEIGH 따라서 강제로 frate max 변경
     // dskim - 21.04.06 - 컴파일 오류 수정
@@ -1350,12 +1369,15 @@ void execute_cmd_gain(u32 data) {
 void execute_cmd_offset(u32 data) {
     func_offset_cal = data;
 //  REG(ADDR_OFFSET_CAL) = data;
+
+//###### no use DOC 260506
 //    if(AFE3256_series){ //$ 260305 Digital Offset Correction
 //    	if(data)     		execute_cmd_wroic(0x51, 0x0306);
 //    	else	    		execute_cmd_wroic(0x51, 0x0006);
 //    }
 //    else REG(ADDR_MPC_CTRL) = data;  // dskim - 21.03.08 - offset 먼저 subtraction 하도록 변경
-    REG(ADDR_MPC_CTRL) = data;
+//#####
+  REG(ADDR_MPC_CTRL) = data;  // dskim - 21.03.08 - offset 먼저 subtraction 하도록 변경
 }
 
 void execute_cmd_defect(u32 data) {
@@ -1702,7 +1724,7 @@ u8 execute_cmd_rus2(u32 data) {
     u32 size = 0x10000;
     u32 addr = FLASH_USER_BASEADDR + (data * size);
     u32 rdata[100];
-    u8 DEBUG_Msg[64];
+//    u8 DEBUG_Msg[64];                   //# 2605201805 unused after func_printf switch
     u8 DEBUG_Str[64][64] =
                         {"func_frate",
                         "func_gewt",
@@ -1764,14 +1786,66 @@ u8 execute_cmd_rus2(u32 data) {
         addr += 4;
     }
 
-    memset(DEBUG_Msg, 0, sizeof(DEBUG_Msg));
-    sprintf((char*)DEBUG_Msg, "Table: %d", (int)data);
-    gige_send_message4(GEV_EVENT_DEBUG_MSG, 0, sizeof(DEBUG_Msg), (u8*)&DEBUG_Msg);
-
+//    memset(DEBUG_Msg, 0, sizeof(DEBUG_Msg));
+//    sprintf((char*)DEBUG_Msg, "Table: %d", (int)data);
+//    gige_send_message4(GEV_EVENT_DEBUG_MSG, 0, sizeof(DEBUG_Msg), (u8*)&DEBUG_Msg);
+//
+//    for(i = 0; i < 53; i++) {
+//        memset(DEBUG_Msg, 0, sizeof(DEBUG_Msg));
+//        sprintf((char*)DEBUG_Msg, "%s: 0x%x", DEBUG_Str[i], (unsigned int)rdata[i]);
+//        gige_send_message4(GEV_EVENT_DEBUG_MSG, 0, sizeof(DEBUG_Msg), (u8*)&DEBUG_Msg);
+//    }
+    //# 2605201805 execute_cmd_rus2: route 'debug' dump to UART via func_printf
+    // Why: original GEV_EVENT_DEBUG_MSG path needs a GEV client subscribed; UART
+    //      is the practical scope used during bring-up. func_printf still mirrors
+    //      to GEV (SW_DEBUG_MSG) when func_sw_debug==1, so no info is lost.
+    //# 2605201809 execute_cmd_rus2: column-aligned name + hex/dec
+    // Name padded to 20 chars; hex width 8; decimal in parens for quick read.
+    func_printf("\r\nTable: %d\r\n", (int)data);
     for(i = 0; i < 53; i++) {
-        memset(DEBUG_Msg, 0, sizeof(DEBUG_Msg));
-        sprintf((char*)DEBUG_Msg, "%s: 0x%x", DEBUG_Str[i], (unsigned int)rdata[i]);
-        gige_send_message4(GEV_EVENT_DEBUG_MSG, 0, sizeof(DEBUG_Msg), (u8*)&DEBUG_Msg);
+        func_printf("%-20s : 0x%-8x (%u)\r\n", DEBUG_Str[i], (unsigned int)rdata[i], (unsigned int)rdata[i]);
+    }
+
+    //# 2605201841 execute_cmd_rus2: also dump NUC info (rns header) for diag
+    // Why: rns hangs printing spaces when flash_ref_num==0 (u32 underflow on
+    //      repeat2 = flash_ref_num - 1). Dump the 13-dword NUC info header here
+    //      so the suspect fields can be inspected without triggering the hang.
+    // Layout (FLASH_NUC_INFO_BASEADDR + 4*i):
+    //   [0]   img_avg_old          [1..9] img_avg_dose0..8
+    //   [10]  flash_width          [11]   flash_height       [12] flash_ref_num
+    {
+        u8 NUC_Str[13][24] = {
+            "img_avg_old",
+            "img_avg_dose0",
+            "img_avg_dose1",
+            "img_avg_dose2",
+            "img_avg_dose3",
+            "img_avg_dose4",
+            "img_avg_dose5",
+            "img_avg_dose6",
+            "img_avg_dose7",
+            "img_avg_dose8",
+            "flash_width",
+            "flash_height",
+            "flash_ref_num",
+        };
+        u32 nuc_addr = FLASH_NUC_INFO_BASEADDR;
+        u32 nuc_val  = 0;
+        func_printf("\r\n[NUC Info] base=0x%x\r\n", (unsigned int)nuc_addr);
+        for(i = 0; i < 13; i++) {
+            nuc_val = flash_read_dword(nuc_addr);
+            func_printf("%-20s : 0x%-8x (%u)\r\n", NUC_Str[i], (unsigned int)nuc_val, (unsigned int)nuc_val);
+            nuc_addr += 4;
+        }
+        //# 2605201907 execute_cmd_rus2: dump nuc data[0] for brns existence-check parity
+        // brns gates ERR9 on flash_read_dword(FLASH_NUC_BASEADDR) == 0xFFFFFFFF.
+        // Print the exact same dword so "header OK but body still erased" is visible.
+        {
+            u32 nuc_body_addr = FLASH_NUC_BASEADDR;
+            u32 nuc_body_val  = flash_read_dword(nuc_body_addr);
+            func_printf("\r\n[NUC Data] base=0x%x\r\n", (unsigned int)nuc_body_addr);
+            func_printf("%-20s : 0x%-8x (%u)\r\n", (u8*)"nuc_data[0]", (unsigned int)nuc_body_val, (unsigned int)nuc_body_val);
+        }
     }
 
 //  func_frate              = rdata[0] / 1000.0;
@@ -2441,7 +2515,32 @@ void execute_cmd_bwns(void) {
     flash_buffer[11] = func_height;     // dskim - 0.xx.09
     flash_buffer[12] = func_ref_num;    // dskim - 0.xx.09
 
+    //# 2605211632 bwns hdr: diag print of source vars + readback verify
+    // Why: header reads back all-zero after gain save though body writes OK.
+    //      Print func_* values right before flash_write_block, then read back
+    //      [10]/[11]/[12] right after, to locate where the 0 comes from.
+    func_printf("[bwns hdr pre]  ref=%u w=%u h=%u old=%u d0=%u d1=%u d2=%u d3=%u d4=%u\r\n",
+                (unsigned int)func_ref_num, (unsigned int)func_width, (unsigned int)func_height,
+                (unsigned int)func_img_avg_old,
+                (unsigned int)func_img_avg_dose0, (unsigned int)func_img_avg_dose1,
+                (unsigned int)func_img_avg_dose2, (unsigned int)func_img_avg_dose3,
+                (unsigned int)func_img_avg_dose4);
+    func_printf("[bwns hdr buf]  [0]=0x%x [10]=0x%x [11]=0x%x [12]=0x%x\r\n",
+                (unsigned int)flash_buffer[0],  (unsigned int)flash_buffer[10],
+                (unsigned int)flash_buffer[11], (unsigned int)flash_buffer[12]);
+
     flash_write_block(flash_addr, (u32*)flash_buffer, 65536);
+
+    //# 2605211632 bwns hdr: readback verify after flash_write_block
+    {
+        u32 rb0  = flash_read_dword(FLASH_NUC_INFO_BASEADDR + 0);
+        u32 rb10 = flash_read_dword(FLASH_NUC_INFO_BASEADDR + 40);
+        u32 rb11 = flash_read_dword(FLASH_NUC_INFO_BASEADDR + 44);
+        u32 rb12 = flash_read_dword(FLASH_NUC_INFO_BASEADDR + 48);
+        func_printf("[bwns hdr post] [0]=0x%x [10]=0x%x [11]=0x%x [12]=0x%x\r\n",
+                    (unsigned int)rb0, (unsigned int)rb10,
+                    (unsigned int)rb11, (unsigned int)rb12);
+    }
 
     // dskim - 2021.02.15 - Gain Calibration 조건 Preset1에 저장하도록 변경
     execute_cmd_wus(1);
@@ -2756,6 +2855,142 @@ else
     return 0;
 }
 #endif
+
+//# 2605211347 rns_display: read-only diagnostic dump for UART 'rns' entry
+// Purpose: Show all addresses / function variables / ROM contents and the
+//          derived parameters that execute_cmd_brns would compute, WITHOUT
+//          touching flash/DDR/registers. Replaces execute_cmd_rns() on UART
+//          'rns' entry only; brns (rns 1) and XML calib path stay intact.
+// Side-effects: none (only flash_read_dword + global reads + func_printf).
+void rns_display(void) {
+    u32 i;
+    u32 nuc_info[13] = {0,};
+    u32 flash_addr   = 0;
+    static const char* const NUC_NAME[13] = {
+        "img_avg_old",   "img_avg_dose0", "img_avg_dose1", "img_avg_dose2",
+        "img_avg_dose3", "img_avg_dose4", "img_avg_dose5", "img_avg_dose6",
+        "img_avg_dose7", "img_avg_dose8", "flash_width",   "flash_height",
+        "flash_ref_num"
+    };
+
+    func_printf("\r\n==== [rns_display] read-only diagnostic ====\r\n");
+
+    // [A] Addresses & Constants
+    func_printf("\r\n[A] Addresses & Constants\r\n");
+    func_printf("%-26s : 0x%-8x\r\n", "FLASH_NUC_INFO_BASEADDR", (unsigned int)FLASH_NUC_INFO_BASEADDR);
+    func_printf("%-26s : 0x%-8x\r\n", "FLASH_NUC_BASEADDR",      (unsigned int)FLASH_NUC_BASEADDR);
+    func_printf("%-26s : 0x%-8x\r\n", "ADDR_NUC_DATA",           (unsigned int)ADDR_NUC_DATA);
+    func_printf("%-26s : 0x%-8x\r\n", "ADDR_AVG_DATA_DOSE1",     (unsigned int)ADDR_AVG_DATA_DOSE1);
+    func_printf("%-26s : 0x%-8x\r\n", "ADDR_AVG_DATA_DOSE2",     (unsigned int)ADDR_AVG_DATA_DOSE2);
+    func_printf("%-26s : 0x%-8x\r\n", "ADDR_AVG_DATA_DOSE3",     (unsigned int)ADDR_AVG_DATA_DOSE3);
+    func_printf("%-26s : 0x%-8x\r\n", "ADDR_AVG_DATA_DOSE4",     (unsigned int)ADDR_AVG_DATA_DOSE4);
+    func_printf("%-26s : %u\r\n",     "MAX_WIDTH",               (unsigned int)MAX_WIDTH);
+    func_printf("%-26s : %u\r\n",     "MAX_HEIGHT",              (unsigned int)MAX_HEIGHT);
+    func_printf("%-26s : %u\r\n",     "DDR_CH2_BIT_DEPTH",       (unsigned int)DDR_CH2_BIT_DEPTH);
+    func_printf("%-26s : %u\r\n",     "FLASH_BUFFER_SIZE",       (unsigned int)FLASH_BUFFER_SIZE);
+    func_printf("%-26s : %u\r\n",     "mEXT4343R_series",        (unsigned int)mEXT4343R_series);
+
+    // [B] Function Variables (current runtime values)
+    func_printf("\r\n[B] Function Variables\r\n");
+    func_printf("%-26s : %u\r\n",     "func_table",              (unsigned int)func_table);
+    func_printf("%-26s : %u\r\n",     "func_shutter_mode",       (unsigned int)func_shutter_mode);
+    func_printf("%-26s : %u\r\n",     "func_gain_cal",           (unsigned int)func_gain_cal);
+    func_printf("%-26s : %u\r\n",     "func_offset_cal",         (unsigned int)func_offset_cal);
+    func_printf("%-26s : %u\r\n",     "func_width",              (unsigned int)func_width);
+    func_printf("%-26s : %u\r\n",     "func_height",             (unsigned int)func_height);
+    func_printf("%-26s : %u\r\n",     "func_ref_num",            (unsigned int)func_ref_num);
+    func_printf("%-26s : %u\r\n",     "func_img_avg_old",        (unsigned int)func_img_avg_old);
+    func_printf("%-26s : %u\r\n",     "func_img_avg_dose0",      (unsigned int)func_img_avg_dose0);
+    func_printf("%-26s : %u\r\n",     "func_img_avg_dose1",      (unsigned int)func_img_avg_dose1);
+    func_printf("%-26s : %u\r\n",     "func_img_avg_dose2",      (unsigned int)func_img_avg_dose2);
+    func_printf("%-26s : %u\r\n",     "func_img_avg_dose3",      (unsigned int)func_img_avg_dose3);
+    func_printf("%-26s : %u\r\n",     "func_img_avg_dose4",      (unsigned int)func_img_avg_dose4);
+    func_printf("%-26s : %u\r\n",     "func_check_gain_calib",   (unsigned int)func_check_gain_calib);
+    func_printf("%-26s : %u\r\n",     "func_check_booting",      (unsigned int)func_check_booting);
+    func_printf("%-26s : %u\r\n",     "func_hwload_flag",        (unsigned int)func_hwload_flag);
+    func_printf("%-26s : %u\r\n",     "func_bw_align_done",      (unsigned int)func_bw_align_done);
+    func_printf("%-26s : %u\r\n",     "is_load_hw_calibration",  (unsigned int)is_load_hw_calibration);
+    func_printf("%-26s : %u\r\n",     "func_sw_calibration_mode",(unsigned int)func_sw_calibration_mode);
+    func_printf("%-26s : %u\r\n",     "func_calib_cmd",          (unsigned int)func_calib_cmd);
+
+    // [C] ROM Data (read-only, no flash write)
+    func_printf("\r\n[C] ROM Data (read-only)\r\n");
+    flash_addr = FLASH_NUC_INFO_BASEADDR;
+    func_printf("-- NUC Info header (base=0x%x) --\r\n", (unsigned int)flash_addr);
+    for(i = 0; i < 13; i++) {
+        nuc_info[i] = flash_read_dword(flash_addr);
+        func_printf("%-20s : 0x%-8x (%u)\r\n", NUC_NAME[i],
+                    (unsigned int)nuc_info[i], (unsigned int)nuc_info[i]);
+        flash_addr += 4;
+    }
+    func_printf("-- NUC Body head (base=0x%x) --\r\n", (unsigned int)FLASH_NUC_BASEADDR);
+    flash_addr = FLASH_NUC_BASEADDR;
+    for(i = 0; i < 8; i++) {
+        u32 v = flash_read_dword(flash_addr);
+        char tag[16];
+        sprintf(tag, "nuc_data[%u]", (unsigned int)i);
+        func_printf("%-20s : 0x%-8x (%u)\r\n", tag, (unsigned int)v, (unsigned int)v);
+        flash_addr += 4;
+    }
+
+    // [D] Computed (mirror of execute_cmd_brns derivation, no side-effects)
+    {
+        u32 fw       = nuc_info[10];
+        u32 fh       = nuc_info[11];
+        u32 frn      = nuc_info[12];
+        u32 fw_clamp = (fw >= MAX_WIDTH)  ? MAX_WIDTH  : fw;
+        u32 fh_clamp = (fh >= MAX_HEIGHT) ? MAX_HEIGHT : fh;
+        u32 fwx32    = (u32)(ceil(fw_clamp / 32.0)) * 32;
+        u32 nun      = (frn == 0) ? 0 : (frn - 1);
+        u32 rep      = fwx32 * fh_clamp * ((nun * 32) / 32);
+        u32 body0    = flash_read_dword(FLASH_NUC_BASEADDR);
+        u8  all_ff   = 1;
+        u8  all_zero = 1;
+
+        func_printf("\r\n[D] Computed (mirror of execute_cmd_brns)\r\n");
+        func_printf("%-26s : %u\r\n", "flash_width (raw)",       (unsigned int)fw);
+        func_printf("%-26s : %u\r\n", "flash_height (raw)",      (unsigned int)fh);
+        func_printf("%-26s : %u\r\n", "flash_ref_num (raw)",     (unsigned int)frn);
+        func_printf("%-26s : %u\r\n", "flash_width (clamped)",   (unsigned int)fw_clamp);
+        func_printf("%-26s : %u\r\n", "flash_height (clamped)",  (unsigned int)fh_clamp);
+        func_printf("%-26s : %u\r\n", "flash_width_x32",         (unsigned int)fwx32);
+        func_printf("%-26s : %u\r\n", "nun_num (prevent 0-1)",   (unsigned int)nun);
+        func_printf("%-26s : %u\r\n", "repeat (body dword cnt)", (unsigned int)rep);
+
+        // [E] Verdict
+        func_printf("\r\n[E] Verdict\r\n");
+        for(i = 0; i < 13; i++) {
+            if(nuc_info[i] != 0xFFFFFFFFu) all_ff   = 0;
+            if(nuc_info[i] != 0)           all_zero = 0;
+        }
+        if(all_ff)
+            func_printf("  Header : NG (all 0xFFFFFFFF, erased)\r\n");
+        else if(all_zero)
+            func_printf("  Header : NG (all zero, never written with valid data)\r\n");
+        else if(mEXT4343R_series && frn > 5)
+            func_printf("  Header : NG (4343 series ref_num=%u > 5)\r\n", (unsigned int)frn);
+        else if(!mEXT4343R_series && frn >= 9)
+            func_printf("  Header : NG (ref_num=%u >= 9 out of range)\r\n", (unsigned int)frn);
+        else if(frn == 0)
+            func_printf("  Header : NG (ref_num=0, no dose entries)\r\n");
+        else if(fw == 0 || fh == 0)
+            func_printf("  Header : NG (width=%u height=%u)\r\n", (unsigned int)fw, (unsigned int)fh);
+        else
+            func_printf("  Header : OK\r\n");
+
+        if(body0 == 0xFFFFFFFFu)
+            func_printf("  Body   : NG (FLASH_NUC_BASEADDR erased = 0xFFFFFFFF)\r\n");
+        else
+            func_printf("  Body   : OK (first dword = 0x%x)\r\n", (unsigned int)body0);
+
+        if(rep == 0)
+            func_printf("  brns   : would loop 0 times (no DDR load)\r\n");
+        else
+            func_printf("  brns   : would load %u dwords from flash to DDR\r\n", (unsigned int)rep);
+    }
+
+    func_printf("\r\n==== [end rns_display] ====\r\n");
+}
 
 u8 execute_cmd_rns(void) {
     u32 i, a;
@@ -3533,7 +3768,7 @@ void execute_cmd_wddr(u32 data, u32 level) {
     u32 addr = 0, avg = 0;
     int avg_status = 0;
     REG(ADDR_FW_BUSY) = 1;
-//    REG(ADDR_FW_BUSY) = 0; // test 210730
+//    REG(ADDR_FW_BUSY) = 0; // test 260515
 
     switch(data) {
         case 0 :                                    break;
@@ -3547,9 +3782,55 @@ void execute_cmd_wddr(u32 data, u32 level) {
     set_ddr_waddr(addr, 2);
     set_ddr_raddr(addr, 2);
 
+    /*
+     * //# 2605131557 DOSE address comparison: firmware-computed vs FPGA-effective
+     *
+     * Purpose:
+     *   Diagnose "wddr 1 then wddr 2 corrupts DOSE0 from line ~4278" symptom by
+     *   comparing the DOSE region addresses computed in firmware (calib.c:51-58)
+     *   against the values the FPGA actually latched into its DDR write-path
+     *   registers (ADDR_DDR_BASE_ADDR + ADDR_DDR_CH2_WADDR) plus the geometry
+     *   the FPGA uses for per-line stride (ADDR_WIDTH * 2 byte/line in 10G).
+     *
+     * Why here:
+     *   Placed right after set_ddr_waddr/raddr so the FPGA registers hold the
+     *   exact values that will be used for the upcoming AVG write.
+     *
+     * Registers / references:
+     *   ADDR_DDR_BASE_ADDR / ADDR_DDR_CH2_WADDR / ADDR_DDR_CH2_RADDR / ADDR_WIDTH / ADDR_HEIGHT
+     *   FPGA path: EXTxR2.srcs/sources_1/new/DDR3_CTRL/AXI_SUB_IF.vhd:379, 1059-1065
+     *   FW DOSE0/1 formula: vitis/EXTREAM_fw/src/calib.c:51-58
+     *
+     * Output is gated by DBG_wddr — set DBG_wddr=1 to enable.
+     */
+    if(DBG_wddr)func_printf("[DBG_wddr] === DOSE ADDR COMPARE ===\r\n");
+    if(DBG_wddr)func_printf("[DBG_wddr] FW   DOSE0       =0x%08x\r\n", ADDR_AVG_DATA_DOSE0);
+    if(DBG_wddr)func_printf("[DBG_wddr] FW   DOSE1       =0x%08x\r\n", ADDR_AVG_DATA_DOSE1);
+    if(DBG_wddr)func_printf("[DBG_wddr] FW   DOSE1-DOSE0 =%u (expect W%u*H%u*%u)\r\n",
+                            ADDR_AVG_DATA_DOSE1 - ADDR_AVG_DATA_DOSE0,
+                            MAX_WIDTH_x32, MAX_HEIGHT, DDR_CH2_BIT_DEPTH/DDR_BIT_DEPTH);
+    if(DBG_wddr)func_printf("[DBG_wddr] FPGA BASE_ADDR   =0x%08x\r\n", REG(ADDR_DDR_BASE_ADDR));
+    if(DBG_wddr)func_printf("[DBG_wddr] FPGA CH2_WADDR   =0x%08x (abs=0x%08x)\r\n",
+                            REG(ADDR_DDR_CH2_WADDR),
+                            REG(ADDR_DDR_BASE_ADDR) + REG(ADDR_DDR_CH2_WADDR));
+    if(DBG_wddr)func_printf("[DBG_wddr] FPGA CH2_RADDR   =0x%08x\r\n", REG(ADDR_DDR_CH2_RADDR));
+    if(DBG_wddr)func_printf("[DBG_wddr] FPGA WIDTH       =%u\r\n", REG(ADDR_WIDTH));
+    if(DBG_wddr)func_printf("[DBG_wddr] FPGA HEIGHT      =%u\r\n", REG(ADDR_HEIGHT));
+    if(DBG_wddr)func_printf("[DBG_wddr] FPGA frame size  =%u byte (W*H*%u)\r\n",
+                            REG(ADDR_WIDTH) * REG(ADDR_HEIGHT) * (DDR_CH2_BIT_DEPTH/DDR_BIT_DEPTH),
+                            DDR_CH2_BIT_DEPTH/DDR_BIT_DEPTH);
+    if(DBG_wddr)func_printf("[DBG_wddr] ==========================\r\n");
+
+    REG(ADDR_DDR_CH_EN) = 0;
+    //##### critical at 3643R #####
+//  msdelay(300); //# make image no error offset at booting //#260514
+    msdelay((u32)(3000.0f / func_frate)); //# 2605151233 wait 3 frame time (3000/frate ms)
+    //######################################################
+
 //  REG(ADDR_DDR_CH_EN) = 0b01010101;
     //# 2605081700 wddr (write-DDR avg): D2M-style mask. main loop will overwrite after this routine returns
     REG(ADDR_DDR_CH_EN) = DDR_CH_EN_W_ROIC | DDR_CH_EN_W_OFFSET | DDR_CH_EN_R_ROIC | DDR_CH_EN_R_OFFSET | DDR_CH_EN_R_D2M;
+
     if(DBG_wddr)func_printf("[DBG_wddr] func_width=%d\r\n",func_width);
     if(DBG_wddr)func_printf("[DBG_wddr] func_height=%d\r\n",func_height);
     if(DBG_wddr)func_printf("[DBG_wddr] reg_width=%d\r\n",REG(ADDR_WIDTH));
@@ -3557,6 +3838,11 @@ void execute_cmd_wddr(u32 data, u32 level) {
     if(DBG_wddr)func_printf("[DBG_wddr] reg_ADDR_IMG_MODE=%d\r\n",REG(ADDR_IMG_MODE));
     if(DBG_wddr)func_printf("[DBG_wddr] reg0=%d\r\n",REG(0));
     if(DBG_wddr)func_printf("[DBG_wddr] level=%d\r\n",level);
+
+    //##### critical at 3643R #####
+//  msdelay(300); //# make image no error offset at booting //#260514
+    msdelay((u32)(3000.0f / func_frate)); //# 2605151233 wait 3 frame time (3000/frate ms)
+    //######################################################
     avg_status = get_ddr_pixel_avg(level);
     if(DBG_wddr)func_printf("[DBG_wddr] avg_status = %d\r\n",avg_status);
 
@@ -3617,18 +3903,42 @@ void execute_cmd_rddr(u32 data, u32 level) {
 
     func_printf("\r\n read avg = %d \r\n ",avg);
 
-    func_printf(" AVG DOSE 0 test %d \r\n ",func_img_avg_dose0);
-    func_printf(" AVG DOSE 1 test %d \r\n ",func_img_avg_dose1);
-    func_printf(" AVG DOSE 2 test %d \r\n ",func_img_avg_dose2);
-    func_printf(" AVG DOSE 3 test %d \r\n ",func_img_avg_dose3);
-    func_printf(" AVG DOSE 4 test %d \r\n ",func_img_avg_dose4);
-    func_printf(" AVG DOSE 5 test %d \r\n ",func_img_avg_dose5);
+//    func_printf(" AVG DOSE 0 test %d \r\n ",func_img_avg_dose0);
+//    func_printf(" AVG DOSE 1 test %d \r\n ",func_img_avg_dose1);
+//    func_printf(" AVG DOSE 2 test %d \r\n ",func_img_avg_dose2);
+//    func_printf(" AVG DOSE 3 test %d \r\n ",func_img_avg_dose3);
+//    func_printf(" AVG DOSE 4 test %d \r\n ",func_img_avg_dose4);
+//    func_printf(" AVG DOSE 5 test %d \r\n ",func_img_avg_dose5);
+    disp_cmd_rddr(); //# 2605141540 factored dose0..5 dump into display.c
     }
 
+/*
+ *# 2605131659 execute_cmd_gcal now owns the DDR_CH_EN force-off via
+ *             func_ddrchen_gcal_stat instead of calib.c writing 0xAC directly.
+ * Purpose : During gain calibration the live video pipeline (W_ROIC/R_ROIC/...)
+ *           must be stopped so the offline NUC computation can read/write DDR
+ *           cleanly. Previously get_nuc_param() / get_nuc_para4() each wrote
+ *           DDR_CH_ALL_OFF directly to 0xAC and the main-loop composer restored
+ *           the normal value after gcal returned.
+ * Why     : Direct REG writes bypass the composer ownership rule (2605081700)
+ *           and prevent any other source from layering force-off requests.
+ *           Stat-based gating allows simultaneous events (disconnect + gcal)
+ *           to coexist without one clearing the other.
+ * Register: ADDR_DDR_CH_EN (0xAC). Composer in set_ddr_ch_en() forces this to
+ *           DDR_CH_ALL_OFF whenever func_ddrchen_gcal_stat != 0.
+ * Flow    : stat=1 -> explicit set_ddr_ch_en() to apply force-off immediately
+ *           (main loop is blocked while this function runs) -> calib work ->
+ *           stat=0 -> main loop's next iter composer restores normal regv.
+ */
 void execute_cmd_gcal(void) {
     REG(ADDR_FW_BUSY) = 1;
 
-    if(func_img_avg_dose0 > 0 && func_ref_num > 1) {    // dskim - 21.04.06 - gain calibration 예외 처리
+    //# 2605131659 force ADDR_DDR_CH_EN=0 before NUC computation
+    func_ddrchen_gcal_stat = 1;
+    set_ddr_ch_en();                    // apply now (main loop is blocked)
+    msdelay(100);                       // drain in-flight DDR traffic (was inside get_nuc_param*)
+
+    if(func_img_avg_dose0 > 0 && func_ref_num > 1) {    // dskim - 21.04.06 - gain calibration exception handling
         execute_cmd_cdot(0);
 
 //#if defined(GEV10G)
@@ -3644,7 +3954,7 @@ void execute_cmd_gcal(void) {
         // 200924 (need to update)
         func_img_avg_old = func_img_avg_dose0;
 
-//      if(func_defect_cnt == MAX_DEFECT) { // dskim - 21.08.18 - CsI Defect 이슈로 예외처리 해제
+//      if(func_defect_cnt == MAX_DEFECT) { // dskim - 21.08.18 - CsI Defect exception removed
 //          func_printf("Exceed the Max Number of Defect\r\n");
 //          REG(ADDR_FW_BUSY) = 0;
 //          return;
@@ -3655,6 +3965,9 @@ void execute_cmd_gcal(void) {
         is_load_hw_calibration = 1; // dskim - 22.09.27
 
     }
+
+    //# 2605131659 release force-off; main loop composer restores normal regv next iter
+    func_ddrchen_gcal_stat = 0;
 
     REG(ADDR_FW_BUSY) = 0;
 }
@@ -4985,6 +5298,11 @@ void execute_cmd_dnr_setting(u32 dnr, u32 edge, u32 offset) {
 }
 
 u32 func_acc_value; //# 230721 acc value save, acc not support at global EXT1 mode
+//# 2605131355 Runtime ACC on/off flag. Set by execute_cmd_acc to mirror the `on`
+//             bit that gets written to ADDR_ACC_CTRL. update_acc() in func_basic.c
+//             reads this and returns early when 0 -- avoids REG(ADDR_ACC_CTRL)
+//             polling traffic while ACC is disabled.
+u8  func_acc_enabled = 0;
 
 void execute_cmd_acc(u32 enable, u32 pagelimit)
 {
@@ -5032,6 +5350,9 @@ void execute_cmd_acc(u32 enable, u32 pagelimit)
 //                          ((on & 1) <<1) | \
 //                          (on & 1); // (1)bit: ddr ch enable
     save_pagelimit = pagelimit;
+    //# 2605131355 Mirror the `on` bit so update_acc() can gate without reading
+    //             ADDR_ACC_CTRL every iteration.
+    func_acc_enabled = (u8)on;
 }
 
 void execute_cmd_racc(u32 enable)
@@ -6467,57 +6788,65 @@ void execute_cmd_flash_check(void) {
     }
 
     //##### FPGA BITSTREAM CHECK #####
-    func_printf("ROM FPGA check...\t");
+    //# 2605131422 Multi-line layout: header + indented [2nd]/[3rd] progress + result.
+    func_printf("ROM FPGA check...\r\n");
+    func_printf("    [2nd] ");
     u32 fpga2nd = flash_fpga_check_2nd();
+    func_printf("\r\n    [3rd] ");
     u32 fpga3rd = flash_fpga_check_3rd();
+    func_printf("\r\n");
     if(DBG_flashcheck) func_printf("[DBG_flashcheck] fpga2nd = 0x%08x , fpga3rd = 0x%08x\r\n",fpga2nd ,fpga3rd);
     if ((fpga2nd != 0) && (fpga2nd == fpga3rd)){
-        func_printf("Done\r\n");
+        func_printf("    Done\r\n");
     }
     else if (fpga2nd){
         func_printf("\033[32m"); // green
-        func_printf("FPGA 3rd error! copy from 2nd!\r\n");
+        func_printf("    FPGA 3rd error! copy from 2nd!\r\n");
         func_printf("\033[0m \r\n"); // default
         cp_fpga2nd_to_fpga3rd();
     }
     else if (fpga3rd){
         func_printf("\033[32m"); // green
-        func_printf("FPGA 2nd error! copy from 3rd!\r\n");
+        func_printf("    FPGA 2nd error! copy from 3rd!\r\n");
         func_printf("\033[0m \r\n"); // default
         cp_fpga3rd_to_fpga2nd();
     }
     else
     {
         func_printf("\033[31m"); // RED
-        func_printf("FPGA 2nd, 3rd  error!!!\r\n");
-        func_printf("FPGA DOWNLOAD NEED!!!\r\n");
+        func_printf("    FPGA 2nd, 3rd  error!!!\r\n");
+        func_printf("    FPGA DOWNLOAD NEED!!!\r\n");
         func_printf("\033[0m \r\n"); // default
     }
 
     //##### FW APPLICATION CHECK #####
-    func_printf("ROM FW check...\t");
+    //# 2605131422 Multi-line layout: header + indented [1st]/[2nd] progress + result.
+    func_printf("ROM FW check...\r\n");
+    func_printf("    [1st] ");
     u32 fw1st = flash_fw_check_1st();
+    func_printf("\r\n    [2nd] ");
     u32 fw2nd = flash_fw_check_2nd();
+    func_printf("\r\n");
     if ((fw1st != 0) && (fw1st == fw2nd)){
-        func_printf("Done\r\n");
+        func_printf("    Done\r\n");
     }
     else if (fw1st){
         func_printf("\033[32m"); // green
-        func_printf("FW 2nd error! copy from 1st!\r\n");
+        func_printf("    FW 2nd error! copy from 1st!\r\n");
         func_printf("\033[0m \r\n"); // default
         cp_fw1st_to_fw2nd();
     }
     else if (fw2nd){
         func_printf("\033[32m"); // green
-        func_printf("FW 1st error! copy from 2nd!\r\n");
+        func_printf("    FW 1st error! copy from 2nd!\r\n");
         func_printf("\033[0m \r\n"); // default
         cp_fw2nd_to_fw1st();
     }
     else
     {
         func_printf("\033[31m"); // RED
-        func_printf("FW 1st, 2nd error!!!\r\n");
-        func_printf("FW DOWNLOAD NEED!!!\r\n");
+        func_printf("    FW 1st, 2nd error!!!\r\n");
+        func_printf("    FW DOWNLOAD NEED!!!\r\n");
         func_printf("\033[0m \r\n"); // default
     }
 

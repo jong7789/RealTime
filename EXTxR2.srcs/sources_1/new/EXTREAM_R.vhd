@@ -48,6 +48,7 @@ library UNISIM;
 entity EXTREAM_R is
 --    generic ( GNR_MODEL : string  := "EXT1616R" );
     generic ( GNR_MODEL : string  := "EXT4343RD" );
+--    generic ( GNR_MODEL : string  := "EXT3643R" );
     port   (
             SYSTEM_CLK_P : in    std_logic;
             SYSTEM_CLK_N : in    std_logic;
@@ -266,14 +267,20 @@ architecture top of EXTREAM_R is
     -- Video processor to memory controller interface
     signal video_frame          : std_logic;                         -- Data frame valid
     signal video_dv             : std_logic;                         -- Current data valid
-    signal video_data           : std_logic_vector(127 downto 0);    -- Video data
+--    signal video_data           : std_logic_vector(127 downto 0);    -- Video data
+    signal video_data           : std_logic_vector(DDR_AXI0_DATA(GNR_MODEL) - 1 downto 0);    --$ 260521
     signal video_fb_width       : std_logic_vector(  6 downto 0);    -- Data width
+    --# 2605151605 FW_BUSY mask: 16-bit pixel fill value driven near video_data assignment
+    signal fw_busy_pixel        : std_logic_vector( 15 downto 0);
+    --# 2605151823 fw_busy_val holds the human-readable decimal; fw_busy_pixel is its byte-swap
+    signal fw_busy_val          : std_logic_vector( 15 downto 0);
 
     -- AXI master interface
     signal axi_aclk             : std_logic;
     signal axi_aresetn          : std_logic;
     signal axi_rst              : std_logic;
-    signal axi_awid             : std_logic_vector(  3 downto 0);
+--    signal axi_awid             : std_logic_vector(  3 downto 0);
+    signal axi_awid             : std_logic_vector(DDR_AXI2(GNR_MODEL) - 1 downto 0);
     signal axi_awlock           : std_logic_vector(  0 downto 0);
     signal axi_awaddr           : std_logic_vector( 31 downto 0);
     signal axi_awlen            : std_logic_vector(  7 downto 0);
@@ -283,16 +290,20 @@ architecture top of EXTREAM_R is
     signal axi_awprot           : std_logic_vector(  2 downto 0);
     signal axi_awvalid          : std_logic;
     signal axi_awready          : std_logic;
-    signal axi_wdata            : std_logic_vector(127 downto 0);
-    signal axi_wstrb            : std_logic_vector( 15 downto 0);
+--    signal axi_wdata            : std_logic_vector(127 downto 0);
+--    signal axi_wstrb            : std_logic_vector( 15 downto 0);
+    signal axi_wdata            : std_logic_vector(DDR_AXI0_DATA(GNR_MODEL) - 1 downto 0); --$ 260521
+    signal axi_wstrb            : std_logic_vector(DDR_AXI0_STRB(GNR_MODEL) - 1 downto 0); --$ 260521
     signal axi_wlast            : std_logic;
     signal axi_wvalid           : std_logic;
     signal axi_wready           : std_logic;
-    signal axi_bid              : std_logic_vector(  3 downto 0) := (others => '0');
+--    signal axi_bid              : std_logic_vector(  3 downto 0) := (others => '0');
+    signal axi_bid              : std_logic_vector(DDR_AXI2(GNR_MODEL) - 1 downto 0) := (others => '0'); --$ 260521
     signal axi_bresp            : std_logic_vector(  1 downto 0);
     signal axi_bvalid           : std_logic;
     signal axi_bready           : std_logic;
-    signal axi_arid             : std_logic_vector(  3 downto 0);
+--    signal axi_arid             : std_logic_vector(  3 downto 0);
+    signal axi_arid             : std_logic_vector(DDR_AXI2(GNR_MODEL) - 1 downto 0);
     signal axi_arlock           : std_logic_vector(  0 downto 0);
     signal axi_araddr           : std_logic_vector( 31 downto 0);
     signal axi_arlen            : std_logic_vector(  7 downto 0);
@@ -302,12 +313,18 @@ architecture top of EXTREAM_R is
     signal axi_arprot           : std_logic_vector(  2 downto 0);
     signal axi_arvalid          : std_logic;
     signal axi_arready          : std_logic;
-    signal axi_rid              : std_logic_vector(  3 downto 0) := (others => '0');
-    signal axi_rdata            : std_logic_vector(127 downto 0);
+--    signal axi_rid              : std_logic_vector(  3 downto 0) := (others => '0');
+--    signal axi_rdata            : std_logic_vector(127 downto 0);
+    signal axi_rid              : std_logic_vector(DDR_AXI2(GNR_MODEL) - 1 downto 0) := (others => '0'); --$ 260521
+    signal axi_rdata            : std_logic_vector(DDR_AXI0_DATA(GNR_MODEL) - 1 downto 0); --$ 260521
     signal axi_rresp            : std_logic_vector(  1 downto 0);
     signal axi_rlast            : std_logic;
     signal axi_rvalid           : std_logic;
     signal axi_rready           : std_logic;
+    --# 2605221747 cpu_wrapper s0_axi_*id is 6b (Vivado auto-propagated MIG ID despite CONFIG.ID_WIDTH{4});
+    --# framebuf_2 m0_axi_*id is 4b. Use 6b shim signals between wrapper and 4b axi_*id.
+    signal s0_axi_bid_w         : std_logic_vector(5 downto 0); --# 2605221747 wrapper->us, take low 4b
+    signal s0_axi_rid_w         : std_logic_vector(5 downto 0); --# 2605221747 wrapper->us, take low 4b
 
     -- Write-read control interface
     signal wr_r_rsnd            : std_logic_vector( 31 downto 0);    -- Bottom address of memory area blocked for packet resend
@@ -534,8 +551,11 @@ architecture top of EXTREAM_R is
 
     signal sfb_frame : std_logic := '0';
     signal sfb_dv     : std_logic := '0';
-    signal sfb_data  : std_logic_vector(63 downto 0) := (others => '0');
-    signal sfb_width : std_logic_vector( 2 downto 0) := (others => '0');
+--    signal sfb_data  : std_logic_vector(63 downto 0) := (others => '0'); --$ 2605211000 OLD
+--    signal sfb_data  : std_logic_vector(511 downto 0) := (others => '0'); --$ 2605211000 Expand to 512-bit for EXT4343RD BRAM packing
+    signal sfb_data  : std_logic_vector(255 downto 0) := (others => '0'); --# 2605221727 Shrink to 256b: 4DDR also uses framebuf_2 (256b din_data)
+--    signal sfb_width : std_logic_vector( 2 downto 0) := (others => '0');
+    signal sfb_width : std_logic_vector( 5 downto 0) := (others => '0'); --$ 260521
 
 
     signal chgdet_osd_en : std_logic;
@@ -984,6 +1004,10 @@ architecture top of EXTREAM_R is
     signal axi2_arready : std_logic;
 --$    signal axi2_rid     : std_logic_vector(3 downto 0);
     signal axi2_rid     : std_logic_vector(DDR_AXI2(GNR_MODEL) - 1 downto 0);
+    --# 2605221914 cpu4ddr_wrapper axi2_*id widened to 6b (smartconnect+widthconv internal),
+    --# but framebuf side axi2_*id stays 4b (DDR_AXI2). 6b shim mirrors CPU_2DDR pattern.
+    signal axi2_bid_w   : std_logic_vector(5 downto 0); --# 2605221914 wrapper->us, take low 4b
+    signal axi2_rid_w   : std_logic_vector(5 downto 0); --# 2605221914 wrapper->us, take low 4b
     signal axi2_rdata   : std_logic_vector(511 downto 0);
     signal axi2_rresp   : std_logic_vector(1 downto 0);
     signal axi2_rlast   : std_logic;
@@ -1239,7 +1263,7 @@ begin
             ireg_height        => sreg_height,
 
             --# 2605071529 DDR burst limit selector (00=32 / 01=64 / 10=128 / 11=256)
-            ireg_ddr_burst     => sreg_ddr_burst,
+ --$260514           ireg_ddr_burst     => sreg_ddr_burst,
 
             istate_tftd => oostate_tftd,
 
@@ -1315,7 +1339,29 @@ begin
             axi_rresp   => axi2_rresp,
             axi_rlast   => axi2_rlast,
             axi_rvalid  => axi2_rvalid,
-            axi_rready  => axi2_rready
+            axi_rready  => axi2_rready,
+            
+            --$ 260518 for ila
+            axi0_araddr     => axi_araddr,
+            axi0_arburst    => axi_arburst,
+            axi0_arlen      => axi_arlen,
+            axi0_arready    => axi_arready,
+            axi0_arvalid    => axi_arvalid,
+            
+            axi0_awaddr     => axi_awaddr,
+            axi0_awburst    => axi_awburst,
+            axi0_awlen      => axi_awlen,
+            axi0_awready    => axi_awready,
+            axi0_awvalid    => axi_awvalid,
+            
+            axi0_rlast      => axi_rlast,
+            axi0_rready     => axi_rready,
+            axi0_rvalid     => axi_rvalid,
+            
+            axi0_wlast      => axi_wlast,
+            axi0_wready     => axi_wready,
+            axi0_wvalid     => axi_wvalid
+            
         );
 
 -- █▀▀ ▄▀█ █░░
@@ -1644,66 +1690,105 @@ end generate GEN_PROC_10g;
 -- █▀█ █░█ ▀█▀
 -- █▄█ █▄█ ░█░
 -- %out
+
+
+-- OUT_CPU0 : if(DDR_BY_MODEL(GNR_MODEL) = 2) generate
+ 
+--    --# 10G framebuffer output mux (async reset: sbd_clk_lock(6))
+--    process(sui_clk, sbd_clk_lock(6))
+--    begin
+--        if(sbd_clk_lock(6) = '0') then
+--            sfb_frame <= '0';
+--            sfb_dv    <= '0';
+--            sfb_data  <= (others => '0');
+--            sfb_width <= (others => '0');
+--        elsif(sui_clk'event and sui_clk = '1') then
+--            if(sreg_out_en = '1') then
+--                sfb_frame <= svsync_img_proc;
+--                sfb_dv    <= shsync_img_proc;
+--   sfb_data(63 downto 0)  <= sdata_img_proc( 8-1 downto  0) & sdata_img_proc(16-1 downto  8) &
+--                             sdata_img_proc(24-1 downto 16) & sdata_img_proc(32-1 downto 24) &
+--                             sdata_img_proc(40-1 downto 32) & sdata_img_proc(48-1 downto 40) &
+--                             sdata_img_proc(56-1 downto 48) & sdata_img_proc(64-1 downto 56);
+--                sfb_width <= "000111";
+--            else
+--                sfb_frame <= '0';
+--                sfb_dv    <= '0';
+--                sfb_data  <= (others => '0');
+--                sfb_width <= (others => '0');
+--            end if;
+--        end if;
+--    end process;
+
+--end generate OUT_CPU0;
+
+
 GEN_IMGOUT_10G: if(GEV_SPEED_BY_MODEL(GNR_MODEL) = "10G ") generate
-begin
 
-    --# 10G framebuffer output mux (async reset: sbd_clk_lock(6))
-    process(sui_clk, sbd_clk_lock(6))
-    begin
-        if(sbd_clk_lock(6) = '0') then
-            sfb_frame <= '0';
-            sfb_dv    <= '0';
-            sfb_data  <= (others => '0');
-            sfb_width <= (others => '0');
-        elsif(sui_clk'event and sui_clk = '1') then
---          if(sreg_out_en = '1') then
---              sfb_frame        <= svsync_tft;
---              sfb_dv           <= shsync_tft;
---              sfb_data         <= sdata_tft( 8-1 downto  0) & sdata_tft(16-1 downto  8) &
---                                  sdata_tft(24-1 downto 16) & sdata_tft(32-1 downto 24) &
---                                  sdata_tft(40-1 downto 32) & sdata_tft(48-1 downto 40) &
---                                  sdata_tft(56-1 downto 48) & sdata_tft(64-1 downto 56) ;
---              sfb_width        <= "111";
-            --##### ddr rear bypass #####
-        --   if(sreg_out_en = '1') then
-        --       sfb_frame        <= svsync_ddr3;
-        --       sfb_dv           <= shsync_ddr3;
-        --       sfb_data         <= sdata_ddr3( 8-1 downto  0) & sdata_ddr3(16-1 downto  8) &
-        --                           sdata_ddr3(24-1 downto 16) & sdata_ddr3(32-1 downto 24) &
-        --                           sdata_ddr3(40-1 downto 32) & sdata_ddr3(48-1 downto 40) &
-        --                           sdata_ddr3(56-1 downto 48) & sdata_ddr3(64-1 downto 56) ;
-        --       sfb_width        <= "111";
-            --#########################
---          else
---          if(sreg_out_en = '1') then
---              sfb_frame        <= svsync_calib;
---              sfb_dv           <= shsync_calib;
---              sfb_data         <= sdata_calib( 8-1 downto  0) & sdata_calib(16-1 downto  8) &
---                                  sdata_calib(24-1 downto 16) & sdata_calib(32-1 downto 24) &
---                                  sdata_calib(40-1 downto 32) & sdata_calib(48-1 downto 40) &
---                                  sdata_calib(56-1 downto 48) & sdata_calib(64-1 downto 56) ;
---              sfb_width        <= "111";
-           if(sreg_out_en = '1') then
-               sfb_frame <= svsync_img_proc;
-               sfb_dv    <= shsync_img_proc;
-               sfb_data  <= sdata_img_proc( 8-1 downto  0) & sdata_img_proc(16-1 downto  8) &
-                            sdata_img_proc(24-1 downto 16) & sdata_img_proc(32-1 downto 24) &
-                            sdata_img_proc(40-1 downto 32) & sdata_img_proc(48-1 downto 40) &
-                            sdata_img_proc(56-1 downto 48) & sdata_img_proc(64-1 downto 56);
-               sfb_width <= "111";
-            else
-                sfb_frame <= '0';
-                sfb_dv    <= '0';
-                sfb_data  <= (others => '0');
-                sfb_width <= (others => '0');
-            end if;
-        end if;
-    end process;
+-- OUT_CPU1 : if(DDR_BY_MODEL(GNR_MODEL) = 4) generate
+    signal sframe_imgout    : std_logic;
+    signal sen_imgout       : std_logic;
+    signal sdata_imgout     : std_logic_vector(63 downto 0);
+begin   
+    --$ 2605211000 Replace direct register with BRAM-based 64->512 packing (FB_DATA_CONV)
+    --# 2605221642 FB_DATA_CONV width = FB_DATA_WIDTH_BY_MODEL(GNR_MODEL) (256 or 512); 256-mode pads sfb_data(511:256) with 0
+    sframe_imgout <= svsync_img_proc and sreg_out_en;
+    sen_imgout    <= shsync_img_proc and sreg_out_en;
+    sdata_imgout  <= sdata_img_proc( 7 downto  0) & sdata_img_proc(15 downto  8) &
+                     sdata_img_proc(23 downto 16) & sdata_img_proc(31 downto 24) &
+                     sdata_img_proc(39 downto 32) & sdata_img_proc(47 downto 40) &
+                     sdata_img_proc(55 downto 48) & sdata_img_proc(63 downto 56);
 
+--# 2605221727 4DDR also uses framebuf_2 (256b). GEN_FBC_512 path disabled; sfb_data is now 256b.
+--    GEN_FBC_512 : if FB_DATA_WIDTH_BY_MODEL(GNR_MODEL) = 512 generate  --# 2605221642
+--        U_FB_DATA_CONV : entity work.FB_DATA_CONV
+--        generic map (
+--            G_ODATA_WIDTH => 512
+--        )
+--        port map (
+--            iclk   => sui_clk,
+--            irstn  => sbd_clk_lock(6),
+--            ien    => sen_imgout,
+--            iframe => sframe_imgout,
+--            ihcnt  => shcnt_img_proc(9 downto 0),
+--            idata  => sdata_imgout,
+--            oen    => sfb_dv,
+--            oframe => sfb_frame,
+--            odata  => sfb_data,
+--            owidth => sfb_width
+--        );
+--    end generate GEN_FBC_512;
+
+    GEN_FBC_256 : if FB_DATA_WIDTH_BY_MODEL(GNR_MODEL) = 256 generate  --# 2605221642
+--        sfb_data(511 downto 256) <= (others => '0');                   --# 2605221642 upper-half pad in 256 mode (removed: sfb_data now 256b)
+        U_FB_DATA_CONV : entity work.FB_DATA_CONV
+        generic map (
+            G_ODATA_WIDTH => 256
+        )
+        port map (
+            iclk   => sui_clk,
+            irstn  => sbd_clk_lock(6),
+            ien    => sen_imgout,
+            iframe => sframe_imgout,
+            ihcnt  => shcnt_img_proc(9 downto 0),
+            idata  => sdata_imgout,
+            oen    => sfb_dv,
+            oframe => sfb_frame,
+--            odata  => sfb_data(255 downto 0),  --# 2605221642 sliced when sfb_data was 512b
+            odata  => sfb_data,                  --# 2605221727 sfb_data is now 256b — assign whole vector
+            owidth => sfb_width
+        );
+    end generate GEN_FBC_256;
+
+--end generate OUT_CPU1;
 end generate GEN_IMGOUT_10G;
+
+
 
 GEN_IMGOUT_2p5: if(GEV_SPEED_BY_MODEL(GNR_MODEL) = "2p5G") generate
 begin
+--    sfb_data(511 downto 64) <= (others => '0'); --$ 2605211000 Zero upper bits: sfb_data is 512-bit but 2p5G only uses [63:0]
+    sfb_data(255 downto 64) <= (others => '0'); --# 2605221727 sfb_data shrunk to 256b; 2p5G still uses only [63:0]
 
     U0_IMG_OUT_TOP : entity work.IMG_OUT_TOP
         port map (
@@ -1725,7 +1810,7 @@ begin
 
             ofb_frame => sfb_frame,
             ofb_dv    => sfb_dv,
-            ofb_data  => sfb_data,
+            ofb_data  => sfb_data(63 downto 0), --$ 2605211000 Slice: IMG_OUT_TOP is 64-bit; sfb_data[511:64] zeroed above
             ofb_width => sfb_width
         );
 end generate GEN_IMGOUT_2p5;
@@ -3109,9 +3194,11 @@ end generate TP_EXT;
                     ddr3_dqs_n              => ddr3_dqs_n,
                     ddr3_dq                 => ddr3_dq,
                     -- AXI4 slave (to connect external master)
+                    --# 2605221747 cpu_wrapper now declares single-bit s0_axi signals as std_logic_vector(0 to 0)
+                    --# and s0_axi_*id as 6b. Region ports removed. Adapt port map without touching axi_* signal widths.
                     s0_axi_aclk             => axi_aclk,
                     s0_axi_aresetn(0)       => axi_aresetn,
-                    s0_axi_awid             => axi_awid,
+                    s0_axi_awid             => "00" & axi_awid,            --# 2605221747 pad 4b -> 6b
                     s0_axi_awlock           => axi_awlock,
                     s0_axi_awqos            => (others => '0'),
                     s0_axi_awaddr           => axi_awaddr,
@@ -3120,18 +3207,18 @@ end generate TP_EXT;
                     s0_axi_awburst          => axi_awburst,
                     s0_axi_awcache          => axi_awcache,
                     s0_axi_awprot           => axi_awprot,
-                    s0_axi_awvalid          => axi_awvalid,
-                    s0_axi_awready          => axi_awready,
+                    s0_axi_awvalid(0)       => axi_awvalid,                --# 2605221747
+                    s0_axi_awready(0)       => axi_awready,                --# 2605221747
                     s0_axi_wdata            => axi_wdata,
                     s0_axi_wstrb            => axi_wstrb,
-                    s0_axi_wlast            => axi_wlast,
-                    s0_axi_wvalid           => axi_wvalid,
-                    s0_axi_wready           => axi_wready,
-                    s0_axi_bid              => axi_bid,
+                    s0_axi_wlast(0)         => axi_wlast,                  --# 2605221747
+                    s0_axi_wvalid(0)        => axi_wvalid,                 --# 2605221747
+                    s0_axi_wready(0)        => axi_wready,                 --# 2605221747
+                    s0_axi_bid              => s0_axi_bid_w,               --# 2605221747 6b shim; lower 4b -> axi_bid below
                     s0_axi_bresp            => axi_bresp,
-                    s0_axi_bvalid           => axi_bvalid,
-                    s0_axi_bready           => axi_bready,
-                    s0_axi_arid             => axi_arid,
+                    s0_axi_bvalid(0)        => axi_bvalid,                 --# 2605221747
+                    s0_axi_bready(0)        => axi_bready,                 --# 2605221747
+                    s0_axi_arid             => "00" & axi_arid,            --# 2605221747 pad 4b -> 6b
                     s0_axi_arlock           => axi_arlock,
                     s0_axi_arqos            => (others => '0'),
                     s0_axi_araddr           => axi_araddr,
@@ -3140,18 +3227,18 @@ end generate TP_EXT;
                     s0_axi_arburst          => axi_arburst,
                     s0_axi_arcache          => axi_arcache,
                     s0_axi_arprot           => axi_arprot,
-                    s0_axi_arvalid          => axi_arvalid,
-                    s0_axi_arready          => axi_arready,
-                    s0_axi_rid              => axi_rid,
+                    s0_axi_arvalid(0)       => axi_arvalid,                --# 2605221747
+                    s0_axi_arready(0)       => axi_arready,                --# 2605221747
+                    s0_axi_rid              => s0_axi_rid_w,               --# 2605221747 6b shim; lower 4b -> axi_rid below
                     s0_axi_rdata            => axi_rdata,
                     s0_axi_rresp            => axi_rresp,
-                    s0_axi_rlast            => axi_rlast,
-                    s0_axi_rvalid           => axi_rvalid,
-                    s0_axi_rready           => axi_rready,
+                    s0_axi_rlast(0)         => axi_rlast,                  --# 2605221747
+                    s0_axi_rvalid(0)        => axi_rvalid,                 --# 2605221747
+                    s0_axi_rready(0)        => axi_rready,                 --# 2605221747
 
                     axi2_arregion           => (others => '0'), --# smartconn->widthconv+crossbar 231213
-                    s0_axi_arregion         => (others => '0'),
-                    s0_axi_awregion         => (others => '0'),
+--                    s0_axi_arregion         => (others => '0'), --# 2605221747 wrapper no longer has these ports
+--                    s0_axi_awregion         => (others => '0'),
 
                     -- AXI4 slave (to connect external master)
 --                    axi2_aclk             => axi2_aclk,
@@ -3227,6 +3314,10 @@ end generate TP_EXT;
                     bd_clk_lock => obd_clk_lock ,
                     bd_dclk     => obd_dclk
                     );
+
+    --# 2605221747 take lower 4 bits of wrapper's 6-bit s0_axi_*id to feed 4-bit framebuf_2 m0_axi_bid/rid
+    axi_bid <= s0_axi_bid_w(3 downto 0);
+    axi_rid <= s0_axi_rid_w(3 downto 0);
                 end generate GEV_CPU0;
 
     GEV_CPU1 : if(DDR_BY_MODEL(GNR_MODEL) = 4) generate
@@ -3334,9 +3425,9 @@ end generate TP_EXT;
               s0_axi_arlen              => axi_arlen,
               s0_axi_arlock(0)          => axi_arlock(0),
               s0_axi_arprot             => axi_arprot,
-              s0_axi_arready            => axi_arready,
+              s0_axi_arready(0)         => axi_arready,
               s0_axi_arsize             => axi_arsize,
-              s0_axi_arvalid            => axi_arvalid,
+              s0_axi_arvalid(0)         => axi_arvalid,
               s0_axi_awaddr             => axi_awaddr,
               s0_axi_awburst            => axi_awburst,
               s0_axi_awcache            => axi_awcache,
@@ -3344,34 +3435,40 @@ end generate TP_EXT;
               s0_axi_awlen              => axi_awlen,
               s0_axi_awlock(0)          => axi_awlock(0),
               s0_axi_awprot             => axi_awprot,
-              s0_axi_awready            => axi_awready,
+              s0_axi_awready(0)         => axi_awready,
               s0_axi_awsize             => axi_awsize,
-              s0_axi_awvalid            => axi_awvalid,
+              s0_axi_awvalid(0)         => axi_awvalid,
               s0_axi_bid                => axi_bid,
-              s0_axi_bready             => axi_bready,
+              s0_axi_bready(0)          => axi_bready,
               s0_axi_bresp              => axi_bresp,
-              s0_axi_bvalid             => axi_bvalid,
+              s0_axi_bvalid(0)          => axi_bvalid,
               s0_axi_rdata              => axi_rdata,
               s0_axi_rid                => axi_rid,
-              s0_axi_rlast              => axi_rlast,
-              s0_axi_rready             => axi_rready,
+              s0_axi_rlast(0)           => axi_rlast,
+              s0_axi_rready(0)          => axi_rready,
               s0_axi_rresp              => axi_rresp,
-              s0_axi_rvalid             => axi_rvalid,
+              s0_axi_rvalid(0)          => axi_rvalid,
               s0_axi_wdata              => axi_wdata,
-              s0_axi_wlast              => axi_wlast,
-              s0_axi_wready             => axi_wready,
+              s0_axi_wlast(0)           => axi_wlast,
+              s0_axi_wready(0)          => axi_wready,
               s0_axi_wstrb              => axi_wstrb,
-              s0_axi_wvalid             => axi_wvalid,
+              s0_axi_wvalid(0)          => axi_wvalid,
               
               s0_axi_arqos              =>  (others => '0'),
-              s0_axi_arregion           => (others => '0'),
+--              s0_axi_arregion           => (others => '0'),
               s0_axi_awqos              => (others => '0'),
-              s0_axi_awregion           => (others => '0'),
+--              s0_axi_awregion           => (others => '0'),
+              --# 2605221914 CPU_4DDR: connect *_region ports tied-low.
+              --# Why: axi0 data width change regenerated cpu4ddr_wrapper; s0_axi_arregion/awregion
+              --# remain mandatory inputs (no default) -> Synth 8-9486 at EXTREAM_R.vhd:3532.
+              s0_axi_arregion           => (others => '0'),  --# 2605221914
+              s0_axi_awregion           => (others => '0'),  --# 2605221914
               
               -- AXI4 slave (to connect external master)
               axi2_araddr               => axi2_araddr,
               axi2_arburst              => axi2_arburst,
-              axi2_arid                 => axi2_arid,
+--              axi2_arid                 => axi2_arid,
+              axi2_arid                 => "00" & axi2_arid,    --# 2605221914 pad 4b -> 6b (wrapper widened)
               axi2_arlen                => axi2_arlen,
               axi2_arlock(0)            => axi2_arlock(0),
               axi2_arready(0)           => axi2_arready,
@@ -3379,18 +3476,21 @@ end generate TP_EXT;
               axi2_arvalid(0)           => axi2_arvalid,
               axi2_awaddr               => axi2_awaddr,
               axi2_awburst              => axi2_awburst,
-              axi2_awid                 => axi2_awid,
+--              axi2_awid                 => axi2_awid,
+              axi2_awid                 => "00" & axi2_awid,    --# 2605221914 pad 4b -> 6b (wrapper widened)
               axi2_awlen                => axi2_awlen,
               axi2_awlock(0)            => axi2_awlock(0),
               axi2_awready(0)           => axi2_awready,
               axi2_awsize               => axi2_awsize,
               axi2_awvalid(0)           => axi2_awvalid,
-              axi2_bid                  => axi2_bid,
+--              axi2_bid                  => axi2_bid,
+              axi2_bid                  => axi2_bid_w,          --# 2605221914 6b shim; lower 4b -> axi2_bid below
               axi2_bready(0)            => axi2_bready,
               axi2_bresp                => axi2_bresp,
               axi2_bvalid(0)            => axi2_bvalid,
               axi2_rdata                => axi2_rdata,
-              axi2_rid                  => axi2_rid,
+--              axi2_rid                  => axi2_rid,
+              axi2_rid                  => axi2_rid_w,          --# 2605221914 6b shim; lower 4b -> axi2_rid below
               axi2_rlast(0)             => axi2_rlast,
               axi2_rready(0)            => axi2_rready,
               axi2_rresp                => axi2_rresp,
@@ -3443,6 +3543,10 @@ end generate TP_EXT;
 
 
             );
+
+    --# 2605221914 CPU_4DDR: take lower 4 bits of wrapper's 6-bit axi2_*id to feed 4-bit framebuf side
+    axi2_bid <= axi2_bid_w(3 downto 0);
+    axi2_rid <= axi2_rid_w(3 downto 0);
                 end generate GEV_CPU1;
 
     -- Video test pattern generator
@@ -3483,11 +3587,33 @@ end generate TP_EXT;
 
     video_frame    <= sfb_frame;
     video_dv       <= sfb_dv;
-    video_fb_width <= "0000" & sfb_width;
-    video_data     <= LOWV(128-1 downto 64) &  sfb_data when sreg_fw_busy = '0' else (others => '1');
-
-    -- AXI framebuffer
-     GEV_FRAMEBUF: entity work.framebuf_wrapper
+    -- video_fb_width <= "0000" & sfb_width;
+    -- video_data     <= LOWV(128-1 downto 64) &  sfb_data when sreg_fw_busy = '0' else (others => '1');
+    video_fb_width <= "0" & sfb_width; --$ 260521
+--    video_data     <= (511 downto 64 => '0') &  sfb_data when sreg_fw_busy = '0' else (others => '1'); --$ 260521 OLD
+--# 2605221727 Unified 256b video_data (framebuf_2 din_data 256b for both 2DDR+4DDR).
+--# sfb_data is now 256b; 2p5G zero-pads upper 192b internally — single assignment covers both speeds.
+--    GEN_VID_4DDR : if DDR_BY_MODEL(GNR_MODEL) = 4 generate --$ 2605211000 EXT4343RD: sfb_data is 512-bit
+--        video_data <= sfb_data when sreg_fw_busy = '0' else (others => '1');
+--    end generate GEN_VID_4DDR;
+--    GEN_VID_2DDR : if DDR_BY_MODEL(GNR_MODEL) /= 4 generate --$ 2605211000 2p5G models: zero-pad upper bits
+--        video_data <= (127 downto 64 => '0') & sfb_data(63 downto 0)
+--                      when sreg_fw_busy = '0' else (others => '1');
+--    end generate GEN_VID_2DDR;
+--    --# framebuf 256 (orphan duplicate assignment outside generate — removed)
+--        video_data <= (127 downto 64 => '0') & sfb_data(63 downto 0)
+--                      when sreg_fw_busy = '0' else (others => '1');
+    video_data <= sfb_data when sreg_fw_busy = '0' else (others => '1'); --# 2605221727
+                      
+                      
+                      
+--    fw_busy_val    <= conv_std_logic_vector(400, 16);
+--    fw_busy_pixel  <= fw_busy_val(7 downto 0) & fw_busy_val(15 downto 8);
+--    video_data     <= LOWV(128-1 downto 64) &  sfb_data when sreg_fw_busy = '0'
+--                      else fw_busy_pixel & fw_busy_pixel & fw_busy_pixel & fw_busy_pixel
+--                         & fw_busy_pixel & fw_busy_pixel & fw_busy_pixel & fw_busy_pixel;
+                         
+      GEV_FRAMEBUF: entity work.framebuf_2
         port map   (
                     sys_en                  => sys_net_up,
                     sys_tstamp              => sys_time_stamp,
@@ -3599,8 +3725,243 @@ end generate TP_EXT;
                     m0_axi_rresp            => axi_rresp,
                     m0_axi_rlast            => axi_rlast,
                     m0_axi_rvalid           => axi_rvalid,
-                    m0_axi_rready           => axi_rready);
+                    m0_axi_rready           => axi_rready);                        
+                         
+                         
+--    -- AXI framebuffer
+--    GEV_FRAMEBUF0 : if(DDR_BY_MODEL(GNR_MODEL) = 2) generate
+--     GEV_FRAMEBUF: entity work.framebuf_wrapper
+--        port map   (
+--                    sys_en                  => sys_net_up,
+--                    sys_tstamp              => sys_time_stamp,
+--                    sys_irq                 => cpu_irq_1,
+--                    s0_axi_aclk             => sys_clk,
+--                    s0_axi_aresetn          => axi0_aresetn,
+--                    s0_axi_awaddr           => axi0_fb_awaddr(15 downto 0),
+--                    s0_axi_awprot           => axi0_fb_awprot,
+--                    s0_axi_awvalid          => axi0_fb_awvalid,
+--                    s0_axi_awready          => axi0_fb_awready,
+--                    s0_axi_wdata            => axi0_fb_wdata,
+--                    s0_axi_wstrb            => axi0_fb_wstrb,
+--                    s0_axi_wvalid           => axi0_fb_wvalid,
+--                    s0_axi_wready           => axi0_fb_wready,
+--                    s0_axi_bresp            => axi0_fb_bresp,
+--                    s0_axi_bvalid           => axi0_fb_bvalid,
+--                    s0_axi_bready           => axi0_fb_bready,
+--                    s0_axi_araddr           => axi0_fb_araddr(15 downto 0),
+--                    s0_axi_arprot           => axi0_fb_arprot,
+--                    s0_axi_arvalid          => axi0_fb_arvalid,
+--                    s0_axi_arready          => axi0_fb_arready,
+--                    s0_axi_rdata            => axi0_fb_rdata,
+--                    s0_axi_rresp            => axi0_fb_rresp,
+--                    s0_axi_rvalid           => axi0_fb_rvalid,
+--                    s0_axi_rready           => axi0_fb_rready,
+--                    din_clk                 => axi_aclk,
+--                    din_rst                 => axi_rst,
+--                    din_frame               => video_frame,
+--                    din_field               => '0',
+--                    din_line                => video_dv,
+--                    din_trailer             => '0',
+--                    din_width               => video_fb_width,
+--                    din_data                => video_data,
+--                    din_busy                => open,
+--                    din_idle                => open,
+--                    wr_r_rsnd               => wr_r_rsnd,
+--                    wr_r_bot                => wr_r_bot,
+--                    wr_w_bot                => wr_w_bot,
+--                    wr_w_top                => wr_w_top,
+--                    wr_w_tstamp             => wr_w_tstamp,
+--                    wr_w_bid                => wr_w_bid,
+--                    wr_w_active             => wr_w_active,
+--                    wr_w_drop               => wr_w_drop,
+--                    wr_d_full               => wr_d_full,
+--                    wr_d_start              => wr_d_start,
+--                    wr_d_len                => wr_d_len,
+--                    wr_d_tstamp             => wr_d_tstamp,
+--                    wr_d_bid                => wr_d_bid,
+--                    wr_d_trail              => wr_d_trail,
+--                    wr_d_we                 => wr_d_we,
+--                    rd_r_rsnd               => wr_r_rsnd,
+--                    rd_r_bot                => wr_r_bot,
+--                    rd_w_bot                => wr_w_bot,
+--                    rd_w_top                => wr_w_top,
+--                    rd_w_tstamp             => wr_w_tstamp,
+--                    rd_w_bid                => wr_w_bid,
+--                    rd_w_active             => wr_w_active,
+--                    rd_w_drop               => wr_w_drop,
+--                    rd_d_full               => wr_d_full,
+--                    rd_d_start              => wr_d_start,
+--                    rd_d_len                => wr_d_len,
+--                    rd_d_tstamp             => wr_d_tstamp,
+--                    rd_d_bid                => wr_d_bid,
+--                    rd_d_trail              => wr_d_trail,
+--                    rd_d_we                 => wr_d_we,
+--                    tx_scc                  => mem_scc,
+--                    tx_full                 => mem_full,
+--                    tx_max_len              => mem_max_len,
+--                    tx_write                => mem_write,
+--                    tx_header               => mem_header,
+--                    tx_data                 => mem_data,
+--                    rsnd_req                => rsnd_req,
+--                    rsnd_bid                => rsnd_blk_id,
+--                    rsnd_pid_f              => rsnd_first_pkt_id,
+--                    rsnd_pid_l              => rsnd_last_pkt_id,
+--                    m0_axi_aclk             => axi_aclk,
+--                    m0_axi_aresetn          => axi_aresetn,
+--                    m0_axi_awid             => axi_awid,
+--                    m0_axi_awaddr           => axi_awaddr,
+--                    m0_axi_awlen            => axi_awlen,
+--                    m0_axi_awsize           => axi_awsize,
+--                    m0_axi_awburst          => axi_awburst,
+--                    m0_axi_awlock           => axi_awlock,
+--                    m0_axi_awcache          => axi_awcache,
+--                    m0_axi_awprot           => axi_awprot,
+--                    m0_axi_awvalid          => axi_awvalid,
+--                    m0_axi_awready          => axi_awready,
+--                    m0_axi_wdata            => axi_wdata,
+--                    m0_axi_wstrb            => axi_wstrb,
+--                    m0_axi_wlast            => axi_wlast,
+--                    m0_axi_wvalid           => axi_wvalid,
+--                    m0_axi_wready           => axi_wready,
+--                    m0_axi_bid              => axi_bid(3 downto 0),
+--                    m0_axi_bresp            => axi_bresp,
+--                    m0_axi_bvalid           => axi_bvalid,
+--                    m0_axi_bready           => axi_bready,
+--                    m0_axi_arid             => axi_arid,
+--                    m0_axi_araddr           => axi_araddr,
+--                    m0_axi_arlen            => axi_arlen,
+--                    m0_axi_arsize           => axi_arsize,
+--                    m0_axi_arburst          => axi_arburst,
+--                    m0_axi_arlock           => axi_arlock,
+--                    m0_axi_arcache          => axi_arcache,
+--                    m0_axi_arprot           => axi_arprot,
+--                    m0_axi_arvalid          => axi_arvalid,
+--                    m0_axi_arready          => axi_arready,
+--                    m0_axi_rid              => axi_rid(3 downto 0),
+--                    m0_axi_rdata            => axi_rdata,
+--                    m0_axi_rresp            => axi_rresp,
+--                    m0_axi_rlast            => axi_rlast,
+--                    m0_axi_rvalid           => axi_rvalid,
+--                    m0_axi_rready           => axi_rready);
+--        end generate GEV_FRAMEBUF0;
 
+--   -- AXI framebuffer
+--    GEV_FRAMEBUF1 : if(DDR_BY_MODEL(GNR_MODEL) = 4) generate
+--     GEV_FRAMEBUF: entity work.framebuf4_wrapper
+--        port map   (
+--                    sys_en                  => sys_net_up,
+--                    sys_tstamp              => sys_time_stamp,
+--                    sys_irq                 => cpu_irq_1,
+--                    s0_axi_aclk             => sys_clk,
+--                    s0_axi_aresetn          => axi0_aresetn,
+--                    s0_axi_awaddr           => axi0_fb_awaddr(15 downto 0),
+--                    s0_axi_awprot           => axi0_fb_awprot,
+--                    s0_axi_awvalid          => axi0_fb_awvalid,
+--                    s0_axi_awready          => axi0_fb_awready,
+--                    s0_axi_wdata            => axi0_fb_wdata,
+--                    s0_axi_wstrb            => axi0_fb_wstrb,
+--                    s0_axi_wvalid           => axi0_fb_wvalid,
+--                    s0_axi_wready           => axi0_fb_wready,
+--                    s0_axi_bresp            => axi0_fb_bresp,
+--                    s0_axi_bvalid           => axi0_fb_bvalid,
+--                    s0_axi_bready           => axi0_fb_bready,
+--                    s0_axi_araddr           => axi0_fb_araddr(15 downto 0),
+--                    s0_axi_arprot           => axi0_fb_arprot,
+--                    s0_axi_arvalid          => axi0_fb_arvalid,
+--                    s0_axi_arready          => axi0_fb_arready,
+--                    s0_axi_rdata            => axi0_fb_rdata,
+--                    s0_axi_rresp            => axi0_fb_rresp,
+--                    s0_axi_rvalid           => axi0_fb_rvalid,
+--                    s0_axi_rready           => axi0_fb_rready,
+--                    din_clk                 => axi_aclk,
+--                    din_rst                 => axi_rst,
+--                    din_frame               => video_frame,
+--                    din_field               => '0',
+--                    din_line                => video_dv,
+--                    din_trailer             => '0',
+--                    din_width               => video_fb_width,
+--                    din_data                => video_data,
+--                    din_busy                => open,
+--                    din_idle                => open,
+--                    wr_r_rsnd               => wr_r_rsnd,
+--                    wr_r_bot                => wr_r_bot,
+--                    wr_w_bot                => wr_w_bot,
+--                    wr_w_top                => wr_w_top,
+--                    wr_w_tstamp             => wr_w_tstamp,
+--                    wr_w_bid                => wr_w_bid,
+--                    wr_w_active             => wr_w_active,
+--                    wr_w_drop               => wr_w_drop,
+--                    wr_d_full               => wr_d_full,
+--                    wr_d_start              => wr_d_start,
+--                    wr_d_len                => wr_d_len,
+--                    wr_d_tstamp             => wr_d_tstamp,
+--                    wr_d_bid                => wr_d_bid,
+--                    wr_d_trail              => wr_d_trail,
+--                    wr_d_we                 => wr_d_we,
+--                    rd_r_rsnd               => wr_r_rsnd,
+--                    rd_r_bot                => wr_r_bot,
+--                    rd_w_bot                => wr_w_bot,
+--                    rd_w_top                => wr_w_top,
+--                    rd_w_tstamp             => wr_w_tstamp,
+--                    rd_w_bid                => wr_w_bid,
+--                    rd_w_active             => wr_w_active,
+--                    rd_w_drop               => wr_w_drop,
+--                    rd_d_full               => wr_d_full,
+--                    rd_d_start              => wr_d_start,
+--                    rd_d_len                => wr_d_len,
+--                    rd_d_tstamp             => wr_d_tstamp,
+--                    rd_d_bid                => wr_d_bid,
+--                    rd_d_trail              => wr_d_trail,
+--                    rd_d_we                 => wr_d_we,
+--                    tx_scc                  => mem_scc,
+--                    tx_full                 => mem_full,
+--                    tx_max_len              => mem_max_len,
+--                    tx_write                => mem_write,
+--                    tx_header               => mem_header,
+--                    tx_data                 => mem_data,
+--                    rsnd_req                => rsnd_req,
+--                    rsnd_bid                => rsnd_blk_id,
+--                    rsnd_pid_f              => rsnd_first_pkt_id,
+--                    rsnd_pid_l              => rsnd_last_pkt_id,
+--                    m0_axi_aclk             => axi_aclk,
+--                    m0_axi_aresetn          => axi_aresetn,
+--                    m0_axi_awid             => axi_awid(3 downto 0),
+--                    m0_axi_awaddr           => axi_awaddr,
+--                    m0_axi_awlen            => axi_awlen,
+--                    m0_axi_awsize           => axi_awsize,
+--                    m0_axi_awburst          => axi_awburst,
+--                    m0_axi_awlock           => axi_awlock,
+--                    m0_axi_awcache          => axi_awcache,
+--                    m0_axi_awprot           => axi_awprot,
+--                    m0_axi_awvalid          => axi_awvalid,
+--                    m0_axi_awready          => axi_awready,
+--                    m0_axi_wdata            => axi_wdata,
+--                    m0_axi_wstrb            => axi_wstrb,
+--                    m0_axi_wlast            => axi_wlast,
+--                    m0_axi_wvalid           => axi_wvalid,
+--                    m0_axi_wready           => axi_wready,
+--                    m0_axi_bid              => axi_bid(3 downto 0),
+--                    m0_axi_bresp            => axi_bresp,
+--                    m0_axi_bvalid           => axi_bvalid,
+--                    m0_axi_bready           => axi_bready,
+--                    m0_axi_arid             => axi_arid(3 downto 0),
+--                    m0_axi_araddr           => axi_araddr,
+--                    m0_axi_arlen            => axi_arlen,
+--                    m0_axi_arsize           => axi_arsize,
+--                    m0_axi_arburst          => axi_arburst,
+--                    m0_axi_arlock           => axi_arlock,
+--                    m0_axi_arcache          => axi_arcache,
+--                    m0_axi_arprot           => axi_arprot,
+--                    m0_axi_arvalid          => axi_arvalid,
+--                    m0_axi_arready          => axi_arready,
+--                    m0_axi_rid              => axi_rid(3 downto 0),
+--                    m0_axi_rdata            => axi_rdata,
+--                    m0_axi_rresp            => axi_rresp,
+--                    m0_axi_rlast            => axi_rlast,
+--                    m0_axi_rvalid           => axi_rvalid,
+--                    m0_axi_rready           => axi_rready);
+--        end generate GEV_FRAMEBUF1;
+        
     -- GigE Vision core
      GEV_GIGE: entity work.xgige_wrapper
         port map   (-- AXI4-Lite slave interface
@@ -4161,7 +4522,8 @@ end generate TP_EXT;
     PHY_RESET_N <= not ext_rst;
 
     axi_rst                   <= not axi_aresetn;       -- Synchronous reset
-    video_data(127 downto 64) <= (others => '0');
+--$ 2605211000 Removed: conflicts with GEN_VID_4DDR/2DDR generate blocks above
+--    video_data(127 downto 64) <= (others => '0');
 
     -- Test points -------------------------------------------------------------
 
@@ -4310,7 +4672,7 @@ end generate TP_EXT;
 
             sfb_frame => sfb_frame,
             sfb_dv    => sfb_dv,
-            sfb_data  => sfb_data,
+            sfb_data  => sfb_data(63 downto 0), --$ 2605211000 Slice lower 64-bit for ILA probe (sfb_data is now 512-bit)
 
             sreg_sync_ctrl => sreg_sync_ctrl,
 

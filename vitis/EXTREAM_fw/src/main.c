@@ -114,14 +114,67 @@
     	17. 2026.05.08 11:00  //# 2605081100 fbuf INIT|CLRSTAT@acq + log + fov + 256MB@0xB0000000
     	18. 2026.05.08 16:00  //# 2605081600 bcalfw strict par match (require 0xFFF000) + retry up to 3x; OK only when mid valid AND par == 0xFFF000 (func_basic.c bw_align_fw_word_align/run_one_ch/bcalfw_one_pass)
     	19. 2026.05.08 17:00  //# 2605081700 ADDR_DDR_CH_EN ownership moved to main loop: set_ddr_ch_en() called once after genicam_command() (writes every iteration, logs on change). All scattered set_ddr_ch_en() callers removed (calib.c x6, func_cmd.c x4, user.c x1). All 0b literal ADDR_DDR_CH_EN writes replaced with bit-mask macros (DDR_CH_ALL_OFF, DDR_CH_EN_R_OFFSET, DDR_CH_EN_R_NUC, ...) in calib.c/func_cmd.c/user.c. fpga_info.h: added DDR_CH_ALL_OFF.
-    	20. 2026.05.13        //$ 260513 APM util calc: 32->64 bytes/cycle (256->512-bit AXI for EXT4343RD); fix SLOT1/2 S02/S03 labels
+    	18. 2026.05.12 11:28  //# 2605121128 Skip m88x init when copper cable absent
+    	19. 2026.05.12 11:35  //# 2605121135 Auto-retry m88x init on link-up edge
+    	20. 2026.05.12 11:43  //# 2605121143 Move m88x retry to MDIO poll in check_sfp_stat
+    	21. 2026.05.12 12:01  //# 2605121201 Skip m88x init when PHY app code not ready
+    	22. 2026.05.12 12:19  //# 2605121219 Defer m88x init + auto-retry when app code ready
+    	23. 2026.05.12 13:43  //# 2605121343 Add UART m88deinit/m88initx/m88inity/m88init
+    	24. 2026.05.12 14:16  //# 2605121416 Clear XGIGE_ADDR_IP on physical link disconnect
+    	25. 2026.05.12 14:47  //# 2605121447 Add UART gigeinit (GigE core init sequence)
+    	26. 2026.05.12 14:51  //# 2605121451 Add UART m88rst (PHY_RESET_N hard reset)
+    	27. 2026.05.12 16:04  //# 2605121604 Revert port(0) routine to pre-spec; keep m88x33xx_rst()
+    	28. 2026.05.12 16:10  //# 2605121610 Clean WIP leftover in execute_cmd_port (fix L456)
+    	29. 2026.05.12 17:43  //# 2605121743 ip cmd: dump m88x deferred-init gate conditions
+    	30. 2026.05.12 19:53  //# 2605121953 Add REG-write watcher (fpga_info.h REG/FREG wrapper, DBG_WATCH_ADDR)
+    	31. 2026.05.13 09:59  //# 2605130959 REG watcher upgraded to runtime multi-addr + ALL mode via 'watch' UART cmd
+    	32. 2026.05.13 10:21  //# 2605131021 watch cmd: per-slot R/W/RW mode + addr:hex data:hex+dec format + usage help
+    	33. 2026.05.13 10:25  //# 2605131025 watch default: slot0 = RW 0x74 at boot (no UART input needed for 0x74 trace)
+    	34. 2026.05.13 10:56  //# 2605131056 throttle check_sfp_stat() and update_image() to 1/100 iters (SFP_STAB_CNT 500->5)
+    	35. 2026.05.13 11:10  //# 2605131110 throttle user_callback ADDR_OUT_EN edge detect to 1/10 calls
+    	36. 2026.05.13 11:26  //# 2605131126 watch print: drop "near", WATCH-ALL R/W tag via per-addr cache; throttle set_ddr_ch_en+update_acc 1/100; OUTEN_POLL_DIV 10->100
+    	37. 2026.05.13 11:35  //# 2605131135 TEMP_POLL_DIV 100->1000 (XADC die temp is slow physical signal)
+    	38. 2026.05.13 11:42  //# 2605131142 watch print: aligned columns + honest ALL tags (R/W -> =/#) for HW-driven regs
+    	39. 2026.05.13 11:58  //# 2605131158 watch cmd simplified: drop mode, "watch 1/0 [addr...]" add/remove + ALL toggle; dual-line R+W (slot + ALL)
+    	40. 2026.05.13 12:13  //# 2605131213 dbg_watch_check: lazy snprintf (fixes slow "ROM FPGA check..." during boot)
+    	41. 2026.05.13 13:37  //# 2605131337 flash_calc_sum: 10-dot progress indicator (ROM FPGA/FW check live feedback)
+    	42. 2026.05.13 13:50  //# 2605131350 func_able_acc per-model flag; update_acc() skipped on EXT4343RD/EXT3643R (no ACC)
+    	43. 2026.05.13 13:55  //# 2605131355 Revert per-model func_able_acc; gate update_acc() with runtime func_acc_enabled (set by execute_cmd_acc)
+    	44. 2026.05.13 14:12  //# 2605131412 flash_calc_sum: dots -> per-call percent (10% 20% ... 100%)
+    	45. 2026.05.13 14:14  //# 2605131414 execute_cmd_flash_check: label each sub-call ([2nd]/[3rd] for FPGA, [1st]/[2nd] for FW)
+    	46. 2026.05.13 14:22  //# 2605131422 ROM check layout: multi-line indented, progress as "10.20.30...100" per line
+    	47. 2026.05.13 14:39  //# 2605131439 Fix wddr double-exec (get_ddr_pixel_avg save/restore func_calib_cmd); image avg [pixel]/[frame] dotted-percent progress
+    	48. 2026.05.13 14:50  //# 2605131450 set_ddr_ch_en: 100-iter throttle commented out, change-detection write (regv != last_written)
+    	49. 2026.05.13 15:08  //# 2605131508 Fix DDR_CH_EN stuck at 0 after gige reconnect: composer now sole owner, user.c toggles func_gige_disconnected only
+    	50. 2026.05.13 15:57  //# 2605131557 execute_cmd_wddr: dump FW DOSE0/1 vs FPGA BASE/CH2_WADDR/W/H for wddr1->wddr2 corruption diag (DBG_wddr gated)
+    	51. 2026.05.13 16:32  //# 2605131632 EXT3643R MAX_WIDTH 3532->3520 (32-px align, AXI burst==stride), BASE_OFFSETX 26->32 (symmetric crop)
+    	52. 2026.05.13 16:59  //# 2605131659 Split DDR_CH_EN force-off into two stat flags (gigedisconn + gcal), composer OR-combines
+    	53. 2026.05.13 17:21  //# 2605131721 EXT3643R MAX_FRATE 25.0 -> 15.0 fps (fpga_info.c load_frame_rate)
+    	54. 2026.05.15 12:33  //# 2605151233 execute_cmd_wddr: msdelay(300) x2 -> 3000/func_frate (3 frame time)
+    	55. 2026.05.15 17:45  //# 2605151745 int.c framebuf ISR: per-frame TX-complete '.' UART progress (FB_TX_DOT_EN gated)
+    	56. 2026.05.18 10:40  //# 2605181040 int_handler: FB overflow UART msg
+    	57. 2026.05.18 11:44  //# 2605181144 UART_CMD_fdot/ferr: FB toggle runtime
+    	58. 2026.05.18 12:17  //# 2605181217 UART_CMD_fdot/ferr: mutex on enable
+    	59. 2026.05.18 15:23  //# 2605181523 disp_cmd_psel(14): defect-check label; TEST_PATTERN tp_sel=E new (bg=idata)
+    	60. 2026.05.18 16:42  //# 2605181642 encode_calib_defect: skip line-defect rows/cols in 8-neighbor mask
+    	61. 2026.05.18 17:16  //# 2605181716 encode_calib_defect: DBGDFEC dump (x,y)+cluster+line_off per defect
+    	62. 2026.05.18 17:30  //# 2605181730 encode_calib_defect: also mask when self x/y on line defect
+    	63. 2026.05.19 12:57  //#26051912 3643R Binning positoion fix
+    	64. 2026.05.19 15:37  //# 2605191537 UART_CMD_apm: guard XAxiPmon with XPAR_AXI_PERF_MON_0_DEVICE_ID
+    	65. 2026.05.20 18:05  //# 2605201805 execute_cmd_rus2: GEV msg -> func_printf (UART)
+    	66. 2026.05.20 18:09  //# 2605201809 execute_cmd_rus2: name-pad + hex/dec format
+    	67. 2026.05.20 18:41  //# 2605201841 execute_cmd_rus2 +NUC info dump; UART_CMD_debug -> UART_CMD_rus2 ("rus2" cmd)
+    	68. 2026.05.20 19:07  //# 2605201907 execute_cmd_rus2: +nuc_data[0]@FLASH_NUC_BASEADDR for brns ERR9 parity
+    	69. 2026.05.21 13:47  //# 2605211347 UART 'rns' -> rns_display() read-only dump (brns/XML path intact)
+    	70. 2026.05.21 16:32  //# 2605211632 execute_cmd_bwns: hdr pre/buf/post diag prints around flash_write_block
+    	71. 2026.05.21 17:09  //# 2605211709 flash_init else: round UP NUC_INFO base to 64KB boundary (fix EXT3643R hdr alignment)
+    	72. 2026.05.28 17:41  //$ 260528 main.c : add func_init();
+
 *****************************************************************************/
+u8  GIGE_DVER   [16] = "SW2.01.04      "; // 2604242200 bcalfw added
+u8  FW_DATE     [20] = "2026.05.28 17:41";
 
-//u8  GIGE_DVER   [16] = "SW2.01.04      "; // SW1.SUB.MAIN version
-//u8  FW_DATE     [20] = "2026.04.23 11:30";
-u8  GIGE_DVER   [16] = "SW2.12.05      "; // 2604242200 bcalfw added
-u8  FW_DATE     [20] = "2026.05.13 12:00";
-
+#define BOOT_ROM_CHECK 0 //###!!! boot time reduce only for BETA
 /****************************************************************************
 timing profile => system_config
 menu-xilinx-launch shall
@@ -156,7 +209,8 @@ const u32 MPMC_HIGHADDR         = 0;
 const u32 SCPS_MIN =  512;
 //const u32 SCPS_MAX = 8192;
 const u32 SCPS_MAX = 16288;
-const u32 SCPS_INC =   16;  // AXI data width in bytes
+//# const u32 SCPS_INC =   16;  // AXI data width in bytes
+const u32 SCPS_INC =   32; //#260522 // AXI data width in bytes
 
 // Unused simulated EEPROM image
 // NOTE: Uncomment the following line and remove eeprom.c if physical EEPROM is used
@@ -326,7 +380,7 @@ int main(void)
 
     load_fpga_model(); //# 231023 no_model_def
     execute_func_cmd(); //# 231023 fps max set
-    //int_init();
+    int_init(); //# 260515 
     // Print device information to std_out
     //    gige_print_header();
     // Endless main program loop
@@ -349,13 +403,21 @@ int main(void)
     load_flash();
     if(DBG_main)func_printf("#[DBG_main] fpga_init\r\n");
     fpga_init(); //# position after load_flash; //# added reg_init 230824
+    if(DBG_main)func_printf("#[DBG_main] func_init\r\n");
+    func_init(); //$ 260528
     if(DBG_main)func_printf("#[DBG_main] user_init\r\n");
     user_init(); //#
 //    if(DBG_main)func_printf("#[DBG_main] update_hwload\r\n");
 //    update_hwload(); //# 231222
 //    disp_cmd_rtime();
     execute_cmd_op_boot_count();
+//  execute_cmd_flash_check();
+    //# 2605142006 Gated by BOOT_ROM_CHECK_FPGA/_FW. Both 0 -> skip whole call.
+#if BOOT_ROM_CHECK
     execute_cmd_flash_check();
+#else
+    func_printf("ROM check skipped (BOOT_ROM_CHECK_FPGA=0, BOOT_ROM_CHECK_FW=0)\r\n");
+#endif
     u16 once = 0;
 
 //    if(DBG_main)print_setup();
@@ -376,8 +438,8 @@ int main(void)
         gige_callback(0);           // Networking callback function
         user_callback();            // User callback
 
-        gige_callback(0);
-        user_callback();
+        // gige_callback(0);
+        // user_callback();
         uart_command();
         genicam_command();
         set_ddr_ch_en(); //# 2605081700 main-loop owner of ADDR_DDR_CH_EN: rewrite every loop from feature flags, log on change only

@@ -23,6 +23,7 @@
 #include "user.h"
 #include "clk_wiz_header.h" //mbh
 #include "func_printf.h"
+#include "phy.h" //# 2605121219 for m88x33xx_retry_init_if_pending()
 Profile_HandleDef profile;
 u32 func_userset_cmd    = 0;
 u32 func_calib_cmd        = 0;
@@ -42,6 +43,126 @@ u32 func_phy_temp         = 0;
 u32 func_rns_valid        = 1;    // 0.xx.07 //# 241217 delay5sec do at init
 u32 keep0x5c =0;
 u32 bcal_once = 0; //# 241230 1024R dclk need bcal once at booting
+//# 2605131158 REG access watch state — paired with REG macro wrapper in fpga_info.h.
+//  Configured at runtime via the 'watch' UART command (see UART_CMD_watch in command.c).
+//  - dbg_watch_addr[i] == 0 : empty slot, skipped.
+//  - dbg_watch_prev[i]      : last-seen value at dbg_watch_addr[i]; mismatch -> W log.
+//  - dbg_watch_flags bit0   : ALL mode (sample every REG access, 1/DBG_WATCH_ALL_DIV).
+//  Each occupied slot always runs both R+W triggers (no mode selector).
+//  Boot default: slot 0 = 0x0074 so the 0x74-stuck-at-0 diag runs without UART input.
+//  Clear at runtime with 'watch 0 0x74' (per-addr remove).
+u8  dbg_watch_flags                = 0;
+u32 dbg_watch_addr[DBG_WATCH_MAX]  = {0,};
+u32 dbg_watch_prev[DBG_WATCH_MAX]  = {0,};
+
+//# 2605131126 Pre-hook called by the REG() macro on every register access.
+//  Purpose : iterate the watch table and emit log lines per the slot mode.
+//  Why     : centralizes the watcher so the REG() macro stays tiny (just a thunk).
+//  Inputs  : access_addr - the address being touched by the current REG() call,
+//            fname/line  - __func__/__LINE__ captured at the macro expansion site.
+//  Output format: "addr: 0xNNNN  data: 0xNNNNNNNN NNN" (hex 4d addr, hex 8d + decimal data).
+//  Caveats : R mode triggers on both reads and writes (macro cannot distinguish).
+//            W detection is one access late (value is read before the operation).
+//            Each iteration updates prev so the change log stays self-seeding.
+//
+//# 2605131126 WATCH-ALL R/W classification:
+//  Cache last-seen value per addr (up to DBG_WATCH_ALL_CACHE_N entries, linear scan).
+//  At each sampled access: compare FREG(addr) to cached value.
+//    - addr unseen           -> "[WATCH-ALL-?]" (cache miss, first sighting)
+//    - value unchanged       -> "[WATCH-ALL-R]" (no write between samples)
+//    - value changed         -> "[WATCH-ALL-W]" (some write happened in the window)
+//  Caveat: sampling = 1/N; a write that's immediately overwritten with the same
+//          value can still register as R. The tag is "what likely happened between
+//          this sample and the previous sample of this addr", not exact.
+#define DBG_WATCH_ALL_CACHE_N  32
+static u32 _all_cache_addr[DBG_WATCH_ALL_CACHE_N] = {0,};
+static u32 _all_cache_val [DBG_WATCH_ALL_CACHE_N] = {0,};
+static u32 _all_cache_n   = 0;
+
+//# 2605131142 Aligned output format. Field widths:
+//   tag        %-13s   ("[WATCH-R]"=9, "[WATCH-W]"=9, "[WATCH-ALL-=]"=13, "[WATCH-ALL-#]"=13, "[WATCH-ALL-?]"=13)
+//   fname:line %-30s   (composed via snprintf into a local buf)
+//   addr       0x%04x  (fixed 6 chars after 0x)
+//   data       0x%08x %10u   (hex 10 chars + decimal right-aligned 10 chars)
+//# ALL mode auto-classification tags renamed to be honest about what we measure:
+//   `=` (same as last sample) -- previously printed as "R" (misleading: HW-updated
+//       regs like XADC temp, status counters changed naturally, looked like writes)
+//   `#` (differs from last sample) -- previously "W"
+//   `?` (first sighting in cache) -- unchanged
+//   Slot R/W tags stay as user-chosen mode names.
+//# 2605131213 Lazy fnln build: snprintf only when a log line is about to be emitted.
+//             Previously snprintf ran unconditionally on every REG() invocation, which
+//             made long flash-scan loops (flash_calc_sum -> ~1.68M iters x 3 REG calls
+//             = ~5M format ops) take 1-2 minutes during boot ("ROM FPGA check..." stuck).
+//             With this fix, REG() overhead is just FREG read + compare when no print
+//             fires (the common path) -- back to near-baseline performance.
+void dbg_watch_check(u32 access_addr, const char *fname, int line) {
+    char fnln[40];
+    u8   fnln_ready = 0;
+    #define WATCH_FNLN() do { if (!fnln_ready) { \
+        snprintf(fnln, sizeof(fnln), "%s:%d", fname, line); fnln_ready = 1; } } while (0)
+
+    //# Slot triggers (always dual: R + W independent of each other).
+    for (int i = 0; i < DBG_WATCH_MAX; i++) {
+        if (!dbg_watch_addr[i]) continue;
+        u32 cur = FREG(dbg_watch_addr[i]);
+        //# R trigger: this access touches the watched addr.
+        if (access_addr == dbg_watch_addr[i]) {
+            WATCH_FNLN();
+            func_printf("%-13s  %-30s  addr: 0x%04x  data: 0x%08x %10u\r\n",
+                        "[WATCH-R]", fnln,
+                        (unsigned)dbg_watch_addr[i],
+                        (unsigned)cur, (unsigned)cur);
+        }
+        //# W trigger: stored value differs from last seen.
+        if (cur != dbg_watch_prev[i]) {
+            WATCH_FNLN();
+            func_printf("%-13s  %-30s  addr: 0x%04x  data: 0x%08x %10u  (prev: 0x%08x %u)\r\n",
+                        "[WATCH-W]", fnln,
+                        (unsigned)dbg_watch_addr[i],
+                        (unsigned)cur, (unsigned)cur,
+                        (unsigned)dbg_watch_prev[i], (unsigned)dbg_watch_prev[i]);
+        }
+        dbg_watch_prev[i] = cur;
+    }
+    //# ALL mode: sample every Nth access globally; same dual-trigger pattern
+    //  applied per-sample via per-addr cache.
+    if (dbg_watch_flags & DBG_WATCH_FLAG_ALL) {
+        static u32 _all_n = 0;
+        if ((++_all_n % DBG_WATCH_ALL_DIV) == 0) {
+            u32 v = FREG(access_addr);
+            //# Locate cache entry for this addr (linear scan, capacity = DBG_WATCH_ALL_CACHE_N).
+            int found = -1;
+            for (u32 k = 0; k < _all_cache_n; k++) {
+                if (_all_cache_addr[k] == access_addr) { found = (int)k; break; }
+            }
+            //# Always emit the ALL-R line (sampled access happened on this line).
+            WATCH_FNLN();
+            func_printf("%-13s  %-30s  addr: 0x%04x  data: 0x%08x %10u\r\n",
+                        "[WATCH-A-R]", fnln,
+                        (unsigned)access_addr,
+                        (unsigned)v, (unsigned)v);
+            //# Additionally emit ALL-W line if value differs from last cached sample.
+            if (found < 0) {
+                if (_all_cache_n < DBG_WATCH_ALL_CACHE_N) {
+                    _all_cache_addr[_all_cache_n] = access_addr;
+                    _all_cache_val [_all_cache_n] = v;
+                    _all_cache_n++;
+                }
+                //# First sighting: no prev to compare, skip W line.
+            } else if (v != _all_cache_val[found]) {
+                func_printf("%-13s  %-30s  addr: 0x%04x  data: 0x%08x %10u  (prev: 0x%08x %u)\r\n",
+                            "[WATCH-A-W]", fnln,
+                            (unsigned)access_addr,
+                            (unsigned)v, (unsigned)v,
+                            (unsigned)_all_cache_val[found], (unsigned)_all_cache_val[found]);
+                _all_cache_val[found] = v;
+            }
+        }
+    }
+
+    #undef WATCH_FNLN
+}
 
 //Profile_HandleDef profile;        // dskim - 21.07.22
 //Profile_Def profile_init;            // dskim - 21.07.22
@@ -562,17 +683,58 @@ void ddr_init(void) {
 }
 
 //# 2605081700 ADDR_DDR_CH_EN composer driven from main loop: write every call, log only when value changes
+//# 2605131126 Throttle to 1/CHEN_POLL_DIV main-loop iters. State changes from
+//             cal/d2m flags are infrequent enough that periodic re-apply is fine.
+//# 2605131450 Throttle replaced by change-detection: REG write fires only when
+//             composed regv differs from last write. Zero REG traffic in steady
+//             state, instant response on flag change.
+//# 2605131508 Disconnect gating: composer is sole owner of ADDR_DDR_CH_EN.
+//             func_gige_disconnected = 1 forces regv = DDR_CH_ALL_OFF so DDR
+//             channels stop while no GEV viewer is connected. Reconnect
+//             (user_callback case 3) clears the flag and composer restores the
+//             normal cal/d2m derived value on the same main-loop iteration.
+//# 2605131659 Renamed disconnect flag to func_ddrchen_gigedisconn_stat and
+//             added func_ddrchen_gcal_stat. Composer OR-combines both stats:
+//             any stat != 0 -> regv = DDR_CH_ALL_OFF. Separate flags so a
+//             disconnect during gcal (or vice versa) survives the other source
+//             clearing its own stat.
+//#define CHEN_POLL_DIV 100
 void set_ddr_ch_en(void) {
-    static u32 last_printed = 0xFFFFFFFF;                               // sentinel forces first print
-    u32 regv = DDR_CH_EN_DEFAULT;                                       // 0x11 base (W_ROIC | R_ROIC)
-    if (func_offset_cal) regv |= DDR_CH_EN_R_OFFSET;                    // +0x40
-    if (func_gain_cal)   regv |= DDR_CH_EN_R_NUC;                       // +0x20
-    if (func_d2m)        regv |= (DDR_CH_EN_W_OFFSET | DDR_CH_EN_R_D2M);// +0x84
-    REG(ADDR_DDR_CH_EN) = regv;
-    if (regv != last_printed) {
-        func_printf("[DBG] set_ddr_ch_en: 0x%02x (offset_cal=%d gain_cal=%d d2m=%d)\r\n",
-                    regv, func_offset_cal, func_gain_cal, func_d2m);
-        last_printed = regv;
+//    static u32 _th = CHEN_POLL_DIV - 1;             //# init so FIRST call passes
+//    if (++_th < CHEN_POLL_DIV) return;
+//    _th = 0;
+
+    static u32 last_written = 0xFFFFFFFF;                               //# 2605131450 sentinel forces first write
+//    u32 regv = DDR_CH_EN_DEFAULT;                                       // 0x11 base (W_ROIC | R_ROIC)
+//    if (func_offset_cal) regv |= DDR_CH_EN_R_OFFSET;                    // +0x40
+//    if (func_gain_cal)   regv |= DDR_CH_EN_R_NUC;                       // +0x20
+//    if (func_d2m)        regv |= (DDR_CH_EN_W_OFFSET | DDR_CH_EN_R_D2M);// +0x84
+    //# 2605131508 disconnect branch: force all channels OFF on GEV link down
+    //# 2605131659 OR with gcal_stat so calib path also forces channels OFF
+    u32 regv;
+    if (func_ddrchen_gigedisconn_stat || func_ddrchen_gcal_stat) {
+        regv = DDR_CH_ALL_OFF;
+    } else {
+        regv = DDR_CH_EN_DEFAULT;                                       // 0x11 base (W_ROIC | R_ROIC)
+        if (func_offset_cal) regv |= DDR_CH_EN_R_OFFSET;                // +0x40
+        if (func_gain_cal)   regv |= DDR_CH_EN_R_NUC;                   // +0x20
+        if (func_d2m)        regv |= (DDR_CH_EN_W_OFFSET | DDR_CH_EN_R_D2M);// +0x84
+    }
+//    REG(ADDR_DDR_CH_EN) = regv;
+//    if (regv != last_printed) {
+//        func_printf("[DBG] set_ddr_ch_en: 0x%02x (offset_cal=%d gain_cal=%d d2m=%d)\r\n",
+//                    regv, func_offset_cal, func_gain_cal, func_d2m);
+//        last_printed = regv;
+//    }
+    //# 2605131450 Write REG + log only when regv changed since last applied value.
+    //# 2605131508 disc column added (gige disconnect state)
+    //# 2605131659 Renamed disc->disc_stat, added gcal_stat column
+    if (regv != last_written) {
+        REG(ADDR_DDR_CH_EN) = regv;
+        func_printf("[DBG] set_ddr_ch_en: 0x%02x (offset_cal=%d gain_cal=%d d2m=%d disc_stat=%d gcal_stat=%d)\r\n",
+                    regv, func_offset_cal, func_gain_cal, func_d2m,
+                    func_ddrchen_gigedisconn_stat, func_ddrchen_gcal_stat);
+        last_written = regv;
     }
 }
 
@@ -664,7 +826,10 @@ void roic_3256_init(void){
 //    execute_cmd_wroic(0x8E,  0x0006);
 
     //$ 260422 TFT Charge Injection
-    execute_cmd_wroic(0x0D,  0x04E8);
+    if(mEXT3643R_series)//# 260522
+        execute_cmd_wroic(0x0D,  0x0);
+    else
+    	execute_cmd_wroic(0x0D,  0x04E8);
     // execute_cmd_wroic(0x86,  0x8401); low noise
     execute_cmd_wroic(0x86,  0x8001); // normal power
 //    execute_cmd_wroic(0x86,  0x8201); // low power
@@ -748,7 +913,7 @@ void roic_3256_settingprofile(Profile_Def *profile){
     //  u32 N_lpf2_min	= ceil(T_lpf_min	/ T_step);
     //  u32 N_tdef		= ceil(T_tdef		/ T_step);
     //  u32 N_gate		= ceil(T_gate		/ T_step);	// not in roic datasheet
-
+    
     //$ 260507 fix timing profile
    float T_step         = (1<<str_init) * tmclk;    // When, str_init = 0, tmclk = 30Mhz => T_step = 33.333ns
    u32 N_irst		= (T_irst		* mclk + 9999) / 10000;
@@ -876,9 +1041,9 @@ void roic_3256_settingprofile(Profile_Def *profile){
     execute_cmd_wroic(0x1A, 0x0000);
     // 2604250800 In FW bcal mode, skip auto bcal1 trigger - update_image() will
     //            run bcalfw once at boot via temp branch. Prevents double bcal.
-//#if !BOOT_BCAL_USE_FW
-    func_bcal1_token = 1;
-//#endif
+    #if !BOOT_BCAL_USE_FW
+        func_bcal1_token = 1;
+    #endif
 }
 
 void roic_init(void) {
@@ -1671,7 +1836,7 @@ void bw_align_fw_init(void) {
     REG(ADDR_D2M_EN) = 0;
     REG(ADDR_SHUTTER_MODE) = 0;
     REG(ADDR_TRIG_MODE)    = 0;
-    REG(ADDR_FRAME_TIME)   = 0;
+    // REG(ADDR_FRAME_TIME)   = 0; //# 26051314
     REG(ADDR_EXP_TIME)     = 0;
     REG(ADDR_SEXP_TIME)    = 0;
     if (AFE3256_series) execute_cmd_wroic(0x1A, 0x000F);
@@ -1950,10 +2115,10 @@ static void bcalfw_one_pass(u8 verbose) {
         //# 2605081600 retry bit_stable+word_align until par == 0xFFF000 AND mid valid
         //#            (was: accepted ff00_lat alone, allowing false OK at par=0x1FFE00)
         for (int attempt = 0; attempt <= BCAL_FW_RETRY_MAX; attempt++) {
-        bw_align_fw_bit_stable((u8)ch, &s, verbose);
-        gige_callback(0); msdelay(20); gige_callback(0);
-        bw_align_fw_word_align((u8)ch, &w, verbose);
-        gige_callback(0); msdelay(20); gige_callback(0);
+            bw_align_fw_bit_stable((u8)ch, &s, verbose);
+            gige_callback(0); msdelay(20); gige_callback(0);
+            bw_align_fw_word_align((u8)ch, &w, verbose);
+            gige_callback(0); msdelay(20); gige_callback(0);
 
             u8 mid_ok = (s.status == 0 && s.eye_mid >= 0 && s.eye_mid < BCAL_FW_NUM_TAPS);
             u8 par_ok = (w.status == 0 && w.par_at_match == BCAL_FW_PAR_TARGET);
@@ -2135,7 +2300,22 @@ void update_data(void) {
 }
 
 static u32 prev_acc_change = 0;
+//# 2605131126 Throttle ACC polling to 1/ACC_POLL_DIV iters. ADDR_ACC_CTRL and
+//             ADDR_ACC_STAT change rarely (operator-driven mode toggle), so a
+//             100x slower poll cadence still catches edge transitions in <100ms.
+//# 2605131355 Runtime gate: skip update_acc() entirely while ACC is OFF.
+//             func_acc_enabled is set by execute_cmd_acc (func_cmd.c) -- mirrors
+//             the `on` bit written to ADDR_ACC_CTRL. Boot default 0 -> no REG()
+//             traffic until the operator enables ACC via the 'acc' UART command
+//             or static-avg path.
+#define ACC_POLL_DIV 100
 void update_acc(void) {
+    if (!func_acc_enabled) return;          //# ACC feature not turned on
+
+    static u32 _th = ACC_POLL_DIV - 1;
+    if (++_th < ACC_POLL_DIV) return;
+    _th = 0;
+
     u32 acc_autorst_enable = ((REG(ADDR_ACC_CTRL) & 7) == 7) ? 1:0;
 //    if(func_acc_read == 1){
     if(acc_autorst_enable == 1){
@@ -2305,13 +2485,60 @@ void update_defect(void) {
 }
 
 // 2604221700 Boot-force port 0 + N-iteration debounce for SFP auto-switch
-#define SFP_STAB_CNT  500           // # of consecutive stable polls before commit (tune to main loop rate)
+int once88m=0;
+//# 2605131056 SFP poll throttle: run body only 1/SFP_POLL_DIV main-loop iters.
+//             Cuts REG(ADDR_SFP_STAT) traffic 100x. SFP_STAB_CNT reduced from 500 to 5
+//             to keep wall-clock debounce duration unchanged (500*1 -> 5*100).
+#define SFP_POLL_DIV  100
+#define SFP_STAB_CNT  5             // # of consecutive stable POLLS before commit (poll cadence = SFP_POLL_DIV iters)
 void check_sfp_stat(void) {
+    //# Throttle: skip 99 of every 100 calls. Initialize counter so the FIRST call
+    //  passes through (so first_run logic below fires immediately on boot).
+    static u32 _th = SFP_POLL_DIV - 1;
+    if (++_th < SFP_POLL_DIV) return;
+    _th = 0;
+
     static u8  first_run = 1;
     static u32 prev      = 0;       // committed state (post-init: bit0=0)
     static u32 pending   = 0;       // candidate being debounced
     static u32 cnt       = 0;       // consecutive-stable counter
 
+    //# 2605121219 Background retry for deferred m88x33xx_init when wait_app_ready timed out
+    //             at boot path. Internally throttled (~10Hz). No-op when not pending.
+    //(void)m88x33xx_retry_init_if_pending();
+
+
+
+
+if ( (g_port_sel==0) && (once88m==0) && (XREG(XGIGE_ADDR_IP)) )
+{
+    func_printf("##### ONCE88m 0 #####[SFP_STAT] m88x33xx_initx(RXAUI)\r\n");
+    m88x33xx_initx(RXAUI);
+//  func_printf("##### ONCE88m #####[SFP_STAT] m88x33xx_init(RXAUI)\r\n");
+//  execute_cmd_ip(192,168,250,145);
+//  m88x33xx_init(RXAUI);
+    once88m = 1;
+}
+
+if ( (g_port_sel==0) && (once88m==1) && (XREG(XGIGE_ADDR_IP)==0) )
+{
+//  func_printf("##### ONCE88m #####[SFP_STAT] m88x33xx_initx(RXAUI)\r\n");
+//  m88x33xx_initx(RXAUI);
+    func_printf("##### ONCE88m 1 #####[SFP_STAT] m88x33xx_init(RXAUI)\r\n");
+//  execute_cmd_ip(192,168,250,145);
+//  m88x33xx_init(RXAUI);
+    once88m = 2;
+}
+
+if ( (g_port_sel==0) && (once88m==2) && !(XREG(XGIGE_ADDR_IP)) )
+{
+//  func_printf("##### ONCE88m #####[SFP_STAT] m88x33xx_initx(RXAUI)\r\n");
+//  m88x33xx_initx(RXAUI);
+    func_printf("##### ONCE88m 2 #####[SFP_STAT] m88x33xx_init(RXAUI)\r\n");
+    execute_cmd_ip(192,168,250,145);
+    m88x33xx_init(RXAUI);
+    once88m = 3;
+}
     u32 cur = REG(ADDR_SFP_STAT);
 
     // ---- Boot init: unconditionally force port 0 (RXAUI) ----
@@ -2349,6 +2576,7 @@ void check_sfp_stat(void) {
         func_printf("[SFP_STAT] sfp_phy_sel %u->%u (stable %u)\r\n",
                     (u8)(prev & 1), nb, SFP_STAB_CNT);
         execute_cmd_port(nb);
+        once88m=0;
         func_printf("[SFP_STAT] -> execute_cmd_port(%u), g_port_sel=%u\r\n",
                     nb, g_port_sel);
     }
@@ -2393,7 +2621,18 @@ void update_trig(void) {
     prev = func_trig_mode;
 }
 
+//# 2605131056 Temp-driven bcal poll throttle: run body only 1/TEMP_POLL_DIV iters.
+//             Cuts REG(ADDR_DEVICE_TEMP) traffic. The avg/10 smoothing window still
+//             works -- it just spans (DIV*10) wall-clock time, which is fine for
+//             XADC-based temperature trend monitoring (slow physical signal).
+//# 2605131135 DIV 100 -> 1000 (FPGA die temp drifts slowly; 10 samples per ~1-2s
+//             of wall-clock is still plenty for the temp-bcal range trigger).
+#define TEMP_POLL_DIV  1000
 void update_image(void) {
+    static u32 _th = TEMP_POLL_DIV - 1;
+    if (++_th < TEMP_POLL_DIV) return;
+    _th = 0;
+
     static float prev = 0, curr = 0;
     static float sum = 0;
     static u32 i = 0;
@@ -3108,15 +3347,14 @@ void system_config(void) {
    profile.d2.filter = FILTER_4;
    profile.d2.m_clock = FPGA_TFT_MAIN_CLK;
     }
-    else if((msame(mEXT4343RD)) ||\
-            (msame(mEXT3643R))) //$ 251121 //$ 260408 add EXT3643R
+    else if((msame(mEXT4343RD))) //$ 251121 //$ 260408 add EXT3643R
     {
     profile.init.mclk = MCLK_300;
     profile.init.cmdstr = CMDSTR_256;
     profile.init.tirst = TIRST_1000;
     profile.init.tshr_lpf1 = LPF1_1200;
     profile.init.tshs_lpf2 = LPF2_2000;
-    profile.init.tgate = TGATE_2000;
+    profile.init.tgate = TGATE_1000;
     profile.init.filter = FILTER_5;
     profile.init.m_clock = FPGA_TFT_MAIN_CLK;
     profile.d2.mclk = MCLK_200;
@@ -3127,6 +3365,60 @@ void system_config(void) {
     profile.d2.tgate = TGATE_1100;
     profile.d2.filter = FILTER_4;
     profile.d2.m_clock = FPGA_TFT_MAIN_CLK;
+    }
+    else if((msame(mEXT3643R))) //$ 251121 //$ 260408 add EXT3643R
+    {
+//# 4343rd
+//  profile.init.mclk = MCLK_300;
+//  profile.init.cmdstr = CMDSTR_256;
+//  profile.init.tirst = TIRST_1000;
+//  profile.init.tshr_lpf1 = LPF1_1200;
+//  profile.init.tshs_lpf2 = LPF2_2000;
+//  profile.init.tgate = TGATE_1000;
+//  profile.init.filter = FILTER_5;
+//  profile.init.m_clock = FPGA_TFT_MAIN_CLK;
+//  profile.d2.mclk = MCLK_200;
+//  profile.d2.cmdstr = CMDSTR_1024;
+//  profile.d2.tirst = TIRST_350;
+//  profile.d2.tshr_lpf1 = LPF1_1750;
+//  profile.d2.tshs_lpf2 = LPF2_1750;
+//  profile.d2.tgate = TGATE_1100;
+//  profile.d2.filter = FILTER_4;
+//  profile.d2.m_clock = FPGA_TFT_MAIN_CLK;
+//# 4343
+    profile.init.mclk = MCLK_180;
+    profile.init.cmdstr = CMDSTR_256;
+    profile.init.tirst = TIRST_3000; 		//$ 241024 cross talk
+    profile.init.tshr_lpf1 = LPF1_3000; 	//$ 241024 cross talk
+    profile.init.tshs_lpf2 = LPF2_10000; 	//$ 241024 cross talk
+    profile.init.tgate = TGATE_7000;
+    profile.init.filter = FILTER_5;
+    profile.init.m_clock = FPGA_TFT_MAIN_CLK;
+    profile.d2.mclk = MCLK_200;
+    profile.d2.cmdstr = CMDSTR_1024;
+    profile.d2.tirst = TIRST_350;
+    profile.d2.tshr_lpf1 = LPF1_1750;
+    profile.d2.tshs_lpf2 = LPF2_1750;
+    profile.d2.tgate = TGATE_1100;
+    profile.d2.filter = FILTER_4;
+    profile.d2.m_clock = FPGA_TFT_MAIN_CLK;
+//# a-si
+//      profile.init.mclk = MCLK_125;
+//      profile.init.cmdstr = CMDSTR_256; //# CMDSTR_512;
+//      profile.init.tirst = TIRST_2000;
+//      profile.init.tshr_lpf1 = LPF1_4000;
+//      profile.init.tshs_lpf2 = LPF2_12000;
+//      profile.init.tgate = TGATE_10000;
+//      profile.init.filter = FILTER_5;
+//      profile.init.m_clock = FPGA_TFT_MAIN_CLK;
+//      profile.d2.mclk = MCLK_200;
+//      profile.d2.cmdstr = CMDSTR_1024;
+//      profile.d2.tirst = TIRST_350;
+//      profile.d2.tshr_lpf1 = LPF1_1750;
+//      profile.d2.tshs_lpf2 = LPF2_1750;
+//      profile.d2.tgate = TGATE_1100;
+//      profile.d2.filter = FILTER_4;
+//      profile.d2.m_clock = FPGA_TFT_MAIN_CLK;
     }
     else
     {
@@ -3385,6 +3677,10 @@ u32 flash_calc_sum(u32 baseaddr, u32 lenth) {
     REG(ADDR_FLA_ADDR) = flash_addr;     // addr setup flash_addr
     REG(ADDR_FLA_CTRL) = 1;             // read start(0)
     msdelay(10);
+    //# 2605131422 Progress format: "10.20.30.40.50.60.70.80.90.100" per call.
+    //  Dot-joined numbers (no '%', no spaces). Caller (execute_cmd_flash_check)
+    //  prefixes each call with a "[2nd] " / "[3rd] " label on its own line.
+    int last_pct = 0;
     for(int i = 0; i < repeat; i++) {
         DREG(ddr_addr) = REG(ADDR_FLA_DATA);
         ddr_addr += 4;
@@ -3392,6 +3688,12 @@ u32 flash_calc_sum(u32 baseaddr, u32 lenth) {
         REG(ADDR_FLA_CTRL) = 0b11; // manual address increment(2)
         REG(ADDR_FLA_CTRL) = 0b01;
         udelay(10);
+        int pct = (int)(((i + 1) * 100) / repeat);
+        if (pct >= last_pct + 10) {
+            if (last_pct > 0) func_printf(".");        //# separator before non-first tick
+            func_printf("%d", pct);                    //# 2605131422 progress tick (no %, dots between)
+            last_pct = pct;
+        }
     }
 //    func_printf("flash => ddr done \r\n");
     REG(ADDR_FLA_CTRL) = 0; // spi direct ctrl dismiss

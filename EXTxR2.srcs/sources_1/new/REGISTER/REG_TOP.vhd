@@ -1096,8 +1096,7 @@ begin
                 --# 2604242200 FW bcal reset init
                 sreg_bcal_fw_ctrl <= (others => '0');
                 sreg_bcal_fw_rsv  <= (others => '0');
---                sreg_ddr_burst    <= "11";  --# 260508 11=256 #2605071529 default mode 01 = 64 beats
-                sreg_ddr_burst    <= "01";  --$ ddr burst 11-> 01
+                sreg_ddr_burst    <= "11";  --# 260508 11=256 #2605071529 default mode 01 = 64 beats
 
                 sreg_mpc_posoffset <= conv_std_logic_vector(400, 16);
 

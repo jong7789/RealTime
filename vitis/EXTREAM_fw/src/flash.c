@@ -71,7 +71,16 @@ void flash_init(void)
 	//
     else {
         //# 2430 nuc data error at 0x39f0000 where nuc info writed, it should be calculated address.
-        FLASH_NUC_INFO_BASEADDR = FLASH_NUC_BASEADDR + ((MAX_WIDTH_x32*MAX_HEIGHT) * 16);
+//        FLASH_NUC_INFO_BASEADDR = FLASH_NUC_BASEADDR + ((MAX_WIDTH_x32*MAX_HEIGHT) * 16);
+        //# 2605211709 Round UP NUC_INFO base to next 64KB boundary
+        // Why: flash_write_block() auto-aligns addr to 0xFFFF0000, so a non-64KB
+        //      base (e.g. EXT3643R: raw 0xf6f5000) silently writes 0x5000 below
+        //      the intended addr; readers at FLASH_NUC_INFO_BASEADDR see junk.
+        //      Rounding up keeps header sector at its own dedicated 64KB block.
+        {
+            u32 raw_addr = FLASH_NUC_BASEADDR + ((MAX_WIDTH_x32*MAX_HEIGHT) * 16);
+            FLASH_NUC_INFO_BASEADDR = (raw_addr + 0xFFFF) & 0xFFFF0000;
+        }
         FLASH_NUC_INFO_LEN      = 0x0010000;
         FLASH_NUC_LEN           = ((MAX_WIDTH_x32*MAX_HEIGHT) * 16);
         FLASH_IMG_BASEADDR      = FLASH_NUC_INFO_BASEADDR + FLASH_NUC_INFO_LEN;

@@ -206,6 +206,8 @@ architecture behavioral of axi_sub_if is
     signal sddr_wen   : std_logic;
     signal sddr_wlen  : std_logic_vector(11 downto 0);
     signal sddr_waddr : std_logic_vector(11 downto 0);
+    --$ 260519 Pre-advance BRAM read address to compensate 1-clk BRAM latency
+    signal sddr_waddr_pre : std_logic_vector(11 downto 0);
 
     signal sddr_ch0_wen   : std_logic;
     signal sddr_ch0_waddr : std_logic_vector(11 downto 0);
@@ -498,11 +500,21 @@ end generate GEN_2p5G_LEN;
     sddr_ch2_wen   <= sddr_wen   when sddr_ch = 2 else '0';
     sddr_ch3_wen   <= sddr_wen   when sddr_ch = 3 else '0';
     sddr_ch4_wen   <= sddr_wen   when sddr_ch = 4 else '0';
-    sddr_ch0_waddr <= sddr_waddr when sddr_ch = 0 else (others => '0');
-    sddr_ch1_waddr <= sddr_waddr when sddr_ch = 1 else (others => '0');
-    sddr_ch2_waddr <= sddr_waddr when sddr_ch = 2 else (others => '0');
-    sddr_ch3_waddr <= sddr_waddr when sddr_ch = 3 else (others => '0');
-    sddr_ch4_waddr <= sddr_waddr when sddr_ch = 4 else (others => '0');
+--  sddr_ch0_waddr <= sddr_waddr when sddr_ch = 0 else (others => '0'); --$ 260519
+--  sddr_ch1_waddr <= sddr_waddr when sddr_ch = 1 else (others => '0'); --$ 260519
+--  sddr_ch2_waddr <= sddr_waddr when sddr_ch = 2 else (others => '0'); --$ 260519
+--  sddr_ch3_waddr <= sddr_waddr when sddr_ch = 3 else (others => '0'); --$ 260519
+--  sddr_ch4_waddr <= sddr_waddr when sddr_ch = 4 else (others => '0'); --$ 260519
+    --$ 260519 Comb pre-advance: present addr+1 to BRAM during handshake so data is ready next clk
+    sddr_waddr_pre <= sddr_waddr + '1'
+                      when (iaxi_wready = '1' and iaxi_wvalid = '1')
+                      else sddr_waddr;
+    --$ 260519 Use pre-advanced BRAM address to align wdata with AXI beat
+    sddr_ch0_waddr <= sddr_waddr_pre when sddr_ch = 0 else (others => '0');
+    sddr_ch1_waddr <= sddr_waddr_pre when sddr_ch = 1 else (others => '0');
+    sddr_ch2_waddr <= sddr_waddr_pre when sddr_ch = 2 else (others => '0');
+    sddr_ch3_waddr <= sddr_waddr_pre when sddr_ch = 3 else (others => '0');
+    sddr_ch4_waddr <= sddr_waddr_pre when sddr_ch = 4 else (others => '0');
 
     --# DDR channel enable register latch process
     process (iaxi_clk)
@@ -1162,14 +1174,24 @@ end generate GEN_2p5G_LEN;
                                 if (sddr_ch0_rvcnt >= r0ireg_height - 1) then
                                     sddr_ch0_rvcnt <= sconv_vcnt_cut(13 - 1 downto 0); --# 2604231608 V-axis 12->13bit -- vcnt synchronize (others => '0');
 
---                            if(sch0_rarea = '0') then
---                                if(sch0_warea = '1') then -- rarea sync with warea , 210713 mbh
-                                    if (sch0_warea = '0') then
-                                        sch0_rarea <= '1';
-                                        sch0_raddr <= sch0_base_raddr + simg_size1;
+--                            if(sch0_rarea = '0') the
+                                    --$ 260527
+                                    if(ROIC_DUAL_BY_MODEL(GNR_MODEL) = 2) then
+                                        if(sch0_warea = '1') then -- rarea sync with warea , 210713 mbh
+                                            sch0_rarea <= '1';
+                                            sch0_raddr <= sch0_base_raddr + simg_size1;
+                                        else
+                                            sch0_rarea <= '0';
+                                            sch0_raddr <= sch0_base_raddr;
+                                        end if;
                                     else
-                                        sch0_rarea <= '0';
-                                        sch0_raddr <= sch0_base_raddr;
+                                        if(sch0_warea = '0') then -- rarea sync with warea , 210713 mbh
+                                            sch0_rarea <= '1';
+                                            sch0_raddr <= sch0_base_raddr + simg_size1;
+                                        else
+                                            sch0_rarea <= '0';
+                                            sch0_raddr <= sch0_base_raddr;
+                                        end if;                                    
                                     end if;
                                 else
                                     sddr_ch0_rvcnt <= sddr_ch0_rvcnt + '1';
@@ -1445,11 +1467,11 @@ end generate GEN_2p5G_LEN;
         port (
             clk     : in std_logic;
             probe0  : in std_logic_vector(1 downto 0);
-            probe1  : in std_logic_vector(7 downto 0);
-            probe2  : in std_logic_vector(11 downto 0);
+            probe1  : in std_logic_vector(9 downto 0);
+            probe2  : in std_logic_vector(12 downto 0);
             probe3  : in std_logic_vector(0 downto 0);
             probe4  : in tstate_ddr_sub; -- STD_LOGIC_VECTOR(2 DOWNTO 0);
-            probe5  : in std_logic_vector(7 downto 0);
+            probe5  : in std_logic_vector(9 downto 0);
             probe6  : in std_logic_vector(0 downto 0);
             probe7  : in std_logic_vector(0 downto 0);
             probe8  : in std_logic_vector(11 downto 0);
@@ -1460,14 +1482,14 @@ end generate GEN_2p5G_LEN;
             probe13 : in std_logic_vector(31 downto 0);
             probe14 : in std_logic_vector(1 downto 0);
             probe15 : in std_logic_vector(3 downto 0);
-            probe16 : in std_logic_vector(11 downto 0);
-            probe17 : in std_logic_vector(15 downto 0);
+            probe16 : in std_logic_vector(12 downto 0);
+            probe17 : in std_logic_vector(63 downto 0);
             probe18 : in std_logic_vector(0 downto 0);
             probe19 : in std_logic_vector(0 downto 0);
-            probe20 : in std_logic_vector(11 downto 0);
+            probe20 : in std_logic_vector(12 downto 0);
             probe21 : in std_logic_vector(0 downto 0);
             probe22 : in std_logic_vector(31 downto 0);
-            probe23 : in std_logic_vector(11 downto 0);
+            probe23 : in std_logic_vector(12 downto 0);
             probe24 : in std_logic_vector(0 downto 0);
             probe25 : in std_logic_vector(0 downto 0);
             probe26 : in std_logic_vector(0 downto 0)
@@ -1486,51 +1508,57 @@ end generate GEN_2p5G_LEN;
         probe6 : IN STD_LOGIC_VECTOR(7 DOWNTO 0)
     );
     END COMPONENT;
-
+    
+    signal ila_sddr_ch          : std_logic_vector(1 downto 0);
+    signal ila_sdual_roic_cnt   : std_logic_vector(1 downto 0);
+    
 begin
---    u_ila_axi_sub_if_vaddr : ila_axi_sub_if_vaddr
---        port map (
---            clk           => iaxi_clk,
---            probe0       => conv_std_logic_vector(sddr_ch, 2),        --2
---            probe1       => sreg_ddr_ch_en,                            -- 8
---            probe2       => sddr_ch0_wvcnt,                            -- 12 nowhere to vsync rst
---            probe3(0)  => sch0_warea,                                -- 1 top/btm
---            probe4       => state_ddr,                                -- 3
---            probe5       => sddr_ch_en,                                -- 8 hand up
---            probe6(0)  => sch0_wen_3d,                                -- 1 indata fall edge
---            probe7(0)  => sch0_wtrig,                                -- 1 write clear signal
---            probe8       => sddr_wlen,                                -- 12 h length
---            probe9       => sddr_waddr,                                -- 12 count to sddr_wlen
---            probe10    => sddr_ch0_waddr,                            -- 12 conv address from sddr_waddr
---            probe11    => sch0_waddr_top,                            -- 32
---            probe12    => sch0_waddr_bot,                            -- 32
---            probe13    => sch0_waddr,                                -- 32 -- same with waddr_bot
---            probe14    => conv_std_logic_vector(sdual_roic_cnt, 2), -- 2?
---            probe15    => debugnum,                                    -- 4
---            probe16    => sch0_wvcnt_3d,                            -- 12
---            probe17    => sch0_wdata(15 downto 0),                    -- 12
---            probe18(0) => iconv_rlast,                                -- 1
---            probe19(0) => iconv_hsync,                                -- 1
---            probe20    => iconv_vcnt,                                -- 12
---            probe21(0) => sch0_rtrig,                                -- 1
---            probe22    => sch0_raddr,                                -- 32
---            probe23    => sddr_ch0_rvcnt,                            -- 12
---            probe24(0) => iaxi_wready,                                -- 1
+    ila_sddr_ch         <= conv_std_logic_vector(sddr_ch, 2);
+    ila_sdual_roic_cnt  <= conv_std_logic_vector(sdual_roic_cnt, 2);
+      u_ila_axi_sub_if_vaddr : ila_axi_sub_if_vaddr  --# 2605260943 enable ILA for DDR double-buf chk
+          port map (
+              clk        => iaxi_clk,
+              probe0     => ila_sddr_ch,        --2
+              probe1     => sreg_ddr_ch_en,                           -- 8
+              probe2     => sddr_ch0_wvcnt,                           -- 12 nowhere to vsync rst
+              probe3(0)  => sch0_warea,                               -- 1 top/btm
+              probe4     => state_ddr,                                -- 3
+              probe5     => sddr_ch_en,                               -- 8 hand up
+              probe6(0)  => sch0_wen_3d,                              -- 1 indata fall edge
+              probe7(0)  => sch0_wtrig,                               -- 1 write clear signal
+              probe8     => sddr_wlen,                                -- 12 h length
+              probe9     => sddr_waddr,                               -- 12 count to sddr_wlen
+              probe10    => sddr_ch0_waddr,                           -- 12 conv address from sddr_waddr
+              probe11    => sch0_waddr_top,                           -- 32
+              probe12    => sch0_waddr_bot,                           -- 32
+              probe13    => sch0_waddr,                               -- 32 -- same with waddr_bot
+              probe14    => ila_sdual_roic_cnt, -- 2?
+              probe15    => debugnum,                                 -- 4
+              probe16    => sch0_wvcnt_3d,                            -- 12
+              probe17    => sch0_wdata(63 downto 0),                  -- 12
+              probe18(0) => iconv_rlast,                              -- 1
+              probe19(0) => iconv_hsync,                              -- 1
+              probe20    => iconv_vcnt,                               -- 12
+              probe21(0) => sch0_rtrig,                               -- 1
+              probe22    => sch0_raddr,                               -- 32
+              probe23    => sddr_ch0_rvcnt,                           -- 12
+              probe24(0) => iaxi_wready,                              -- 1
 --            probe25(0) => sch1_wtrig,                               -- 1
---            probe26(0) => stimeoutindi -- sch2_wtrig                                -- 1
---        );
+              probe25(0) => sch0_rarea,                               -- 1 read area toggle  --# 2605260943 swap sch1_wtrig->sch0_rarea
+              probe26(0) => stimeoutindi                              -- 1
+          );
 
-    u_ila_axi_sub_if_d2mavg : ila_axi_sub_if_d2mavg
-        PORT MAP (
-            clk       => iaxi_clk,
-            probe0(0) => id2m_xray,                   -- 1
-            probe1    => sch3_base_waddr,              -- 32
-            probe2    => sch3_waddr,                   -- 32
-            probe3    => state_ddr,                    -- 3
-            probe4    => sddr_ch3_wvcnt,               -- 12
-            probe5    => ich3_wvcnt,                   -- 12
-            probe6    => sddr_ch_en(8 - 1 downto 0)   -- 8
-        );
+--    u_ila_axi_sub_if_d2mavg : ila_axi_sub_if_d2mavg
+--        PORT MAP (
+--            clk       => iaxi_clk,
+--            probe0(0) => id2m_xray,                   -- 1
+--            probe1    => sch3_base_waddr,              -- 32
+--            probe2    => sch3_waddr,                   -- 32
+--            probe3    => state_ddr,                    -- 3
+--            probe4    => sddr_ch3_wvcnt,               -- 12
+--            probe5    => ich3_wvcnt,                   -- 12
+--            probe6    => sddr_ch_en(8 - 1 downto 0)   -- 8
+--        );
 
 end generate ila_debug0;
 

@@ -157,27 +157,24 @@ architecture Behavioral of DEFECT_PROC_PARA4 is
     );
     end component;
 
-    COMPONENT ila_col_def
+    COMPONENT ila_defect_para4
     PORT (
         clk     : IN STD_LOGIC;
-        probe0  : IN STD_LOGIC_VECTOR(0 DOWNTO 0);
-        probe1  : IN STD_LOGIC_VECTOR(3 DOWNTO 0);
-        probe2  : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
-        probe3  : IN STD_LOGIC_VECTOR(3 DOWNTO 0);
-        probe4  : IN STD_LOGIC_VECTOR(3 DOWNTO 0);
-        probe5  : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
-        probe6  : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
-        probe7  : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
-        probe8  : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
-        probe9  : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
-        probe10 : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
-        probe11 : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
-        probe12 : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
-        probe13 : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
-        probe14 : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
-        probe15 : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
-        probe16 : IN STD_LOGIC_VECTOR(15 DOWNTO 0);
-        probe17 : IN STD_LOGIC_VECTOR(15 DOWNTO 0)
+        probe0  : IN STD_LOGIC; --_VECTOR(0 DOWNTO 0);
+        probe1  : IN STD_LOGIC; --_VECTOR(0 DOWNTO 0);
+        probe2  : IN STD_LOGIC_VECTOR(11 DOWNTO 0);
+        probe3  : IN STD_LOGIC_VECTOR(12 DOWNTO 0);
+        probe4  : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
+        probe5  : IN STD_LOGIC; --_VECTOR(0 DOWNTO 0);
+        probe6  : IN STD_LOGIC; --_VECTOR(0 DOWNTO 0);
+        probe7  : IN STD_LOGIC_VECTOR(11 DOWNTO 0);
+        probe8  : IN STD_LOGIC_VECTOR(12 DOWNTO 0);
+        probe9  : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
+        probe10 : IN STD_LOGIC; --_VECTOR(0 DOWNTO 0);
+        probe11 : IN STD_LOGIC; --_VECTOR(0 DOWNTO 0);
+        probe12 : IN STD_LOGIC_VECTOR(11 DOWNTO 0);
+        probe13 : IN STD_LOGIC_VECTOR(12 DOWNTO 0);
+        probe14 : IN STD_LOGIC_VECTOR(63 DOWNTO 0)
     );
     END COMPONENT;
 
@@ -457,7 +454,8 @@ begin
 
             --## row line match
             --# upper bit used by double line detect.
-            if list_row(conv_integer(row_inc))(12 - 1 downto 0) = mask_vcnt_2x2 then
+--            if list_row(conv_integer(row_inc))(12 - 1 downto 0) = mask_vcnt_2x2 then
+            if list_row(conv_integer(row_inc))(13 - 1 downto 0) = mask_vcnt_2x2 then
                 row_def  <= '1';
                 row_news <= list_row(conv_integer(row_inc))(16 - 1 downto 12); --double line check NEWS
             else
@@ -769,50 +767,24 @@ end generate gen_mem_point;
     o_data <= al_data when al_hsyn = '1' and al_vsyn = '1' else
               (others => '0');
 
---  u_ila_col_def : ila_col_def
+--  u_ila_defect_para4 : ila_defect_para4
 --  PORT MAP (
---      clk      => clk                    ,
---      probe0(0)=> reg_col_defect_wen     , --  1
---      probe1   => reg_col_defect_addr    , --  4
---      probe2   => reg_col_defect_wdata   , -- 16
---      probe3   => col_defect_wen         , --  4
---      probe4   => col_def                , --  4
---      probe5   => col_defect_wdata       , -- 16
---      probe6   => list_col(0)(0)         , -- 16
---      probe7   => list_col(0)(1)         , -- 16
---      probe8   => list_col(0)(2)         , -- 16
---      probe9   => list_col(1)(0)         , -- 16
---      probe10  => list_col(1)(1)         , -- 16
---      probe11  => list_col(1)(2)         , -- 16
---      probe12  => list_col(2)(0)         , -- 16
---      probe13  => list_col(2)(1)         , -- 16
---      probe14  => list_col(2)(2)         , -- 16
---      probe15  => list_col(3)(0)         , -- 16
---      probe16  => "0000" & mask_hcnt_2x2 , -- 16
---      probe17  => "0000" & mask_vcnt_2x2   -- 16
---  );
---
---  u_ila_row_def : ila_col_def
---  PORT MAP (
---      clk      => clk                    ,
---      probe0(0)=> reg_row_defect_wen     , --  1
---      probe1   => reg_row_defect_addr    , --  4
---      probe2   => reg_row_defect_wdata   , -- 16
---      probe3   => "000" & row_def        , --  4
---      probe4   => reg_row_defect_addr0   , --  4
---      probe5   => reg_row_defect_wdata0  , -- 16
---      probe6   => list_row(0)            , -- 16
---      probe7   => list_row(1)            , -- 16
---      probe8   => list_row(2)            , -- 16
---      probe9   => list_row(3)            , -- 16
---      probe10  => list_row(4)            , -- 16
---      probe11  => list_row(5)            , -- 16
---      probe12  => list_row(6)            , -- 16
---      probe13  => list_row(7)            , -- 16
---      probe14  => list_row(8)            , -- 16
---      probe15  => list_row(9)            , -- 16
---      probe16  => "0000" & mask_hcnt_2x2 , -- 16
---      probe17  => "0000" & mask_vcnt_2x2   -- 16
+--      clk      => clk               ,
+--      probe0   => i_vsyn            , --  1
+--      probe1   => i_hsyn            , --  1
+--      probe2   => i_hcnt            , -- 12
+--      probe3   => i_vcnt            , -- 13
+--      probe4   => i_data            , -- 64
+--      probe5   => mask_hsyn_2x2     , --  1
+--      probe6   => mask_vsyn_2x2     , --  1
+--      probe7   => mask_hcnt_2x2     , -- 12
+--      probe8   => mask_vcnt_2x2     , -- 13
+--      probe9   => mask_data_2x2     , -- 64
+--      probe10  => decd_hsyn(0)      , --  1
+--      probe11  => decd_vsyn(0)      , --  1
+--      probe12  => decd_hcnt(0)      , -- 12
+--      probe13  => decd_vcnt(0)      , -- 13
+--      probe14  => decd_data64         -- 64
 --  );
 
 end Behavioral;

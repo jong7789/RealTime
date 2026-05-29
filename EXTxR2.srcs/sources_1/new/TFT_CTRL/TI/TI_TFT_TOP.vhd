@@ -894,19 +894,19 @@ begin
                 probe0  : in std_logic;
                 probe1  : in std_logic;
                 probe2  : in std_logic_vector(9 downto 0);
-                probe3  : in std_logic_vector(11 downto 0);
+                probe3  : in std_logic_vector(12 downto 0);
                 probe4  : in std_logic_vector(63 downto 0);
 
                 probe5  : in std_logic;
                 probe6  : in std_logic;
                 probe7  : in std_logic_vector(9 downto 0);
-                probe8  : in std_logic_vector(11 downto 0);
+                probe8  : in std_logic_vector(12 downto 0);
                 probe9  : in std_logic_vector(63 downto 0);
 
                 probe10 : in std_logic;
                 probe11 : in std_logic;
                 probe12 : in std_logic_vector(9 downto 0);
-                probe13 : in std_logic_vector(11 downto 0);
+                probe13 : in std_logic_vector(12 downto 0);
                 probe14 : in std_logic_vector(63 downto 0);
 
                 probe15 : in tstate_grab;
@@ -924,19 +924,19 @@ begin
                 probe0  => shsync_data_align,      --* 1
                 probe1  => svsync_data_align,      --* 1
                 probe2  => shcnt_data_align,       --* 10
-                probe3  => svcnt_data_align,       --* 12
+                probe3  => svcnt_data_align,       --* 13
                 probe4  => sdata_data_align,       --* 64
 
                 probe5  => shsync_roi_proc,        --* 1
                 probe6  => svsync_roi_proc,        --* 1
                 probe7  => shcnt_roi_proc,         --* 10
-                probe8  => svcnt_roi_proc,         --* 12
+                probe8  => svcnt_roi_proc,         --* 13
                 probe9  => sdata_roi_proc,         --* 64
 
                 probe10 => shsync_test_pattern,    --* 1
                 probe11 => svsync_test_pattern,    --* 1
                 probe12 => shcnt_test_pattern,     --* 10
-                probe13 => svcnt_test_pattern,     --* 12
+                probe13 => svcnt_test_pattern,     --* 13
                 probe14 => sdata_test_pattern,     --* 64
 
                 probe15 => ssstate_grab,           --* 2

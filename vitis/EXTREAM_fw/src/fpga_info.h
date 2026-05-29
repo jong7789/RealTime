@@ -258,7 +258,40 @@ extern char HW_VER[16];
 #define DDR3_CALIB_REGS   FPGA_DDR_BASEADDR
 
 //#define REG(x)  (*(volatile u32 *)(VIDEO_REGS + x))
-#define REG(x)  (*(volatile u32 *)(FPGA_REGS + x))
+//#define REG(x)  (*(volatile u32 *)(FPGA_REGS + x))
+//# 2605131158 REG access watcher (simplified: no mode concept).
+//  FREG()  : raw accessor; bypasses the watcher.
+//  REG()   : wraps FREG; calls dbg_watch_check() before yielding the original lvalue.
+//  Per-slot behavior is unconditional dual-trigger:
+//    - R trigger: log every REG() invocation at the watched addr ("access happened").
+//    - W trigger: log when the stored value differs from last seen ("value changed").
+//    Both triggers fire independently on each macro call. A pure read shows only
+//    [WATCH-R]. A write shows [WATCH-R] on the write line, then [WATCH-W] on the
+//    NEXT macro call (attribution is one access late by design).
+//  ALL mode (dbg_watch_flags bit0) applies the same dual-trigger pattern to every
+//  sampled access (1/DBG_WATCH_ALL_DIV), with per-addr cache for the W trigger.
+//  Configured at runtime via the 'watch' UART command (see UART_CMD_watch).
+//  Build-time disable: define DBG_WATCH_COMPILE 0 -> REG == FREG (zero overhead).
+#define FREG(x)  (*(volatile u32 *)(FPGA_REGS + (x)))   //# raw accessor
+
+#define DBG_WATCH_COMPILE   1                //# 1 = compile in watcher; 0 = REG == FREG
+#define DBG_WATCH_MAX       8                //# number of address slots
+#define DBG_WATCH_FLAG_ALL  0x01u            //# bit0 of dbg_watch_flags: print every REG() access (sampled)
+#define DBG_WATCH_ALL_DIV   100u             //# in ALL mode, print 1 of every N accesses
+
+#if DBG_WATCH_COMPILE
+extern u8  dbg_watch_flags;
+extern u32 dbg_watch_addr[DBG_WATCH_MAX];
+extern u32 dbg_watch_prev[DBG_WATCH_MAX];
+extern void dbg_watch_check(u32 access_addr, const char *fname, int line);
+#define REG(x) (*({                                                              \
+    u32 _a = (u32)(x);                                                           \
+    dbg_watch_check(_a, __func__, __LINE__);                                     \
+    (volatile u32 *)(FPGA_REGS + _a);                                            \
+}))
+#else
+#define REG(x)  FREG(x)
+#endif
 #define DREG(x) (*(volatile u32 *)(DDR3_CALIB_REGS + x))
 #define AREG(x) (*(volatile u32 *)(x))
 #define XREG(x) (*(volatile u32 *)(XGIGE_REGS + x))
@@ -754,6 +787,7 @@ extern char HW_VER[16];
 #define MCLK_125   125
 #define MCLK_200   200
 #define MCLK_160   160 //$ 241213 jyp
+#define MCLK_180   180 //# 260514
 #define MCLK_250   250 //$ 251121
 #define MCLK_300   300 //$ 251230
 #define MCLK_320   320 //$ 251121
@@ -781,6 +815,7 @@ extern char HW_VER[16];
 #define LPF2_4000   4000
 #define LPF2_6000   6000
 #define LPF2_8000   8000
+#define LPF2_10000 10000
 #define LPF2_12000 12000
 #define LPF2_14000 14000
 #define LPF2_15000 15000
@@ -792,6 +827,8 @@ extern char HW_VER[16];
 #define TGATE_2000   2000
 #define TGATE_3000   3000
 #define TGATE_4000   4000
+#define TGATE_7000   7000
+#define TGATE_8000   8000
 #define TGATE_10000 10000
 
 #define FILTER_4 4
@@ -950,6 +987,10 @@ extern u32 AFE3256_series;
 extern u8 func_able_binn_num; //# 230926 //# 250317
 extern u8 func_able_gain_num;
 extern u8 func_able_dnr;
+//extern u8 func_gige_disconnected;   //# 2605131508 1=gige link down (composer forces ADDR_DDR_CH_EN=0)
+//# 2605131659 ADDR_DDR_CH_EN force-off tokens (separate per source, OR-combined in composer)
+extern u8 func_ddrchen_gigedisconn_stat;   //# 2605131659 1=gige link down (forces ADDR_DDR_CH_EN=0)
+extern u8 func_ddrchen_gcal_stat;          //# 2605131659 1=gcal in progress (forces ADDR_DDR_CH_EN=0)
 
 void load_fpga_model(void);
 void load_gev_speed(void);

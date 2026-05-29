@@ -1144,21 +1144,26 @@ begin
 
     end generate ILA_DEBUG_SYNC_COUNTER;
 
-    ila_debug : if (GEN_ILA_claib_top = "ON") generate
+    ila_debug : if (GEN_ILA_calib_top = "ON") generate
 
         component ila_calib_top0
             port (
-                clk    : in std_logic;
-                probe0 : in std_logic; -- _vector(0 downto 0);
-                probe1 : in std_logic; -- _vector(0 downto 0);
-                probe2 : in std_logic_vector(11 downto 0);
-                probe3 : in std_logic_vector(11 downto 0);
-                probe4 : in std_logic_vector(15 downto 0);
-                probe5 : in std_logic; -- _vector(0 downto 0);
-                probe6 : in std_logic; -- _vector(0 downto 0);
-                probe7 : in std_logic_vector(11 downto 0);
-                probe8 : in std_logic_vector(11 downto 0);
-                probe9 : in std_logic_vector(15 downto 0)
+                clk     : in std_logic;
+                probe0  : in std_logic; -- _vector(0 downto 0);
+                probe1  : in std_logic; -- _vector(0 downto 0);
+                probe2  : in std_logic_vector(11 downto 0);
+                probe3  : in std_logic_vector(12 downto 0);
+                probe4  : in std_logic_vector(63 downto 0);
+                probe5  : in std_logic; -- _vector(0 downto 0);
+                probe6  : in std_logic; -- _vector(0 downto 0);
+                probe7  : in std_logic_vector(11 downto 0);
+                probe8  : in std_logic_vector(12 downto 0);
+                probe9  : in std_logic_vector(63 downto 0);
+                probe10 : in std_logic; -- _vector(0 downto 0);
+                probe11 : in std_logic; -- _vector(0 downto 0);
+                probe12 : in std_logic_vector(11 downto 0);
+                probe13 : in std_logic_vector(12 downto 0);
+                probe14 : in std_logic_vector(63 downto 0)
             );
         end component;
 
@@ -1166,17 +1171,22 @@ begin
 
         u_ila_calib_top0 : ila_calib_top0
         port map (
-            clk    => idata_clk,
-            probe0 => ihsync,         -- 1
-            probe1 => ivsync,         -- 1
-            probe2 => ihcnt,          -- 12
-            probe3 => ivcnt,          -- 12
-            probe4 => idata,          -- 16
-            probe5 => shsync_cdefect, -- 1
-            probe6 => svsync_cdefect, -- 1
-            probe7 => shcnt_cdefect,  -- 12
-            probe8 => svcnt_cdefect,  -- 12
-            probe9 => sdata_cdefect   -- 16
+            clk     => idata_clk,
+            probe0  => ihsync,         -- 1
+            probe1  => ivsync,         -- 1
+            probe2  => ihcnt,          -- 12
+            probe3  => ivcnt,          -- 13
+            probe4  => idata,          -- 64
+            probe5  => shsync_dgain, -- 1
+            probe6  => svsync_dgain, -- 1
+            probe7  => shcnt_dgain,  -- 12
+            probe8  => svcnt_dgain,  -- 13
+            probe9  => sdata_dgain,   -- 64            
+            probe10 => shsync_cdefect, -- 1
+            probe11 => svsync_cdefect, -- 1
+            probe12 => shcnt_cdefect,  -- 12
+            probe13 => svcnt_cdefect,  -- 13
+            probe14 => sdata_cdefect   -- 64
         );
 
     end generate ila_debug;

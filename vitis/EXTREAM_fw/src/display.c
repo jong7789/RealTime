@@ -247,7 +247,8 @@ void disp_cmd_psel(void) {
         case 11 : func_printf("11 [8000 with CFPN]\r\n");                if(sel !=0)break;
         case 12 : func_printf("12 [20000 with CFPN]\r\n");               if(sel !=0)break;
         case 13 : func_printf("13 [30000 with CFPN]\r\n");               if(sel !=0)break;
-        case 14 : func_printf("14 [45000 with CFPN]\r\n");               if(sel !=0)break;
+//      case 14 : func_printf("14 [45000 with CFPN]\r\n");               if(sel !=0)break;
+        case 14 : func_printf("14 [Defect-check: dots+lines, 100/10000 toggle, bg=live image]\r\n"); if(sel !=0)break; //# 2605181523 disp_cmd_psel: tp_sel x"E" remap
         case 15 : func_printf("15 [Custom flat value]\r\n");             if(sel !=0)break;
         case 16 : func_printf("16 [TI roic test pattern]\r\n");          if(sel !=0)break;
         default : func_printf("custom value TP ex) psel 15 (value) // psel 15 30000\r\n");
@@ -380,7 +381,7 @@ void disp_cmd_offset(void) {
 }
 
 void disp_cmd_defect(void) {
-    switch (func_defect_cal) {
+	switch (func_defect_cal) {
         case 0: func_printf("0 [OFF]\r\n");     break;
         case 1: func_printf("1 [ON]\r\n");      break;
     }
@@ -1206,3 +1207,42 @@ void disp_cmd_doc(void) {
 //  func_printf(" h_position : %d \t//\t", (readreg >> 1) & 0xfff );
 //  func_printf(" v_position : %d", (readreg >> 13) & 0xfff);
 //}
+
+//# 2605131158 Print 'watch' command usage and current REG-watcher state.
+//  No mode column: each occupied slot always runs both R+W triggers.
+void disp_cmd_watch(void) {
+    func_printf("Usage:\r\n");
+    func_printf("  watch                       list this help and current state\r\n");
+    func_printf("  watch 1                     ALL mode ON  (sample 1/%u, may flood)\r\n",
+                (unsigned)DBG_WATCH_ALL_DIV);
+    func_printf("  watch 0                     ALL mode OFF\r\n");
+    func_printf("  watch 1 <addr> [addr...]    add address(es) to watch slots\r\n");
+    func_printf("  watch 0 <addr> [addr...]    remove address(es) from watch slots\r\n");
+    func_printf("    ex)  watch 1 0x74            watch 0x74\r\n");
+    func_printf("         watch 1 0x74 0x70       watch 0x74 and 0x70\r\n");
+    func_printf("         watch 0 0x74            stop watching 0x74\r\n");
+
+    func_printf("State (max %d slots): flags=0x%02x", DBG_WATCH_MAX, (unsigned)dbg_watch_flags);
+    if (dbg_watch_flags & DBG_WATCH_FLAG_ALL)
+        func_printf(" ALL(1/%u)", (unsigned)DBG_WATCH_ALL_DIV);
+    func_printf("\r\n");
+    int empty = 1;
+    for (int i = 0; i < DBG_WATCH_MAX; i++) {
+        if (!dbg_watch_addr[i]) continue;
+        func_printf("  [%d]  addr: 0x%04x  data: 0x%08x %u\r\n",
+                    i,
+                    (unsigned)dbg_watch_addr[i],
+                    (unsigned)dbg_watch_prev[i], (unsigned)dbg_watch_prev[i]);
+        empty = 0;
+    }
+    if (empty) func_printf("  (no watched addresses)\r\n");
+}
+
+void disp_cmd_rddr(void) {
+    func_printf(" AVG DOSE 0 test %d \r\n ",func_img_avg_dose0);
+    func_printf(" AVG DOSE 1 test %d \r\n ",func_img_avg_dose1);
+    func_printf(" AVG DOSE 2 test %d \r\n ",func_img_avg_dose2);
+    func_printf(" AVG DOSE 3 test %d \r\n ",func_img_avg_dose3);
+    func_printf(" AVG DOSE 4 test %d \r\n ",func_img_avg_dose4);
+    func_printf(" AVG DOSE 5 test %d \r\n ",func_img_avg_dose5);
+}

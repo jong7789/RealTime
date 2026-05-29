@@ -222,10 +222,15 @@ void load_fpga_model(void) {
         FPGA_TFT_MAIN_CLK =  16000000;
         FPGA_TFT_DATA_CLK = 192000000;
     }
-    else if( (msame(mEXT4343RD  ))||
-    		 (msame(mEXT3643R   ))){ //$ 251121
+    else if(msame(mEXT4343RD  ))
+    {
     	FPGA_TFT_MAIN_CLK =  30000000;
     	FPGA_TFT_DATA_CLK = 360000000;
+    }
+    else if(msame(mEXT3643R   ))
+    {
+        FPGA_TFT_MAIN_CLK =  18000000;
+        FPGA_TFT_DATA_CLK = FPGA_TFT_MAIN_CLK * 12;
     }
     else
     {
@@ -380,9 +385,11 @@ void load_fpga_model(void) {
     }
     else if( (msame(mEXT3643R )))
     {
-        MAX_WIDTH       = 3532; //# 3584->3584-26-26=3532
-        MAX_WIDTH_x32   = 3532; //# 3584->3584-26-26=3532;
-        MAX_HEIGHT      = 4302; //# 4608-153-153=4302
+//        MAX_WIDTH       = 3532; //# 3584->3584-26-26=3532
+//        MAX_WIDTH_x32   = 3532; //# 3584->3584-26-26=3532;
+        MAX_WIDTH       = 3520; //# 2605131632 32-pixel align: 3520 = 32*110, matches AXI burst beats
+        MAX_WIDTH_x32   = 3520; //# 2605131632 stride == burst data: 3520*2 = 7040 byte = 110*64
+        MAX_HEIGHT      = 4300; //# 4608-153-153=4302 
         PIXEL_WIDTH     =   16;
         ROIC_DUAL       =    1;
         ROIC_MAX_CH     =  256;
@@ -390,8 +397,9 @@ void load_fpga_model(void) {
         GATE_CH         =  512;
         GATE_MAX_CH     =  512;
         GATE_DUMMY_LINE =    0;
-        BASE_OFFSETX    =   26;
-        BASE_OFFSETY    =  153;
+//        BASE_OFFSETX    =   26;
+        BASE_OFFSETX    =   32; //# 2605131632 symmetric crop: 32 + 3520 + 32 = 3584 sensor full
+        BASE_OFFSETY    =  154;
     }
 //    █▄░█ ▄▀█ █▀▄▀█ █▀▀ ▄▄ █░█ █░█░█
 //    █░▀█ █▀█ █░▀░█ ██▄ ░░ █▀█ ▀▄▀▄▀
@@ -477,7 +485,7 @@ void load_frame_rate(void)
     else if( (msame(mEXT1024      )) )  MAX_FRATE = 25.0; //$ 241014 jyp
     else if( (msame(mEXT1024RL    )) )  MAX_FRATE =  6.0; //$ 250703
     else if( (msame(mEXT4343RD    )) )  MAX_FRATE = 60.0;
-    else if( (msame(mEXT3643R     )) )  MAX_FRATE = 25.0;
+    else if( (msame(mEXT3643R     )) )  MAX_FRATE = 15.0;
     else                                MAX_FRATE = 40.0;
  
 }
@@ -505,6 +513,19 @@ void load_frame_rate(void)
 u8 func_able_binn_num  = 0; //# 230926 //# 250317 load_func_able
 u8 func_able_gain_num  = 0;
 u8 func_able_dnr   = 0;
+//# 2605131508 GigE link state mirror used by set_ddr_ch_en composer. Default 1
+//             (disconnected) so the FPGA ADDR_DDR_CH_EN stays 0x00 from boot
+//             until the first gige_gcsr "case 3: Device Discovery Success" event
+//             clears it. Toggled by user_callback link-state handler in user.c.
+//u8 func_gige_disconnected = 1;
+//# 2605131659 Renamed disconnect flag to *_stat form. Added separate gcal_stat.
+//             Composer OR-combines both: any stat != 0 -> ADDR_DDR_CH_EN forced 0.
+//             gigedisconn_stat: toggled by user_callback link-state handler (user.c).
+//             gcal_stat: set on execute_cmd_gcal entry, cleared on exit (func_cmd.c).
+//             Separate flags so simultaneous events (e.g. disconnect during gcal)
+//             don't clobber each other when the other source clears its stat.
+u8 func_ddrchen_gigedisconn_stat = 1;   //# 2605131659 default 1 (boot=disconnected)
+u8 func_ddrchen_gcal_stat        = 0;   //# 2605131659 default 0 (no calib in progress)
 
 void load_func_able(void) //# 250317 load_func_able
 {

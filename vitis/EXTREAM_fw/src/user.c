@@ -1536,38 +1536,48 @@ void user_callback(void)
     }
 */
     // dskim - 21.02.15 - ���� �� Gain Calibration �߿��� Grab���� ���ϵ���
-    if ((REG(ADDR_OUT_EN) & 0x00000001) != (old_gcsr & 0x00000001) && (func_check_booting != 1))
-    {
-        if (REG(ADDR_OUT_EN) & 0x00000001) {
-            execute_cmd_op_acq_start();
-            //# 2605081100 Reset framebuf state before each acq start. fstat dump on stuck showed
-            //# 0 OVFLW but reader stalled (RD_ACT 1->0, IF_EMPTY=1) with 168 dropped blocks /
-            //# 170 "no space in FB". INIT resets writer/reader pointers (kicks reader FSM);
-            //# CLRSTAT clears stat counters.
-            //# 2605081330 Re-applied (the prior "cannot connect" regression was caused by the
-            //# 192MB buffer escalation overrunning into other memory regions, not by INIT here).
-            //# See docs/CHANGE_2605081100_FBUF_ACQ_RESET.md.
-            framebuf_control |= (FRAMEBUF_C_INIT | FRAMEBUF_C_CLRSTAT);
-            gige_send_message4(GEV_EVENT_START_OF_TRANSFER, 0, 0, NULL);
-            execute_cmd_grab(1);
-            switch (func_hw_debug) {
-                case 1 :                             break;
-                case 2 :
-                            execute_cmd_wddr(0, 7);
-                            execute_cmd_cddr(8);    break;
+    //# 2605131110 Throttle ADDR_OUT_EN edge detect to 1/OUTEN_POLL_DIV user_callback
+    //             calls. user_callback runs 2x per main-loop iter.
+    //# 2605131126 OUTEN_POLL_DIV 10 -> 100 (further reduce REG(0x0000) polling).
+    //             Acq start/stop response: 100 user_callback calls = 50 main-loop iters.
+    //             At kHz+ main loop that's still tens of ms — fine for human/app trigger.
+    #define OUTEN_POLL_DIV 100
+    static u32 _outen_th = OUTEN_POLL_DIV - 1;     //# init so FIRST call passes through
+    if (++_outen_th >= OUTEN_POLL_DIV) {
+        _outen_th = 0;
+        if ((REG(ADDR_OUT_EN) & 0x00000001) != (old_gcsr & 0x00000001) && (func_check_booting != 1))
+        {
+            if (REG(ADDR_OUT_EN) & 0x00000001) {
+                execute_cmd_op_acq_start();
+                //# 2605081100 Reset framebuf state before each acq start. fstat dump on stuck showed
+                //# 0 OVFLW but reader stalled (RD_ACT 1->0, IF_EMPTY=1) with 168 dropped blocks /
+                //# 170 "no space in FB". INIT resets writer/reader pointers (kicks reader FSM);
+                //# CLRSTAT clears stat counters.
+                //# 2605081330 Re-applied (the prior "cannot connect" regression was caused by the
+                //# 192MB buffer escalation overrunning into other memory regions, not by INIT here).
+                //# See docs/CHANGE_2605081100_FBUF_ACQ_RESET.md.
+                framebuf_control |= (FRAMEBUF_C_INIT | FRAMEBUF_C_CLRSTAT);
+                gige_send_message4(GEV_EVENT_START_OF_TRANSFER, 0, 0, NULL);
+                execute_cmd_grab(1);
+                switch (func_hw_debug) {
+                    case 1 :                             break;
+                    case 2 :
+                                execute_cmd_wddr(0, 7);
+                                execute_cmd_cddr(8);    break;
+                }
             }
-        }
-        else {
-            execute_cmd_op_acq_stop();
-            gige_send_message4(GEV_EVENT_END_OF_TRANSFER, 0, 0, NULL);
-            switch (func_hw_debug) {
-                case 1 :     func_calib_cmd = 1;
-                    break;
-                case 2 :       execute_cmd_cddr(0);    break;
+            else {
+                execute_cmd_op_acq_stop();
+                gige_send_message4(GEV_EVENT_END_OF_TRANSFER, 0, 0, NULL);
+                switch (func_hw_debug) {
+                    case 1 :     func_calib_cmd = 1;
+                        break;
+                    case 2 :       execute_cmd_cddr(0);    break;
+                }
+                execute_cmd_grab(0);
             }
-            execute_cmd_grab(0);
+            old_gcsr = REG(ADDR_OUT_EN);
         }
-        old_gcsr = REG(ADDR_OUT_EN);
     }
 
     curr = gige_gcsr & 0x03;
@@ -1578,12 +1588,14 @@ void user_callback(void)
         switch(curr) {
             case 0 :    func_printf("\r\nStatus = Physical Link Disconnected\r\n");
 //                      REG(ADDR_DDR_CH_EN)        = 0b00010001;
-                        REG(ADDR_DDR_CH_EN) = DDR_CH_ALL_OFF; //# 2605081700 disable all DDR channels on disconnect
+//                      REG(ADDR_DDR_CH_EN) = DDR_CH_ALL_OFF; //# 2605081700 disable all DDR channels on disconnect
+//                      func_gige_disconnected = 1;     //# 2605131508 composer in set_ddr_ch_en will write 0x00 this iter
+                        func_ddrchen_gigedisconn_stat = 1; //# 2605131659 renamed stat; composer forces ADDR_DDR_CH_EN=0 this iter
                         REG(ADDR_LED_CTRL) = LED_CTRL_ON; // fault LED 221018 mbh
+                        XREG(XGIGE_ADDR_IP) = 0; //# 2605121416 clear stale IP on physical disconnect so disp shows 0.0.0.0
                         break;
             case 1 :
-                        // dskim - 22.07.26 - 프로그램이 종료될 때 안정적으로 종료될 수 있도록.
-                        // 프로그램이 종료 될 때, 시스템이 다운되는 현상 디버깅 중...
+                        // dskim - 22.07.26 - shutdown stability fix
                         if(REG(ADDR_OUT_EN) != 0) {
                             REG(ADDR_OUT_EN) = 0;
                             gige_set_acquisition_status(0, 0);
@@ -1592,13 +1604,18 @@ void user_callback(void)
                         //
                         func_printf("\r\nStatus = No Device Discovery\r\n");
 //                      REG(ADDR_DDR_CH_EN)        = 0b00010001;
-                        REG(ADDR_DDR_CH_EN) = DDR_CH_ALL_OFF; //# 2605081700 disable all DDR channels on no-discovery
+//                      REG(ADDR_DDR_CH_EN) = DDR_CH_ALL_OFF; //# 2605081700 disable all DDR channels on no-discovery
+//                      func_gige_disconnected = 1;     //# 2605131508 composer in set_ddr_ch_en will write 0x00 this iter
+                        func_ddrchen_gigedisconn_stat = 1; //# 2605131659 renamed stat; composer forces ADDR_DDR_CH_EN=0 this iter
                         REG(ADDR_LED_CTRL) = LED_CTRL_OFF; // fault LED 221018 mbh
                         break;
             case 2 :    func_printf("\r\nStatus = Physical Link Disconnected\r\n");
 //                      REG(ADDR_DDR_CH_EN)        = 0b00010001;
-                        REG(ADDR_DDR_CH_EN) = DDR_CH_ALL_OFF; //# 2605081700 disable all DDR channels on disconnect
+//                      REG(ADDR_DDR_CH_EN) = DDR_CH_ALL_OFF; //# 2605081700 disable all DDR channels on disconnect
+//                      func_gige_disconnected = 1;     //# 2605131508 composer in set_ddr_ch_en will write 0x00 this iter
+                        func_ddrchen_gigedisconn_stat = 1; //# 2605131659 renamed stat; composer forces ADDR_DDR_CH_EN=0 this iter
                         REG(ADDR_LED_CTRL) = LED_CTRL_ON; // fault LED 221018 mbh
+                        XREG(XGIGE_ADDR_IP) = 0; //# 2605121416 clear stale IP on physical disconnect so disp shows 0.0.0.0
                         break;
             case 3 :    func_printf("\r\nStatus = Device Discovery Success\r\n");
 //                      REG(ADDR_DDR_CH_EN)    = 0b01010001;
@@ -1606,6 +1623,8 @@ void user_callback(void)
 //                      if(func_d2m)                  REG(ADDR_DDR_CH_EN)    = 0b11010101; // d2m on write ch2 avg for ref minus 210729
 //                      if(func_gain_cal && func_d2m) REG(ADDR_DDR_CH_EN)    = 0b11110101; // d2m on write ch2 avg for ref minus 210729
                         //# 2605081700 set_ddr_ch_en() removed; main loop reapplies composer next iteration
+//                      func_gige_disconnected = 0;     //# 2605131508 composer will restore cal/d2m derived regv this iter
+                        func_ddrchen_gigedisconn_stat = 0; //# 2605131659 renamed stat; composer restores cal/d2m derived regv next iter
                         REG(ADDR_LED_CTRL) = LED_CTRL_OFF; // fault LED 221018 mbh
 //                        func_grabbcal = 1; //# bcal after ethernet connected. 220321mbh
                         break;

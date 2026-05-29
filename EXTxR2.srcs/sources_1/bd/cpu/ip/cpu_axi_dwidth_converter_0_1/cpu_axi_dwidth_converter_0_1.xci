@@ -63,7 +63,7 @@
         "SELECTEDSIMMODEL": [ { "value": "" } ],
         "SHAREDDIR": [ { "value": "../../../../../../EXTxR2.srcs/sources_1/bd/cpu/ipshared" } ],
         "SWVERSION": [ { "value": "2022.2" } ],
-        "SYNTHESISFLOW": [ { "value": "GLOBAL" } ]
+        "SYNTHESISFLOW": [ { "value": "OUT_OF_CONTEXT" } ]
       }
     },
     "boundary": {

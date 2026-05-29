@@ -584,8 +584,8 @@ endif
 	sleep 1
 	sx -b -X $(XML_FILE) > $(SERIAL) < $(SERIAL)
 	
+#MY_JTAG = 00000000000000
 MY_JTAG = 00001abd04f901
-# MY_JTAG = 00000000000000
 
 prog: $(BIT_FILE)
 	@$(ECHO) "connect"          					>  xsdb_prog.tcl

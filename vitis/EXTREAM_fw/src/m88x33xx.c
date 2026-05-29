@@ -49,6 +49,12 @@
 MTD_DEV mtd_dev = {0};
 MTD_U16 mtd_port = 0;
 
+//# 2605121219 Set to 1 by execute_cmd_port(0) when m88x33xx_wait_app_ready timed out
+//             (PHY app code not yet running -> calling m88x33xx_init would fail 0x1000).
+//             check_sfp_stat() then polls m88x33xx_retry_init_if_pending() which keeps
+//             checking app-ready state and runs the deferred init when it finally goes ready.
+volatile u32 g_m88x_init_pending = 0;
+
 
 // ---- MDIO read access -------------------------------------------------------
 //
@@ -84,6 +90,33 @@ MTD_STATUS m88x33xx_write_mdio(
 #endif
 }
 
+
+//# 2605121604 Hard reset the external PHY chip via the PHY_RESET_N pin.
+// ----------------------------------------------------------------------------
+// Purpose : Force a power-on-style reset of the M88X3310/3340 by toggling
+//           the PHY_RESET_N pin. Use when the PHY MCU is stuck (m88x33xx_init
+//           returns 0x1001 repeatedly, MDIO not responding) and reloading
+//           firmware via m88x33xx_inity() alone does not recover.
+//
+// Mechanism:
+//           gige_gcsr |= GCSR_RST_PHY  -> FPGA generates the reset pulse on
+//           the PHY_RESET_N pin (wired to PHY_RESET_N in the XDC of every
+//           board model). Bit auto-clears when the pulse completes.
+//
+// Returns : 0 always (reset is one-way fire-and-forget). Caller should run
+//           m88x33xx_inity() (and subsequent setup) after this.
+//
+// Notes   : Mirrors the established pattern from tn80xx.c:30-32.
+// ----------------------------------------------------------------------------
+int m88x33xx_rst(void)
+{
+    func_printf("PHY hard reset (PHY_RESET_N pulse)...\r\n");
+    gige_gcsr |= GCSR_RST_PHY;
+    while (gige_gcsr & GCSR_RST_PHY) {}
+    usleep(100000);   // 100ms PHY power-on settle
+    func_printf("PHY hard reset done\r\n");
+    return 0;
+}
 
 // ---- Initialize the PHY -----------------------------------------------------
 //
@@ -170,6 +203,56 @@ int m88x33xx_wait_app_ready(u32 max_ms)
     }
     func_printf("[m88x] app code NOT ready after %u ms (timeout)\r\n", max_ms);
     return 0x1001;
+}
+
+//# 2605121219 Background retry: if g_m88x_init_pending is set, periodically check whether
+// ----------------------------------------------------------------------------
+// Purpose : Resume the m88x33xx_init that was deferred by execute_cmd_port(0)
+//           because the PHY app code (MCU firmware) was not yet running.
+//           Designed to be called every main-loop iteration from
+//           check_sfp_stat() in func_basic.c so the system self-recovers
+//           without any user intervention.
+//
+// Behavior:
+//           - If g_m88x_init_pending == 0: return immediately (nothing to do).
+//           - Internal throttle (M88X_RETRY_POLL_DIV) limits the actual MDIO
+//             probe to roughly every Nth call to keep main-loop overhead low.
+//           - One-shot call to mtdDidPhyAppCodeStart(). If appStarted==TRUE
+//             then run m88x33xx_init(RXAUI). On init success pending is
+//             cleared; on init failure pending remains set so the next poll
+//             window will retry.
+//
+// Returns : 0       no-op (not pending) or init succeeded
+//           0x1003  app code still not ready / throttled (try again later)
+//           other   forwarded m88x33xx_init() error code
+// ----------------------------------------------------------------------------
+#define M88X_RETRY_POLL_DIV  100   // ~10 Hz at typical main-loop rate
+int m88x33xx_retry_init_if_pending(void)
+{
+    static u32 throttle = 0;
+    MTD_STATUS ret;
+    MTD_BOOL   appStarted = MTD_FALSE;
+    int        initRet;
+
+    if (!g_m88x_init_pending) return 0;
+
+    if (++throttle < M88X_RETRY_POLL_DIV) return 0x1003;
+    throttle = 0;
+
+    ret = mtdDidPhyAppCodeStart(&mtd_dev, mtd_port, &appStarted);
+    if (ret != MTD_OK || appStarted != MTD_TRUE) {
+        return 0x1003;  // still not ready -- keep waiting
+    }
+
+    func_printf("[m88x] app code ready (deferred) -- run m88x33xx_init...\r\n");
+    initRet = m88x33xx_init(RXAUI);
+    if (initRet == 0) {
+        g_m88x_init_pending = 0;
+        func_printf("[m88x] deferred init OK\r\n");
+    } else {
+        func_printf("[m88x] deferred init FAILED with %d (will retry)\r\n", initRet);
+    }
+    return initRet;
 }
 
 int m88x33xx_init(phy_if_mode if_mode)

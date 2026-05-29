@@ -54,9 +54,6 @@ entity AXI_IF is
 
         ireg_width : in    std_logic_vector(11 downto 0);
 
-        --# 2605071529 DDR burst limit selector (00=32 / 01=64 / 10=128 / 11=256)
-        ireg_ddr_burst : in std_logic_vector(1 downto 0);
-
         -- For AXI MASTER IF
         oconv_wlen  : out   std_logic_vector(7 downto 0);
         oconv_wtrig : out   std_logic;
@@ -69,9 +66,6 @@ entity AXI_IF is
         iconv_rdata : in    std_logic_vector(511 downto 0);
         oconv_rlast : out   std_logic;
         iconv_rbusy : in    std_logic;
-
-        --# 2605082100 Stage2-a Read multi-outstanding: idle indicator from AXI_MASTER_IF
-        iconv_r_idle : in   std_logic;
 
         -- For Output
         iconv_clk   : in    std_logic;
@@ -89,11 +83,7 @@ entity AXI_IF is
         ostate_write : out tstate_write;
         owrite_ch    : out std_logic_vector(4 - 1 downto 0);
         ostate_read  : out tstate_read;
-        oread_ch     : out std_logic_vector(4 - 1 downto 0);
-
-        --# 2605081600 Per-channel AXI ID propagation (Stage 1: enable MIG reorder)
-        oconv_wid    : out std_logic_vector(2 downto 0);
-        oconv_rid    : out std_logic_vector(2 downto 0)
+        oread_ch     : out std_logic_vector(4 - 1 downto 0)
 
     );
 end entity axi_if;
@@ -143,8 +133,6 @@ architecture behavioral of axi_if is
     signal state_read  : tstate_read;
 
     signal swrite_ch : integer range 0 to 4;
-    --# 2605081600 Read-side channel index (mirror of swrite_ch); used for ARID propagation
-    signal sread_ch  : integer range 0 to 4;
 
     signal swaddr : std_logic_vector(31 downto 0);
     signal sraddr : std_logic_vector(31 downto 0);
@@ -186,15 +174,10 @@ architecture behavioral of axi_if is
     signal sconv_raddr : std_logic_vector(31 downto 0);
     signal sconv_rlast : std_logic;
 
---    signal sburst_wnum : std_logic_vector(3 downto 0);
---    signal sburst_rnum : std_logic_vector(3 downto 0);
-    signal sburst_wnum : std_logic_vector(7 downto 0);  --# 2605071416 widen for variable AXI_BURST_LIMIT (64-beat needs more chunks)
+    signal sburst_wnum : std_logic_vector(3 downto 0);
     signal sburst_wcnt : std_logic_vector(7 downto 0);
-    signal sburst_rnum : std_logic_vector(7 downto 0);  --# 2605071416 widen for variable AXI_BURST_LIMIT (64-beat needs more chunks)
+    signal sburst_rnum : std_logic_vector(3 downto 0);
     signal sburst_rcnt : std_logic_vector(7 downto 0);
-    --# 2605071529 transaction-local burst mode latched at s_IDLE (immune to mid-tx register changes)
-    signal sburst_w_mode : std_logic_vector(1 downto 0);
-    signal sburst_r_mode : std_logic_vector(1 downto 0);
 
     signal saxi_rvalid_1d : std_logic;
     signal sch0_wtrig     : std_logic;
@@ -230,8 +213,7 @@ begin
             probe6  : in    std_logic_vector(11 downto 0);
 
             probe7  : in    std_logic_vector(7 downto 0);
---            probe8  : in    std_logic_vector(3 downto 0);
-            probe8  : in    std_logic_vector(7 downto 0);  --# 2605071416 widened from 4 bits
+            probe8  : in    std_logic_vector(3 downto 0);
             probe9  : in    tstate_write;
             probe10 : in    std_logic;
             probe11 : in    std_logic_vector(31 downto 0)
@@ -309,7 +291,6 @@ begin
 
                 sburst_wnum <= (others => '0');
                 sburst_wcnt <= (others => '0');
-                sburst_w_mode <= "01";  --# 2605071529 default 64-beat
             else
 
                 case state_write is
@@ -342,56 +323,16 @@ begin
                         end if;
 
                         sconv_wtrig <= '0';
-                        --# 2605071529 latch burst mode for whole transaction (immune to mid-tx register change)
-                        sburst_w_mode <= ireg_ddr_burst;
 
                     when s_READY =>
                         state_write <= s_WAIT;
 
---                        if (swlen(11 downto 8) /= 0) then
---                            sburst_wnum <= swlen(11 downto 8);
---                            sconv_wlen  <= x"FF";
---                        else
---                            sburst_wnum <= (others => '0');
---                            sconv_wlen  <= swlen(7 downto 0);
---                        end if;
-                        --# 2605071529 burst mode runtime-selectable via ireg_ddr_burst (latched into sburst_w_mode at s_IDLE)
-                        if (sburst_w_mode = "11") then
-                            --# 256-beat chunks (mode 11)
                         if (swlen(11 downto 8) /= 0) then
-                                sburst_wnum <= "0000" & swlen(11 downto 8);
+                            sburst_wnum <= swlen(11 downto 8);
                             sconv_wlen  <= x"FF";
                         else
                             sburst_wnum <= (others => '0');
                             sconv_wlen  <= swlen(7 downto 0);
-                        end if;
-                        elsif (sburst_w_mode = "10") then
-                            --# 128-beat chunks (mode 10)
-                            if (swlen(11 downto 7) /= "00000") then
-                                sburst_wnum <= "000" & swlen(11 downto 7);
-                                sconv_wlen  <= x"7F";
-                            else
-                                sburst_wnum <= (others => '0');
-                                sconv_wlen  <= "0" & swlen(6 downto 0);
-                            end if;
-                        elsif (sburst_w_mode = "01") then
-                            --# 64-beat chunks (mode 01, default)
-                            if (swlen(11 downto 6) /= "000000") then
-                                sburst_wnum <= "00" & swlen(11 downto 6);
-                                sconv_wlen  <= x"3F";
-                            else
-                                sburst_wnum <= (others => '0');
-                                sconv_wlen  <= "00" & swlen(5 downto 0);
-                            end if;
-                        else
-                            --# 32-beat chunks (mode 00)
-                            if (swlen(11 downto 5) /= "0000000") then
-                                sburst_wnum <= "0" & swlen(11 downto 5);
-                                sconv_wlen  <= x"1F";
-                            else
-                                sburst_wnum <= (others => '0');
-                                sconv_wlen  <= "000" & swlen(4 downto 0);
-                            end if;
                         end if;
 
                     when s_WAIT =>
@@ -419,43 +360,12 @@ begin
                             else
                                 state_write <= s_WAIT;
                                 sburst_wcnt <= sburst_wcnt + '1';
-
---                                swaddr      <= swaddr + x"4000"; -- 256 * (512 / 8)
---                                if (sburst_wcnt = sburst_wnum - 1) then
---                                    sconv_wlen <= swlen(7 downto 0);
---                                else
---                                    sconv_wlen <= x"FF";
---                                end if;
-                                --# 2605071529 address increment + next-chunk awlen runtime-selectable
-                                if (sburst_w_mode = "11") then
                                 swaddr      <= swaddr + x"4000"; -- 256 * (512 / 8)
 
                                 if (sburst_wcnt = sburst_wnum - 1) then
                                     sconv_wlen <= swlen(7 downto 0);
                                 else
                                     sconv_wlen <= x"FF";
-                                end if;
-                                elsif (sburst_w_mode = "10") then
-                                    swaddr <= swaddr + x"2000"; -- 128 * (512 / 8)
-                                    if (sburst_wcnt = sburst_wnum - 1) then
-                                        sconv_wlen <= "0" & swlen(6 downto 0);
-                                    else
-                                        sconv_wlen <= x"7F";
-                                    end if;
-                                elsif (sburst_w_mode = "01") then
-                                    swaddr <= swaddr + x"1000"; --  64 * (512 / 8)
-                                    if (sburst_wcnt = sburst_wnum - 1) then
-                                        sconv_wlen <= "00" & swlen(5 downto 0);
-                                    else
-                                        sconv_wlen <= x"3F";
-                                    end if;
-                                else
-                                    swaddr <= swaddr + x"0800"; --  32 * (512 / 8)
-                                    if (sburst_wcnt = sburst_wnum - 1) then
-                                        sconv_wlen <= "000" & swlen(4 downto 0);
-                                    else
-                                        sconv_wlen <= x"1F";
-                                    end if;
                                 end if;
                             end if;
                         end if;
@@ -488,11 +398,8 @@ begin
                 sch3_rbusy <= '0';
                 sch4_rbusy <= '0';
 
-                sread_ch   <= 0;  --# 2605081600 reset read channel index for ARID
-
                 sburst_rnum <= (others => '0');
                 sburst_rcnt <= (others => '0');
-                sburst_r_mode <= "01";  --# 2605071529 default 64-beat
             else
 
                 case state_read is
@@ -502,89 +409,43 @@ begin
                             sraddr     <= ich0_raddr;
                             srlen      <= sch0_rlen - '1';
                             sch0_rbusy <= '1';
-                            sread_ch   <= 0;  --# 2605081600 latch read channel for ARID
                         elsif (sch1_rtrig = '1') then
                             state_read <= s_READY;
                             sraddr     <= ich1_raddr;
                             srlen      <= sch1_rlen - '1';
                             sch1_rbusy <= '1';
-                            sread_ch   <= 1;  --# 2605081600
                         elsif (sch2_rtrig = '1') then
                             state_read <= s_READY;
                             sraddr     <= ich2_raddr;
                             srlen      <= sch2_rlen - '1';
                             sch2_rbusy <= '1';
-                            sread_ch   <= 2;  --# 2605081600
                         elsif (sch3_rtrig = '1') then
                             state_read <= s_READY;
                             sraddr     <= ich3_raddr;
                             srlen      <= sch3_rlen - '1';
                             sch3_rbusy <= '1';
-                            sread_ch   <= 3;  --# 2605081600
                         elsif (sch4_rtrig = '1') then
                             state_read <= s_READY;
                             sraddr     <= ich4_raddr;
                             srlen      <= sch4_rlen - '1';
                             sch4_rbusy <= '1';
-                            sread_ch   <= 4;  --# 2605081600
                         end if;
 
                         sconv_rtrig <= '0';
                         sconv_rlast <= '0';
-                        --# 2605071529 latch burst mode for whole transaction
-                        sburst_r_mode <= ireg_ddr_burst;
 
                     when s_READY =>
                         state_read <= s_WAIT;
 
---                        if (srlen(11 downto 8) /= 0) then
---                            sburst_rnum <= srlen(11 downto 8);
---                            sconv_rlen  <= x"FF";
---                        else
---                            sburst_rnum <= (others => '0');
---                            sconv_rlen  <= srlen(7 downto 0);
---                        end if;
-                        --# 2605071529 burst mode runtime-selectable via ireg_ddr_burst (latched into sburst_r_mode at s_IDLE)
-                        if (sburst_r_mode = "11") then
-                            --# 256-beat chunks (mode 11)
                         if (srlen(11 downto 8) /= 0) then
-                                sburst_rnum <= "0000" & srlen(11 downto 8);
+                            sburst_rnum <= srlen(11 downto 8);
                             sconv_rlen  <= x"FF";
                         else
                             sburst_rnum <= (others => '0');
                             sconv_rlen  <= srlen(7 downto 0);
                         end if;
-                        elsif (sburst_r_mode = "10") then
-                            --# 128-beat chunks (mode 10)
-                            if (srlen(11 downto 7) /= "00000") then
-                                sburst_rnum <= "000" & srlen(11 downto 7);
-                                sconv_rlen  <= x"7F";
-                            else
-                                sburst_rnum <= (others => '0');
-                                sconv_rlen  <= "0" & srlen(6 downto 0);
-                            end if;
-                        elsif (sburst_r_mode = "01") then
-                            --# 64-beat chunks (mode 01, default)
-                            if (srlen(11 downto 6) /= "000000") then
-                                sburst_rnum <= "00" & srlen(11 downto 6);
-                                sconv_rlen  <= x"3F";
-                            else
-                                sburst_rnum <= (others => '0');
-                                sconv_rlen  <= "00" & srlen(5 downto 0);
-                            end if;
-                        else
-                            --# 32-beat chunks (mode 00)
-                            if (srlen(11 downto 5) /= "0000000") then
-                                sburst_rnum <= "0" & srlen(11 downto 5);
-                                sconv_rlen  <= x"1F";
-                            else
-                                sburst_rnum <= (others => '0');
-                                sconv_rlen  <= "000" & srlen(4 downto 0);
-                            end if;
-                        end if;
 
                     when s_WAIT =>
-                        --# 2605082100 Stage2-a wait for AXI_MASTER_IF to have AR queue room (iconv_rbusy='0')
                         if (iconv_rbusy = '0') then
                             state_read  <= s_READ;
                             sconv_rtrig <= '1';
@@ -592,34 +453,37 @@ begin
                         end if;
 
                     when s_READ =>
-                        --# 2605082100 Stage2-a: pulse rtrig for one cycle, advance immediately
-                        --#   no longer waits for rvalid+rlast - chunks are pipelined into AXI_MASTER_IF queue
-                        --#   actual data drain tracked via iconv_r_idle in s_DRAIN
+                        if (iaxi_rvalid = '1' and iaxi_rready = '1') then
+                            if (iaxi_rlast = '1') then
                                 state_read <= s_CHECK;
+                            end if;
+                        end if;
+
                         sconv_rtrig <= '0';
 
                     when s_CHECK =>
-                        --# 2605082100 Stage2-a: when all chunks issued, transition to s_DRAIN
-                        --#   sch*_rbusy held high until s_DRAIN completes (RID demux relies on it)
                         if (sburst_rnum = 0) then
-                            state_read  <= s_DRAIN;
+                            state_read  <= s_IDLE;
                             sburst_rcnt <= (others => '0');
+                            sconv_rlast <= '1';
+                            sch0_rbusy  <= '0';
+                            sch1_rbusy  <= '0';
+                            sch2_rbusy  <= '0';
+                            sch3_rbusy  <= '0';
+                            sch4_rbusy  <= '0';
                         else
                             if (sburst_rcnt >= sburst_rnum) then
-                                state_read  <= s_DRAIN;
+                                state_read  <= s_IDLE;
                                 sburst_rcnt <= (others => '0');
+                                sconv_rlast <= '1';
+                                sch0_rbusy  <= '0';
+                                sch1_rbusy  <= '0';
+                                sch2_rbusy  <= '0';
+                                sch3_rbusy  <= '0';
+                                sch4_rbusy  <= '0';
                             else
                                 state_read  <= s_WAIT;
                                 sburst_rcnt <= sburst_rcnt + '1';
-
---                                sraddr      <= sraddr + x"4000"; -- 256 * (512 / 8)
---                                if (sburst_rcnt = sburst_rnum - 1) then
---                                    sconv_rlen <= srlen(7 downto 0);
---                                else
---                                    sconv_rlen <= x"FF";
---                                end if;
-                                --# 2605071529 address increment + next-chunk arlen runtime-selectable
-                                if (sburst_r_mode = "11") then
                                 sraddr      <= sraddr + x"4000"; -- 256 * (512 / 8)
 
                                 if (sburst_rcnt = sburst_rnum - 1) then
@@ -627,42 +491,7 @@ begin
                                 else
                                     sconv_rlen <= x"FF";
                                 end if;
-                                elsif (sburst_r_mode = "10") then
-                                    sraddr <= sraddr + x"2000"; -- 128 * (512 / 8)
-                                    if (sburst_rcnt = sburst_rnum - 1) then
-                                        sconv_rlen <= "0" & srlen(6 downto 0);
-                                    else
-                                        sconv_rlen <= x"7F";
-                                    end if;
-                                elsif (sburst_r_mode = "01") then
-                                    sraddr <= sraddr + x"1000"; --  64 * (512 / 8)
-                                    if (sburst_rcnt = sburst_rnum - 1) then
-                                        sconv_rlen <= "00" & srlen(5 downto 0);
-                                    else
-                                        sconv_rlen <= x"3F";
-                                    end if;
-                                else
-                                    sraddr <= sraddr + x"0800"; --  32 * (512 / 8)
-                                    if (sburst_rcnt = sburst_rnum - 1) then
-                                        sconv_rlen <= "000" & srlen(4 downto 0);
-                                    else
-                                        sconv_rlen <= x"1F";
-                                    end if;
-                                end if;
                             end if;
-                        end if;
-
-                    when s_DRAIN =>
-                        --# 2605082100 Stage2-a: all chunks issued; wait for AXI_MASTER_IF outstanding=0
-                        --#   then assert sconv_rlast (1-cycle pulse) and clear sch*_rbusy
-                        if (iconv_r_idle = '1') then
-                            state_read  <= s_IDLE;
-                            sconv_rlast <= '1';
-                            sch0_rbusy  <= '0';
-                            sch1_rbusy  <= '0';
-                            sch2_rbusy  <= '0';
-                            sch3_rbusy  <= '0';
-                            sch4_rbusy  <= '0';
                         end if;
 
                     when others =>
@@ -895,10 +724,6 @@ begin
     oconv_rtrig <= sconv_rtrig;
     oconv_raddr <= sconv_raddr;
     oconv_rlast <= sconv_rlast;
-
-    --# 2605081600 Channel index -> 3-bit ID for AXI_MASTER_IF latch (zero-extended to AXI ID width inside master)
-    oconv_wid <= conv_std_logic_vector(swrite_ch, 3);
-    oconv_rid <= conv_std_logic_vector(sread_ch,  3);
 
     --# for debug
     ostate_write <= state_write;

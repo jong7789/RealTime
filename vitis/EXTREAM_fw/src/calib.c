@@ -60,7 +60,7 @@ void load_calib_def(void)
 
 }
 
-void calib_init(void) 
+void calib_init(void)
 {
     REG(ADDR_DDR_CH_EN)     = DDR_CH_ALL_OFF; //# 2605081700 force all DDR channels off at calib_init
 
@@ -128,7 +128,7 @@ void get_calib_init(void)
 
     REG(ADDR_OUT_EN) = 1;
     gige_set_acquisition_status(0, 1 & 1);
-    if(DBG_calinit)func_printf("[DBG_calinit] # get_calib_init gige_set_acquisition_status\r\n");
+    if(DBG_calinit)func_printf("[DBG_calinit] # get_calib_init gige_set_acquisition_status 26051515\r\n");
 
     execute_cmd_grab(1);
 
@@ -137,13 +137,16 @@ void get_calib_init(void)
 //### 2. only once wait
     if(!wait5sec_once) //# 241217 not sure needs 5sec wait, but avoid error happen.
     {
-            for(int i=0; i<10; i++) //# 241217 insert GIGE connection.
+            for(int i=0; i<40; i++) //# 241217 insert GIGE connection.
             {
             	gige_callback(0);
             	msdelay(500);
             }
     	wait5sec_once = 1;
     }
+
+ 	gige_callback(0);
+ 	// msdelay(100);
 
 //  execute_cmd_wddr(1, 7);     // dskim - 0.00.08 - 여러번 수행 하도록 변경
     if (func_shutter_mode==0){ // if global shutter mode save in flash, it makes API boot problem. 211027mbh
@@ -250,7 +253,7 @@ void set_ddr_waddr(u32 addr, u32 ch)
 }
 
 #define DBG_pixelavg 0
-int get_ddr_pixel_avg(u32 level) 
+int get_ddr_pixel_avg(u32 level)
 {
     float time;
     u32 frame_num = 1;
@@ -261,6 +264,15 @@ int get_ddr_pixel_avg(u32 level)
     u16 avgframecntold = 0;
     u8 outen0, outen1 =0;
     u16 avgoutcnt =0;
+    //# 2605131439 Save/restore func_calib_cmd around the polling loop. The loop
+    //  toggles func_calib_cmd between 0 and 1 to let API write XML_CALIB_CMD while
+    //  staying "busy", but the last value left was 1 -- causing UART-path callers
+    //  (wddr 1 etc.) to retrigger execute_calib_cmd case 1 in the next main loop
+    //  iter, running wddr a second time. Save the entry value and restore on every
+    //  return so the caller's calib_cmd state is unchanged.
+    u32 saved_calib_cmd = func_calib_cmd;
+    //# 2605131439 Per-call dotted-percent progress tracker (10.20.30...100).
+    int last_pct = 0;
 
     frame_num = (1 << (level));
 
@@ -277,11 +289,12 @@ int get_ddr_pixel_avg(u32 level)
 
     // func_busy = 0; // ### Activation "STOP" Button. test 21.12.06  //dismiss 211209mbh
     func_printf("avg wait...\r\n");
+    func_printf("    [pixel] ");                            //# 2605131439 progress label
     outen0 = REG(ADDR_OUT_EN)&1;
     if(DBG_pixelavg)func_printf("[DBG_pixelavg] # get_ddr_pixel_avg outen0\r\n");
 
     // execute_fw_ext_trig(frame_num); // 211220 test
-    if(func_shutter_mode) 
+    if(func_shutter_mode)
     {
         if (func_trig_mode == 0) // Global-FreeRun: auto gain/offset 211230mbh
             REG(ADDR_API_EXT_TRIG)  = 1;
@@ -295,17 +308,18 @@ int get_ddr_pixel_avg(u32 level)
     {
         /* ### Average Cancel ### 211207mbh */
         func_calib_cmd = 0; // #xml addr_out_en access open
-        gige_callback(0);
+        gige_callback(0); //# test 260515
         outen1 = REG(ADDR_OUT_EN)&1;
 //        if ( ((outen0==1)&&(outen1==0)) || uart_receive() || avgoutcnt > 256  ) // out_en falling 211209mbh uart input escape //$ 250617 64->8
 		if ( ((outen0==1)&&(outen1==0)) || uart_receive() || avgoutcnt > 16  ) //# avgoutcnt 256 -> 16 #250930
         { // ### Acquisition STOP or Uart Keyboard Input
-            func_printf("Average is Stopped ! \r\n");
+            func_printf("\r\nAverage is Stopped ! \r\n");   //# 2605131439 newline first to terminate dotted-percent line
             REG(ADDR_AVG_EN) = 0;
             REG(ADDR_AVG_LEVEL) = 0;
             REG(ADDR_API_EXT_TRIG)  = 0;
             execute_cmd_grab(grab);
             avgoutcnt = 0;
+            func_calib_cmd = saved_calib_cmd;               //# 2605131439 restore on early return
             return AVG_FAILURE;
         }
         func_calib_cmd = 1;
@@ -317,21 +331,35 @@ int get_ddr_pixel_avg(u32 level)
         if (100 < timeoutcnt)
         {
             timeoutcnt=0;
-            func_printf(".");
+            //# 2605131439 dropped timeout-based dot (dotted-percent below replaces it);
+            //  keep avgoutcnt to preserve the 16-second escape gate.
             avgoutcnt++;
         }
 
-        // ### avg frame counter
+        // ### avg frame counter -> dotted-percent
         avgframenum = pow(2,REG(ADDR_AVG_LEVEL));
         avgframecntnew = (REG(ADDR_AVG_END) >> 5) & 0x07FF;
         if (avgframecntnew != avgframecntold)
-        { // ### print frame count
-            func_printf("\b\b\b\b\b\b\b\b\b\b%d/%d",avgframecntnew, avgframenum);
+        {
+            //# 2605131439 dotted-percent progress (10.20.30...100) based on completed
+            //  frames vs target. Replaces "\b...%d/%d" frame counter.
+            int pct = (avgframenum > 0) ? ((int)avgframecntnew * 100 / avgframenum) : 0;
+            if (pct >= last_pct + 10) {
+                if (last_pct > 0) func_printf(".");
+                func_printf("%d", pct);
+                gige_callback(0); //# 260515
+                last_pct = pct;
+            }
             avgframecntold = avgframecntnew;
         }
         /* ##################  */
     }
     if(DBG_pixelavg)func_printf("[DBG_pixelavg] # get_ddr_pixel_avg ADDR_AVG_END\r\n");
+    //# 2605131439 ensure final 100 is printed (FPGA may signal AVG_END before counter hits avgframenum)
+    if (last_pct < 100) {
+        if (last_pct > 0) func_printf(".");
+        func_printf("100");
+    }
     func_printf("\r\n");
     REG(ADDR_AVG_EN) = 0;
     REG(ADDR_AVG_LEVEL) = 0;
@@ -341,10 +369,11 @@ int get_ddr_pixel_avg(u32 level)
 
     gige_callback(0);
 //  func_printf("### AVG END ###\r\n");
+    func_calib_cmd = saved_calib_cmd;                       //# 2605131439 restore on success return
     return AVG_SUCCESS;
 }
 
-u16 get_ddr_frame_avg(u32 addr, u32 width, u32 height) 
+u16 get_ddr_frame_avg(u32 addr, u32 width, u32 height)
 {
     u32 i, j;
     u32 sum = 0, avg = 0, data = 0;
@@ -355,12 +384,18 @@ u16 get_ddr_frame_avg(u32 addr, u32 width, u32 height)
     u32 width_x32 = (u32)(ceil(func_width / 32.0)) * 32;
     u32 line_test;
 
+    //# 2605131439 dotted-percent progress (10.20.30...100) over the height loop.
+    //  Frame avg scans the whole DDR3 frame buffer (height × width/2 DREG reads),
+    //  takes a few seconds for full-res 3643R. Same format as get_ddr_pixel_avg.
+    func_printf("    [frame] ");
+    int last_pct = 0;
+
 //#if defined(GEV10G)
 if (def_gev_speed == 10){
-    for(i = 0; i < height; i++) 
+    for(i = 0; i < height; i++)
     {
         addr_inc = addr + (i * width_x32/2 * 4);
-            for (j = 0; j < width/2; j++) 
+            for (j = 0; j < width/2; j++)
             {
                 data = DREG(addr_inc);
                 data0 = (data & 0xFFFF);
@@ -379,14 +414,23 @@ if (def_gev_speed == 10){
 
         sum = 0;
         if(!(i % (height / 24)))    gige_callback(0);
+        //# 2605131439 progress tick
+        {
+            int pct = (int)(((i + 1) * 100) / height);
+            if (pct >= last_pct + 10) {
+                if (last_pct > 0) func_printf(".");
+                func_printf("%d", pct);
+                last_pct = pct;
+            }
+        }
     }
 }
 //#else
 else{
-    for(i = 0; i < height; i++) 
+    for(i = 0; i < height; i++)
     {
         addr_inc = addr + (i * width_x32 * 4);
-            for (j = 0; j < width; j++) 
+            for (j = 0; j < width; j++)
             {
                 data = (DREG(addr_inc) & 0xFFFF0000) >> 16;
 //                data = DREG(addr_inc);
@@ -405,9 +449,21 @@ else{
         avg_line += ((float)sum / (width-func_edge_left-func_edge_right)); //# except edge 230327
         sum = 0;
         if(!(i % (height / 24)))    gige_callback(0);
+        //# 2605131439 progress tick
+        {
+            int pct = (int)(((i + 1) * 100) / height);
+            if (pct >= last_pct + 10) {
+                if (last_pct > 0) func_printf(".");
+                func_printf("%d", pct);
+                last_pct = pct;
+            }
+        }
     }
 }
 //#endif
+
+    //# 2605131439 close the dotted-percent line
+    func_printf("\r\n");
 
     // avg = (u32)(avg_line / height);
     avg = (u32)(avg_line / (height-func_edge_top-func_edge_bottom)); //# except edge 230327
@@ -636,8 +692,11 @@ void get_nuc_param(void) {
     func_printf("Process |                                |");
     for(i = 0; i < 33; i ++) func_printf("\b");
 
-    REG(ADDR_DDR_CH_EN) = DDR_CH_ALL_OFF; //# 2605081700 force all DDR channels off during Make NUC param
-    msdelay(100);
+//  REG(ADDR_DDR_CH_EN) = DDR_CH_ALL_OFF; //# 2605081700 force all DDR channels off during Make NUC param
+//  msdelay(100);
+    //# 2605131659 Direct REG write removed. func_ddrchen_gcal_stat is set by
+    //             execute_cmd_gcal entry; composer already forced ADDR_DDR_CH_EN=0
+    //             before this function was entered. No local write needed.
 
     for (i = 0; i < func_height; i++) {
         for (j = 0; j < width_x32; j++) {
@@ -771,8 +830,11 @@ void get_nuc_para4(void) {
     avgdose1 = func_img_avg_dose1;
     u32 gaintarget = (avgdose1-avgdose0) << 12;
 
-    REG(ADDR_DDR_CH_EN) = DDR_CH_ALL_OFF; //# 2605081700 force all DDR channels off during get_nuc_para4
-    msdelay(100);
+//  REG(ADDR_DDR_CH_EN) = DDR_CH_ALL_OFF; //# 2605081700 force all DDR channels off during get_nuc_para4
+//  msdelay(100);
+    //# 2605131659 Direct REG write removed. See get_nuc_param() note above —
+    //             execute_cmd_gcal entry already forced ADDR_DDR_CH_EN=0 via
+    //             func_ddrchen_gcal_stat + explicit set_ddr_ch_en() call.
     for (i = 0; i < func_height; i++) {
 
         for (j = 0; j < width_x32; j++) {
@@ -1089,6 +1151,21 @@ void recover_offset_param(void) {
     func_printf("\r\nFinished!\r\n");
 }
 
+//# 2605181642 Line-defect lookup helpers used by encode_calib_defect()
+// Reason: point-defect 8-neighbor averaging must skip pixels that lie on a
+//         row/col line defect (LINE_DEFECT_PROC runs *after* DEFECT_PROC in
+//         CALIB_TOP, so those neighbors are still raw at point-defect stage).
+static u8 is_line_row_xf(u32 y, u32 *list, u32 cnt) {
+    u32 k;
+    for (k = 0; k < cnt; k++) if (list[k] == y) return 1;
+    return 0;
+}
+static u8 is_line_col_xf(u32 x, u32 *list, u32 cnt) {
+    u32 k;
+    for (k = 0; k < cnt; k++) if (list[k] == x) return 1;
+    return 0;
+}
+
 void set_calib_defect(u32 value) {
     u32 i;
 //    u32 encode_defect[MAX_DEFECT] = {0, };
@@ -1105,6 +1182,14 @@ void set_calib_defect(u32 value) {
 //  u32 encode_defect[100] = {0, };
     u32 defect_cnt = 0;
     u32 wdata = 0, rdata = 0;
+
+    //# 2605181642 Line-defect coord lists (post-binning, ROI-aligned) for cluster mask
+    static u32 rdefect_xf[MAX_LINE_DEFECT * 2] = {0, };
+    static u32 cdefect_xf[MAX_LINE_DEFECT * 2] = {0, };
+    u32 rdefect_cnt_xf = 0;
+    u32 cdefect_cnt_xf = 0;
+    u32 line_src = 0;
+    u32 line_xf  = 0;
 
     u32 FPGA_DEFECT_WEN = 0;
     u32 FPGA_DEFECT_ADDR = 0;
@@ -1299,6 +1384,51 @@ void set_calib_defect(u32 value) {
     if(DBGDFEC)func_printf("#[DBGDFEC] func_width=%d \r\n",func_width);
     if(DBGDFEC)func_printf("#[DBGDFEC] func_height=%d \r\n",func_height);
 
+    //# 2605181642 Build line-defect row/col list in same coord system as defect[]
+    // - mirrors per-axis binning used above for point defects
+    // - manual + factory lists merged into one flat array
+    for (i = 0; i < func_rdefect_cnt + func_rdefect_cnt3; i++) {
+        line_src = (i < func_rdefect_cnt) ? func_rdefect[i] : func_rdefect3[i - func_rdefect_cnt];
+        line_xf  = line_src;
+        switch (func_binning_mode) {
+            case 0 : break;
+            case 1 : line_xf /= 2; break;
+            case 2 : line_xf /= 2; break;
+            case 3 :
+                if (GATE_DUMMY_LINE % 2) line_xf = (line_xf - 1) / 2;
+                else                     line_xf /= 2;
+                break;
+            case 4 : line_xf /= 3; break;
+            case 5 : line_xf /= 3; break;
+            case 6 : line_xf /= 4; break;
+            case 7 :
+                if (GATE_DUMMY_LINE % 2) line_xf = (line_xf - 1) / 4;
+                else                     line_xf /= 4;
+                break;
+        }
+        if (line_xf >= func_offsety) {
+            rdefect_xf[rdefect_cnt_xf++] = line_xf - func_offsety;
+        }
+    }
+    for (i = 0; i < func_cdefect_cnt + func_cdefect_cnt3; i++) {
+        line_src = (i < func_cdefect_cnt) ? func_cdefect[i] : func_cdefect3[i - func_cdefect_cnt];
+        line_xf  = line_src;
+        switch (func_binning_mode) {
+            case 0 : break;
+            case 1 : line_xf /= 2; break;
+            case 2 : line_xf /= 2; break;
+            case 3 : line_xf /= 2; break;
+            case 4 : line_xf /= 3; break;
+            case 5 : line_xf /= 3; break;
+            case 6 : line_xf /= 4; break;
+            case 7 : line_xf /= 4; break;
+        }
+        if (line_xf >= func_offsetx) {
+            cdefect_xf[cdefect_cnt_xf++] = line_xf - func_offsetx;
+        }
+    }
+    if(DBGDFEC)func_printf("#[DBGDFEC] rdefect_xf cnt=%d, cdefect_xf cnt=%d \r\n", rdefect_cnt_xf, cdefect_cnt_xf);
+
     // 순차적으로 비교하기 위해서
     qsort(defect_1d, defect_cnt, sizeof(u32), compare);
 
@@ -1337,7 +1467,11 @@ void set_calib_defect(u32 value) {
     }
     else {
         for(i = 0; i <= defect_cnt_final; i++) {  // write 1 more address mbh 210215
-            encode_defect[i] = encode_calib_defect(i, defect, defect_cnt_final);
+//            encode_defect[i] = encode_calib_defect(i, defect, defect_cnt_final);
+            //# 2605181642 Pass line-defect coord lists for 8-neighbor mask-off
+            encode_defect[i] = encode_calib_defect(i, defect, defect_cnt_final,
+                                                   rdefect_xf, rdefect_cnt_xf,
+                                                   cdefect_xf, cdefect_cnt_xf);
 //          func_printf("addr(%4x) wdata(%8x, %d,%d) \r\n", i, encode_defect[i], (encode_defect[i]>>12)&0xfff,encode_defect[i]&0xfff); // 220810debug
 //          func_printf("addr(%4x), wdata(%4x), wen(%4x) \r\n",FPGA_DEFECT_ADDR,FPGA_DEFECT_WDATA,FPGA_DEFECT_WEN);
             REG(FPGA_DEFECT_ADDR) = i;
@@ -1558,7 +1692,7 @@ void set_calib_cdefect(void){
     u32 i;
     u32 defect[MAX_LINE_DEFECT] = {0, };
     u32 defect_cnt = 0;
-    u32 wdata = 0, rdata = 0;
+u32 wdata = 0, rdata = 0;
 
     // dskim - 21.03.02 - factory map
     u32 defect_final[MAX_LINE_DEFECT] = {0, };
@@ -1658,8 +1792,8 @@ void set_calib_cdefect(void){
         }
         defect_col_pre = defect_col;
     }
-//  func_printf("defect_cnt=%d \r\n",defect_cnt);
-//  func_printf("defect_cnt_final=%d \r\n",defect_cnt_final);
+//   func_printf("defect_cnt=%d \r\n",defect_cnt);
+//   func_printf("defect_cnt_final=%d \r\n",defect_cnt_final);
 
     // ########## double line decode ##########
     u32 defect_col_center = 0;
@@ -1704,7 +1838,7 @@ void set_calib_cdefect(void){
             REG(ADDR_CDEFECT_WDATA) = defect_final_line[i]; // 210817
             REG(ADDR_CDEFECT_WEN) = 1;  // 210215
             REG(ADDR_CDEFECT_WEN) = 0;  // 210215
-//          func_printf("defect_final_line[%d]=%d\r\n",i,  defect_final_line[i]);
+        //   func_printf("defect_final_line[%d]=%d\r\n",i,  defect_final_line[i]);
         }
     }
 
@@ -1743,7 +1877,11 @@ int compare(const void *a, const void *b) {
 }
 
     u8 pos_type = 0;
-u32 encode_calib_defect(u32 addr, u32 defect[MAX_DEFECT][2], u32 defect_cnt) {
+//u32 encode_calib_defect(u32 addr, u32 defect[MAX_DEFECT][2], u32 defect_cnt) {
+//# 2605181642 encode_calib_defect: add line-defect row/col lists for neighbor mask-off
+u32 encode_calib_defect(u32 addr, u32 defect[MAX_DEFECT][2], u32 defect_cnt,
+                        u32 *rdefect_xf, u32 rdefect_cnt_xf,
+                        u32 *cdefect_xf, u32 cdefect_cnt_xf) {
     u32 i = addr, j = 0;
     u32 encoded_data = 0;
     u32 cluster = 255;
@@ -1870,6 +2008,44 @@ u32 encode_calib_defect(u32 addr, u32 defect[MAX_DEFECT][2], u32 defect_cnt) {
                 else if ((defect[i][0]+1 == defect[j][0]) && (defect[i][1]+1 == defect[j][1]))          cluster -= 128;
             }
             break;
+    }
+
+    //# 2605181642 Mask off 8-neighbor bits that land on a row/col line defect.
+    // - Bit layout (matches existing cluster usage in cases above):
+    //     bit0=1   (x-1,y-1)   bit1=2   (x  ,y-1)   bit2=4   (x+1,y-1)
+    //     bit3=8   (x-1,y  )                        bit4=16  (x+1,y  )
+    //     bit5=32  (x-1,y+1)   bit6=64  (x  ,y+1)   bit7=128 (x+1,y+1)
+    // - AND-clear (not subtract) so bits already off by edge/point-defect
+    //   stay off (subtract here would corrupt cluster).
+    u32 cluster_pre = cluster & 0xFF;   //# 2605181716 keep pre-line-mask for DBGDFEC dump
+    {
+        u32 yy   = defect[i][1];
+        u32 xx   = defect[i][0];
+        u32 yu   = (yy >= 1) ? yy - 1 : 0xFFFFFFFF;   /* never match if at top edge */
+        u32 yd   = yy + 1;
+        u32 xl   = (xx >= 1) ? xx - 1 : 0xFFFFFFFF;
+        u32 xr   = xx + 1;
+        if (is_line_row_xf(yu, rdefect_xf, rdefect_cnt_xf)) cluster &= ~(1 | 2 | 4);
+        if (is_line_row_xf(yd, rdefect_xf, rdefect_cnt_xf)) cluster &= ~(32 | 64 | 128);
+        if (is_line_col_xf(xl, cdefect_xf, cdefect_cnt_xf)) cluster &= ~(1 | 8 | 32);
+        if (is_line_col_xf(xr, cdefect_xf, cdefect_cnt_xf)) cluster &= ~(4 | 16 | 128);
+        //# 2605181730 self-coord: (x,y-1)/(x,y+1) share self x; (x-1,y)/(x+1,y) share self y
+        if (is_line_col_xf(xx, cdefect_xf, cdefect_cnt_xf)) cluster &= ~(2 | 64);
+        if (is_line_row_xf(yy, rdefect_xf, rdefect_cnt_xf)) cluster &= ~(8 | 16);
+    }
+
+    //# 2605181716 Dump per-defect mask result (gated by DBGDFEC).
+    // cluster bits 7..0 follow (x+1,y+1)..(x-1,y-1); line_off = bits cleared
+    // by line-defect mask (XOR of pre vs post). Skip sentinel slot (i==defect_cnt).
+    if (DBGDFEC && (i < defect_cnt)) {
+        u32 cluster_post = cluster & 0xFF;
+        u32 line_off     = cluster_pre ^ cluster_post;
+        if (line_off)
+            func_printf("[DFEC_MASK] (x,y)=(%4d,%4d) cluster=0x%02X line_off=0x%02X\r\n",
+                        defect[i][0], defect[i][1], cluster_post, line_off);
+        else
+            func_printf("[DFEC_MASK] (x,y)=(%4d,%4d) cluster=0x%02X\r\n",
+                        defect[i][0], defect[i][1], cluster_post);
     }
 
     encoded_data = ((cluster & 0x000000FF) << 24) | ((defect[i][1] & 0x00000FFF) << 12) | (defect[i][0] & 0x00000FFF);

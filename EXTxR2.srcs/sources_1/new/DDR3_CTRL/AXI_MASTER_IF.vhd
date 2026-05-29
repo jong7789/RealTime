@@ -69,7 +69,9 @@ port (
     axi_rvalid          : in  std_logic;
     axi_rready          : out std_logic;
     ostate_write_ddr_mast : out tstate_write_ddr_mast;
-    ostate_read_ddr_mast  : out tstate_read_ddr_mast
+    ostate_read_ddr_mast  : out tstate_read_ddr_mast;
+    
+    axi_wcnt            : out std_logic_vector(7 downto 0)      --$ 260518 for ila
 );
 end AXI_MASTER_IF;
 
@@ -199,34 +201,54 @@ ostate_read_ddr_mast  <= state_read;
                             saxi_wvalid  <= '1';
                             saxi_bready  <= '1';
                             sconv_wlen   <= iconv_wlen;  --# 2605071454 latch wlen at AW handshake to avoid mid-burst race
+							--$ 260518 init wlast: '1' only for 1-beat burst (wlen=0), else '0'
+							if (iconv_wlen = x"00") then
+								saxi_wlast <= '1';
+							else
+								saxi_wlast <= '0';
+							end if;
                         end if;
-
                     when s_DATA =>
-                        if (axi_wready = '1') then
-                            saxi_wvalid <= '0';
-
---                            if (saxi_wcnt = iconv_wlen) then
-                            if (saxi_wcnt = sconv_wlen) then  --# 2605071454 use latched wlen
-                                state_write <= s_BRESP;
-                                saxi_wlast  <= '0';
-                            else
-                                state_write <= s_CHECK;
-                                saxi_wbusy  <= '1';
-                                saxi_wcnt   <= saxi_wcnt + '1';
-                            end if;
-                        end if;
-
+--                        if (axi_wready = '1') then
+--                            saxi_wvalid <= '0';
+--
+----                            if (saxi_wcnt = iconv_wlen) then
+--                            if (saxi_wcnt = sconv_wlen) then  --# 2605071454 use latched wlen
+--                                state_write <= s_BRESP;
+--                                saxi_wlast  <= '0';
+--                            else
+--                               state_write <= s_CHECK;
+--                                saxi_wbusy  <= '1';
+--                                saxi_wcnt   <= saxi_wcnt + '1';
+--                            end if;
+--                        end if;
+                        --$ 260518 keep wvalid=1 throughout burst
+						if (axi_wready = '1') then
+							if (saxi_wcnt = sconv_wlen) then
+								state_write <= s_BRESP;
+								saxi_wvalid <= '0';
+								saxi_wlast  <= '0';
+							else
+								saxi_wcnt   <= saxi_wcnt + '1';
+								if (saxi_wcnt + '1' = sconv_wlen) then
+									saxi_wlast <= '1';       --$ 260518 pre-set wlast one beat early
+								else
+									saxi_wlast <= '0';
+								end if;
+							end if;
+						end if;
+				    --$ 260518
                     when s_CHECK =>
-                        state_write <= s_DATA;
-                        saxi_wvalid <= '1';
-
---                        if (saxi_wcnt = iconv_wlen) then
-                        if (saxi_wcnt = sconv_wlen) then  --# 2605071454 use latched wlen
-                            saxi_wlast <= '1';
-                        else
-                            saxi_wlast <= '0';
-                        end if;
-
+--                        state_write <= s_DATA;
+--                        saxi_wvalid <= '1';
+--
+----                        if (saxi_wcnt = iconv_wlen) then
+--                        if (saxi_wcnt = sconv_wlen) then  --# 2605071454 use latched wlen
+--                            saxi_wlast <= '1';
+--                        else
+--                           saxi_wlast <= '0';
+--                        end if;
+							NULL;
                     when s_BRESP =>
                         if (axi_bvalid = '1') then
                             state_write <= s_READY;
@@ -367,6 +389,8 @@ ostate_read_ddr_mast  <= state_read;
     axi_arvalid     <= saxi_arvalid;
 
     axi_rready      <= saxi_rready;
+    
+    axi_wcnt        <= saxi_wcnt; --$ 260518 for ila
 
     SYNTH : if (GEN_ILA_axi_master_if = "ON") generate
     begin

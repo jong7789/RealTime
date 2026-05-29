@@ -39,12 +39,12 @@
 
   <Controller number="0">
     <MemoryDevice>DDR3_SDRAM/Components/MT41K256M16XX-107</MemoryDevice>
-    <TimePeriod>1250</TimePeriod>
+    <TimePeriod>1333</TimePeriod>
     <VccAuxIO>2.0V</VccAuxIO>
     <PHYRatio>4:1</PHYRatio>
-    <InputClkFreq>200</InputClkFreq>
+    <InputClkFreq>250.062</InputClkFreq>
     <UIExtraClocks>0</UIExtraClocks>
-    <MMCM_VCO>800</MMCM_VCO>
+    <MMCM_VCO>750</MMCM_VCO>
     <MMCMClkOut0> 1.000</MMCMClkOut0>
     <MMCMClkOut1>1</MMCMClkOut1>
     <MMCMClkOut2>1</MMCMClkOut2>
@@ -54,8 +54,8 @@
     <DeepMemory>1</DeepMemory>
     <DataMask>1</DataMask>
     <ECC>Disabled</ECC>
-    <Ordering>Strict</Ordering>
-    <BankMachineCnt>4</BankMachineCnt>
+    <Ordering>Normal</Ordering>
+    <BankMachineCnt>8</BankMachineCnt>
     <CustomPart>FALSE</CustomPart>
     <NewPartName/>
     <RowAddress>15</RowAddress>
@@ -170,7 +170,7 @@
       <C0_C_RD_WR_ARB_ALGORITHM>WRITE_PRIORITY_REG</C0_C_RD_WR_ARB_ALGORITHM>
       <C0_S_AXI_ADDR_WIDTH>30</C0_S_AXI_ADDR_WIDTH>
       <C0_S_AXI_DATA_WIDTH>256</C0_S_AXI_DATA_WIDTH>
-      <C0_S_AXI_ID_WIDTH>2</C0_S_AXI_ID_WIDTH>
+      <C0_S_AXI_ID_WIDTH>6</C0_S_AXI_ID_WIDTH>
       <C0_S_AXI_SUPPORTS_NARROW_BURST>1</C0_S_AXI_SUPPORTS_NARROW_BURST>
     </AXIParameters>
   </Controller>

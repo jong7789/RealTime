@@ -20,7 +20,7 @@
 
 #define TFT_TIMING_NUM      12
 // TI_ROIC
-#define MAX_CMD_NUM         150
+#define MAX_CMD_NUM         160
 //#define MAX_CMD_NUM           85
 
 #define MAX_ARG_NUM         6 // 4 to 6 // mbh 210118
@@ -105,7 +105,8 @@ u8 UART_CMD_dgain (u8 num, u32* data);
 u8 UART_CMD_iproc (u8 num, u32* data);
 u8 UART_CMD_wus (u8 num, u32* data);
 u8 UART_CMD_rus (u8 num, u32* data);
-u8 UART_CMD_debug (u8 num, u32* data);  // dskim
+//u8 UART_CMD_debug (u8 num, u32* data);  // dskim
+u8 UART_CMD_rus2  (u8 num, u32* data);  //# 2605201841 renamed from UART_CMD_debug
 u8 UART_CMD_rtemp (u8 num, u32* data);
 u8 UART_CMD_rtime (u8 num, u32* data);
 u8 UART_CMD_reboot (u8 num, u32* data);
@@ -148,6 +149,8 @@ u8 UART_CMD_fstat(u8 num, u32* data);
 u8 UART_CMD_finit(u8 num, u32* data);
 u8 UART_CMD_fclr(u8 num, u32* data);
 u8 UART_CMD_fov(u8 num, u32* data);   //# 2605081100 framebuf OVFLW one-line summary
+u8 UART_CMD_fdot(u8 num, u32* data);  //# 2605181144 FB TX-dot UART progress toggle
+u8 UART_CMD_ferr(u8 num, u32* data);  //# 2605181144 FB overflow UART msg toggle
 u8 UART_CMD_pdbg(u8 num, u32* data);
 u8 UART_CMD_prev(u8 num, u32* data);
 u8 UART_CMD_flash(u8 num, u32* data);
@@ -239,7 +242,15 @@ u8 UART_CMD_romread  (u8 num, u32* data); //# 231017
 u8 UART_CMD_ropertime  (u8 num, u32* data); //# 231121
 u8 UART_CMD_port  (u8 num, u32* data); //# 260421 Select PHY port (0:Marvell 1:SFP)
 u8 UART_CMD_doc	(u8 num, u32* data);
+//# 2605121343 Manual M88X33xx step commands (debug)
+u8 UART_CMD_m88deinit (u8 num, u32* data);
+u8 UART_CMD_m88initx  (u8 num, u32* data);
+u8 UART_CMD_m88inity  (u8 num, u32* data);
+u8 UART_CMD_m88init   (u8 num, u32* data);
+u8 UART_CMD_m88rst    (u8 num, u32* data); //# 2605121451 PHY_RESET_N hard reset pulse
+u8 UART_CMD_gigeinit  (u8 num, u32* data); //# 2605121447 GigE core init sequence
 u8 UART_CMD_apm   (u8 num, u32* data); //# 2605062100 APM bandwidth on axi_crossbar_0_M00_AXI (R/W Gbps + %)
 u8 UART_CMD_ddrburst (u8 num, u32* data); //# 2605071529 DDR AXI burst limit (32/64/128/256, runtime register)
+u8 UART_CMD_watch (u8 num, u32* data); //# 2605130959 REG()-write watcher (multi-addr + ALL mode)
 
 #endif /* SRC_UART_CMD_H_ */

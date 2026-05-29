@@ -128,4 +128,6 @@ void disp_cmd_romread(void);
 void disp_cmd_ropertime(void);
 void disp_cmd_wtp(void);
 void disp_cmd_doc(void);
+void disp_cmd_watch(void); //# 2605130959 REG-write watcher state
+void disp_cmd_rddr(void);  //# 2605141540 dump func_img_avg_dose0..5
 #endif /* SRC_DISPLAY_H_ */

@@ -25,6 +25,7 @@ extern float func_ds1731_temp[DS1731_NUM];
 extern float func_roic_temp;
 extern float func_fpga_temp;
 extern u32 func_phy_temp;
+extern int once88m; //# 2605121743 one-shot flag for deferred m88x33xx_init in check_sfp_stat
 extern u32 func_rns_valid;		// 0.xx.07
 extern u32 bcal_once;			//$ 250305
 

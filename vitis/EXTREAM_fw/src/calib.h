@@ -86,7 +86,11 @@ void set_calib_defect(u32 value);
 void set_calib_rdefect(void);
 void set_calib_cdefect(void);
 int compare(const void *a, const void *b);
-u32 encode_calib_defect(u32 addr, u32 defect[MAX_DEFECT][2], u32 defect_cnt);
+//u32 encode_calib_defect(u32 addr, u32 defect[MAX_DEFECT][2], u32 defect_cnt);
+//# 2605181642 add line-defect row/col arrays for 8-neighbor mask-off
+u32 encode_calib_defect(u32 addr, u32 defect[MAX_DEFECT][2], u32 defect_cnt,
+                        u32 *rdefect_xf, u32 rdefect_cnt_xf,
+                        u32 *cdefect_xf, u32 cdefect_cnt_xf);
 u8 check_same_defect(u32 pointx, u32 pointy, u32 mode);
 u8 check_same_rdefect(u32 row, u32 mode);
 u8 check_same_cdefect(u32 col, u32 mode);

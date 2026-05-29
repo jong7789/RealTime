@@ -90,6 +90,9 @@ architecture Behavioral of TEST_PATTERN is
     signal sramp_data4         : std_logic_vector(63 downto 0);
     signal sramp_data5         : std_logic_vector(63 downto 0);
     signal sramp_data6         : std_logic_vector(63 downto 0);
+    --# 2605181523 TEST_PATTERN: defect-check pattern (dots + lines, value toggles 100/10000 per frame)
+    signal sramp_data7         : std_logic_vector(63 downto 0);
+    signal sdefect_val         : std_logic_vector(15 downto 0);
     signal window_data0        : std_logic_vector(15 downto 0);
     signal window_data1        : std_logic_vector(15 downto 0);
 
@@ -388,6 +391,97 @@ begin
         end if;
     end process;
 
+    --# 2605181523 Defect-check pattern (tp_sel = x"E")
+    -- Purpose : DUT defect inspection - foreground value toggles 100/10000 per frame
+    -- Shape   : dots at (r,c) = (100,100), (200,200/201), (300,300/301 + 301,300),
+    --                          (400,400/401 + 401,400/401)
+    --           full row lines at svcnt = 150, 250, 251
+    --           full col lines at pixel-col 150, 250, 251 (shcnt has 4 px/word: 150->shcnt37 lane2,
+    --                                                       250->shcnt62 lane2, 251->shcnt62 lane3)
+    -- Toggle  : sdefect_val flips on svsync_trig (per-frame); background = 0
+    process(iui_clk)
+    begin
+        if(iui_clk'event and iui_clk = '1') then
+            if(iui_rstn = '0') then
+                sdefect_val <= conv_std_logic_vector(100, 16);
+            else
+                if(svsync_trig = '1') then
+                    if(sdefect_val = conv_std_logic_vector(100, 16)) then
+                        sdefect_val <= conv_std_logic_vector(10000, 16);
+                    else
+                        sdefect_val <= conv_std_logic_vector(100, 16);
+                    end if;
+                end if;
+            end if;
+        end if;
+    end process;
+
+    --# 2605181523 Defect pattern pixel assembly (per-lane register, 4 px/word)
+    -- Background = sdata_1d (1-stage delayed idata) so it aligns with shcnt/svcnt which
+    -- are also 1-stage delayed via the sync mux. After 1 cycle register here + 1 cycle in
+    -- the tp_sel mux, output lines up with shcnt_2d/svcnt_2d (3-stage total).
+    -- Lane map (16-bit each):
+    --   sramp_data7[15:0]   = lane0 (pixel col = shcnt*4 + 0)
+    --   sramp_data7[31:16]  = lane1                          + 1
+    --   sramp_data7[47:32]  = lane2                          + 2
+    --   sramp_data7[63:48]  = lane3                          + 3
+    process(iui_clk)
+        variable v_row_ln : boolean;
+    begin
+        if(iui_clk'event and iui_clk = '1') then
+            if(iui_rstn = '0') then
+                sramp_data7 <= (others => '0');
+            else
+                -- Full-row line: every pixel of svcnt 150 / 250 / 251 = foreground
+                v_row_ln := (svcnt = 150) or (svcnt = 250) or (svcnt = 251);
+
+                -- Lane 0: dots (r,c)=(100,100)/(200,200)/(300,300)/(301,300)/(400,400)/(401,400)
+                if(v_row_ln) then
+                    sramp_data7(15 downto 0) <= sdefect_val;
+                elsif((svcnt = 100 and shcnt =  25) or
+                      (svcnt = 200 and shcnt =  50) or
+                      (svcnt = 300 and shcnt =  75) or
+                      (svcnt = 301 and shcnt =  75) or
+                      (svcnt = 400 and shcnt = 100) or
+                      (svcnt = 401 and shcnt = 100)) then
+                    sramp_data7(15 downto 0) <= sdefect_val;
+                else
+                    sramp_data7(15 downto 0) <= sdata_1d(15 downto 0);
+                end if;
+
+                -- Lane 1: dots (200,201)/(300,301)/(400,401)/(401,401)
+                if(v_row_ln) then
+                    sramp_data7(31 downto 16) <= sdefect_val;
+                elsif((svcnt = 200 and shcnt =  50) or
+                      (svcnt = 300 and shcnt =  75) or
+                      (svcnt = 400 and shcnt = 100) or
+                      (svcnt = 401 and shcnt = 100)) then
+                    sramp_data7(31 downto 16) <= sdefect_val;
+                else
+                    sramp_data7(31 downto 16) <= sdata_1d(31 downto 16);
+                end if;
+
+                -- Lane 2: col-line at pixel-col 150 (shcnt=37) / 250 (shcnt=62)
+                if(v_row_ln) then
+                    sramp_data7(47 downto 32) <= sdefect_val;
+                elsif(shcnt = 37 or shcnt = 62) then
+                    sramp_data7(47 downto 32) <= sdefect_val;
+                else
+                    sramp_data7(47 downto 32) <= sdata_1d(47 downto 32);
+                end if;
+
+                -- Lane 3: col-line at pixel-col 251 (shcnt=62)
+                if(v_row_ln) then
+                    sramp_data7(63 downto 48) <= sdefect_val;
+                elsif(shcnt = 62) then
+                    sramp_data7(63 downto 48) <= sdefect_val;
+                else
+                    sramp_data7(63 downto 48) <= sdata_1d(63 downto 48);
+                end if;
+            end if;
+        end if;
+    end process;
+
     --# Test pattern selector: frame counter and tp_sel mux
     process(iui_clk)
     begin
@@ -422,6 +516,7 @@ begin
 --                  when x"E"   => sdata_tp <= (DN45000 + x"0200") & (DN45000 + x"0100") & (DN45000 + x"0080") & (DN45000 + x"0040");
 --                  when x"D"   => sdata_tp <= x"0190019001900190";
 --                  when x"E"   => sdata_tp <= window_data0 & window_data0 & window_data0 & window_data0;
+                    when x"E"   => sdata_tp <= sramp_data7;    --# 2605181523 Defect-check pattern (dots+lines, 100/10000 toggle)
                     when others => sdata_tp <= reg_tp_value_3d & reg_tp_value_3d & reg_tp_value_3d & reg_tp_value_3d;
                 end case;
             end if;

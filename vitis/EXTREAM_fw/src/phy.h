@@ -85,6 +85,9 @@ int  m88x33xx_initx(phy_if_mode if_mode);
 int  m88x33xx_inity(phy_if_mode if_mode);
 int  m88x33xx_init(phy_if_mode if_mode);
 int  m88x33xx_wait_app_ready(u32 max_ms);   // 2604231030 Poll PHY app code start with timeout
+//# 2605121219 Background retry when wait_app_ready timed out at boot path
+extern volatile u32 g_m88x_init_pending;
+int  m88x33xx_retry_init_if_pending(void);
 void m88x33xx_debug();
 void m88x33xx_revision();
 void m88x33xx_loopback_line();
