@@ -393,6 +393,9 @@ begin
 --      sdata_dnr  <= sdata_contrast;
 --  end generate gen_dnr_off;
 
+    --# 2608241621 Guard auto B&C by GEN_BNC; mux moved inside (no undriven bnc_*)
+    gen_bnc_on : if(GEN_BNC = '1') generate
+    begin
     BNC_MinMax : BritCont_master
         port map (
             i_clk          => idata_clk,
@@ -415,7 +418,21 @@ begin
     sreg_sel_bright   <= bnc_bright   when sreg_bnc_En = '1' else ireg_bright;
     sreg_sel_contrast <= bnc_contrast when sreg_bnc_En = '1' else ireg_contrast;
 
-    gen_bnc4 : for i in 0 to 4 - 1 generate
+    end generate gen_bnc_on;
+
+    --# 2608241621 Auto B&C off: manual register path
+    gen_bnc_off : if(GEN_BNC = '0') generate
+    begin
+        sreg_sel_bright   <= ireg_bright;
+        sreg_sel_contrast <= ireg_contrast;
+    end generate gen_bnc_off;
+
+    --# 2608241621 Guard B&C apply by GEN_BC (4 DSP48E1); gen_bnc4 -> gen_bc4
+    gen_bc_on : if(GEN_BC = '1') generate
+    begin
+
+--      gen_bnc4 : for i in 0 to 4 - 1 generate
+        gen_bc4 : for i in 0 to 4 - 1 generate
     begin
 
         U0_BRIGHT_CTRL : BRIGHT_CTRL
@@ -460,7 +477,22 @@ begin
                 odata  => sdata_contrast(16 * (i + 1) - 1 downto 16 * i)
             );
 
-    end generate gen_bnc4;
+        end generate gen_bc4;
+
+    end generate gen_bc_on;
+
+    --# 2608241621 B&C apply off: straight bypass, 5clk less latency
+    gen_bc_off : if(GEN_BC = '0') generate
+    begin
+        gen_bc4_bypass : for i in 0 to 4 - 1 generate
+        begin
+            shsync_contrast(i) <= ihsync;
+            svsync_contrast(i) <= ivsync;
+            shcnt_contrast(i)  <= ihcnt;
+            svcnt_contrast(i)  <= ivcnt;
+            sdata_contrast(16 * (i + 1) - 1 downto 16 * i) <= idata(16 * (i + 1) - 1 downto 16 * i);
+        end generate gen_bc4_bypass;
+    end generate gen_bc_off;
 
 -- █▀█ █▀ █▀▄
 -- █▄█ ▄█ █▄▀ %osd

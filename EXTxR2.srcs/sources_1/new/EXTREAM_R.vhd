@@ -165,7 +165,11 @@ entity EXTREAM_R is
             sfp_rx_p        : in    std_logic_vector(FUNC_SFP_NUM(GNR_MODEL) - 1 downto 0);
             sfp_rx_n        : in    std_logic_vector(FUNC_SFP_NUM(GNR_MODEL) - 1 downto 0);
             sfp_tx_dis_n    : out   std_logic_vector(FUNC_SFP_NUM(GNR_MODEL) - 1 downto 0);
-            sfp_los         : in    std_logic_vector(FUNC_SFP_NUM(GNR_MODEL) - 1 downto 0)
+            sfp_los         : in    std_logic_vector(FUNC_SFP_NUM(GNR_MODEL) - 1 downto 0);
+            --# 2608191217 SFP module 2-wire bus (SFF-8472 DDM), 5th slave of U0_I2C_CTRL.
+            --# An SFP cage always carries the DDM bus, so it shares FUNC_SFP_NUM with the datapath.
+            SFP_SCL         : out   std_logic_vector(FUNC_SFP_NUM(GNR_MODEL) - 1 downto 0);
+            SFP_SDA         : inout std_logic_vector(FUNC_SFP_NUM(GNR_MODEL) - 1 downto 0)
             );
 end EXTREAM_R;
 
@@ -688,6 +692,10 @@ architecture top of EXTREAM_R is
     signal sreg_i2c_rdata2      : std_logic_vector(31 downto 0) := (others => '0');
     signal sreg_i2c_rdata3      : std_logic_vector(31 downto 0) := (others => '0');
     signal sreg_i2c_done        : std_logic := '0';
+    --# 2608191217 5th slave (SFP DDM) result + I2C_MODE[1]/[15:8] control fields
+    signal sreg_i2c_rdata4      : std_logic_vector(31 downto 0) := (others => '0');
+    signal sreg_i2c_sfp_en      : std_logic := '0';
+    signal sreg_i2c_sfp_ptr     : std_logic_vector(7 downto 0) := (others => '0');
     signal sreg_temp_en         : std_logic := '0';
     signal sreg_device_temp     : std_logic_vector(15 downto 0) := (others => '0');
     signal sreg_sd_wen          : std_logic := '0';
@@ -791,6 +799,7 @@ architecture top of EXTREAM_R is
     signal sreg_BlurOffset  : std_logic_vector(15 downto 0) := (others => '0');
     signal sReg_AccCtrl     : std_logic_vector(15 downto 0) := (others => '0');
     signal sReg_AccStat     : std_logic_vector(15 downto 0) := (others => '0');
+    signal sReg_spc_ctrl    : std_logic_vector(15 downto 0) := x"0121"; --$ 2607241407 Short Pixel Cover ctrl (0x04A8)
 
     signal sreg_ExtTrigEn      : std_logic := '0';
     signal sreg_ExtRst_MODE    : std_logic_vector(7 downto 0) := (others => '0');
@@ -882,6 +891,7 @@ architecture top of EXTREAM_R is
     signal sbd_mclk        : std_logic := '0';
     signal sbd_dclk        : std_logic := '0';
     signal sPWR_EN         : std_logic_vector(PWR_NUM(GNR_MODEL)-1 downto 0);
+    signal sreg_pwr_ctrl   : std_logic_vector(31 downto 0) := (others => '0'); --$ 2607141553
 
     --# roic str clk ctrl 220901
     signal sreg_roic_str : std_logic_vector(7 downto 0) := (others => '0');
@@ -1106,6 +1116,7 @@ begin
 
             ireg_roic_str   => sreg_roic_str,
             ireg_pwr_mode   => sreg_pwr_mode,
+            ireg_pwr_ctrl   => sreg_pwr_ctrl,  --$ 2607141553
             ireg_grab_en    => sreg_grab_en,
             ireg_gate_en    => sreg_gate_en,
             ireg_img_mode   => sreg_img_mode,
@@ -1495,6 +1506,8 @@ begin
             ireg_mpc_point3    => sreg_mpc_point3,
             ireg_mpc_posoffset => sreg_mpc_posoffset,
 
+            ireg_spc_ctrl      => sReg_spc_ctrl, --$ 2607241407 Short Pixel Cover ctrl
+
             ireg_rdefect_wen   => sreg_rdefect_wen,
             ireg_rdefect_addr  => sreg_rdefect_addr,
             ireg_rdefect_wdata => sreg_rdefect_wdata,
@@ -1817,13 +1830,17 @@ end generate GEN_IMGOUT_2p5;
 
 -- █ ▀█ █▀▀
 -- █ █▄ █▄▄
+    --# 2608191217 slave_num 4 -> 4 + FUNC_SFP_NUM: slaves 0..3 are the NCT175s on TEMP_SCL/SDA,
+    --# slave 4 (SFP models only) is the SFP DDM device 0x51 on SFP_SCL/SDA.
     U0_I2C_CTRL : entity work.I2C_CTRL
         generic map (
-            slave_num    => 4,
+            slave_num   => 4 + FUNC_SFP_NUM(GNR_MODEL),
+            sfp_num     => FUNC_SFP_NUM(GNR_MODEL),
             slave_addr0 => "010",
             slave_addr1 => "011",
             slave_addr2 => "100",
-            slave_addr3 => "101"
+            slave_addr3 => "101",
+            slave_addr4 => "001" --# 2608191217 SFF-8472 A2h diagnostics page -> 0x51
         )
         port map (
             iui_clk  => sui_clk,
@@ -1835,14 +1852,20 @@ end generate GEN_IMGOUT_2p5;
             ireg_i2c_wdata  => sreg_i2c_wdata,
             ireg_i2c_ren    => sreg_i2c_ren,
             ireg_i2c_rsize  => sreg_i2c_rsize,
+            ireg_i2c_sfp_en  => sreg_i2c_sfp_en,  --# 2608191217 I2C_MODE[1]
+            ireg_i2c_sfp_ptr => sreg_i2c_sfp_ptr, --# 2608191217 I2C_MODE[15:8]
             oreg_i2c_rdata0 => sreg_i2c_rdata0,
             oreg_i2c_rdata1 => sreg_i2c_rdata1,
             oreg_i2c_rdata2 => sreg_i2c_rdata2,
             oreg_i2c_rdata3 => sreg_i2c_rdata3,
+            oreg_i2c_rdata4 => sreg_i2c_rdata4,   --# 2608191217 SFP DDM sample
             oreg_i2c_done    => sreg_i2c_done,
 
             oi2c_scl  => TEMP_SCL,
-            ioi2c_sda => TEMP_SDA
+            ioi2c_sda => TEMP_SDA,
+            --# 2608191217 second bus, null slice on models without an SFP cage
+            oi2c_sfp_scl  => SFP_SCL,
+            ioi2c_sfp_sda => SFP_SDA
         );
 
     U0_XADC_CTRL : entity work.XADC_CTRL
@@ -2169,8 +2192,8 @@ begin
                              sgate_flk when GNR_MODEL = "EXT4343RI_4"  else -- FLK
                              sgate_flk when GNR_MODEL = "EXT4343RCI_1" else -- FLK
                              sgate_flk when GNR_MODEL = "EXT4343RCI_2" else -- FLK
-                             sgate_flk when GNR_MODEL = "EXT4343RD"    else -- FLK
-                             sgate_flk when GNR_MODEL = "EXT3643R"     else -- FLK
+                         not sgate_flk when GNR_MODEL = "EXT4343RD"    else -- FLK
+                         not sgate_flk when GNR_MODEL = "EXT3643R"     else -- #26081111 flk not
                          not sgate_flk;
 
 end generate ver3_gate_sig_mapping;
@@ -2281,6 +2304,7 @@ end generate ver3_gate_sig_mapping;
             GNR_MODEL = "EXT4343RC_1" or --# 241213 gpio
             GNR_MODEL = "EXT2832R" or
             GNR_MODEL = "EXT2430RI" or
+            GNR_MODEL = "EXT3643R" or --# circle TP
             GNR_MODEL = "EXT2430RD") generate
     signal gpio : std_logic_vector(1 to 4);
     type type_4x16b is array (1 to 4) of std_logic_vector(16-1 downto 0);
@@ -2298,6 +2322,7 @@ begin
                    sgate_oe1      when sreg_testpoint(i) = x"0004" else
                    sgate_xon      when sreg_testpoint(i) = x"0005" else
                    sgate_flk      when sreg_testpoint(i) = x"0006" else
+                   F_ROIC_SDO(0)  when sreg_testpoint(i) = x"0007" else
 
                    '1' when sreg_testpoint(i) = x"1111" else
                    '0' when sreg_testpoint(i) = x"0000" else
@@ -2897,7 +2922,10 @@ end generate TP_EXT;
             ireg_i2c_rdata1 => sreg_i2c_rdata1,
             ireg_i2c_rdata2 => sreg_i2c_rdata2,
             ireg_i2c_rdata3 => sreg_i2c_rdata3,
+            ireg_i2c_rdata4 => sreg_i2c_rdata4,   --# 2608191217 SFP DDM sample
             ireg_i2c_done   => sreg_i2c_done,
+            oreg_i2c_sfp_en  => sreg_i2c_sfp_en,  --# 2608191217 I2C_MODE[1]
+            oreg_i2c_sfp_ptr => sreg_i2c_sfp_ptr, --# 2608191217 I2C_MODE[15:8]
 
             oreg_temp_en     => sreg_temp_en,
             ireg_device_temp => sreg_device_temp,
@@ -2999,6 +3027,7 @@ end generate TP_EXT;
             oreg_BlurOffset  => sreg_BlurOffset ,
             oreg_AccCtrl     => sreg_AccCtrl    ,
             ireg_AccStat     => sreg_AccStat    ,
+            oreg_spc_ctrl    => sReg_spc_ctrl   , --$ 2607241407 Short Pixel Cover ctrl (0x04A8)
 
             oreg_ExtTrigEn      => sreg_ExtTrigEn,
             oreg_ExtRst_MODE    => sreg_ExtRst_MODE,
@@ -3037,7 +3066,9 @@ end generate TP_EXT;
 
             oreg_debug => sreg_debug,
             --# 2604221500 SFP/RXAUI status readback
-            ireg_sfp_stat => sreg_sfp_stat
+            ireg_sfp_stat => sreg_sfp_stat,
+            --$ 2607141553 opwr_en override register output
+            oreg_pwr_ctrl => sreg_pwr_ctrl
         );
 
 --# for osd 220209mbh
@@ -4168,22 +4199,22 @@ end generate TP_EXT;
 
     begin
 
-        u_ila_sfp : ila_sfp
-        PORT MAP (
-            clk    => sys_clk           ,
-            probe0(0) => sfp_los(0)        ,
-            probe1(0) => sfp_signal_detect ,
-            probe2(0) => sfp_tx_disable    ,
-            probe3(0) => not sfp_tx_disable,
-            probe4(0) => sfp_rst_done      ,
-            probe5(0) => sfp_phy_sel       ,
-            probe6(0) => xgmii_lock        ,
-            probe7(0) => mac_mdio_in       ,
-            probe8(0) => sfp_mdio_in       ,
-            --# 2604221355 Clock freq counters (100ms window): ~15,625,000 when healthy 156.25MHz; 0 if clock dead
-            probe9    => cnt_rxaui_latched ,
-            probe10   => cnt_sfpcore_latched
-        );
+--        u_ila_sfp : ila_sfp
+--        PORT MAP (
+--            clk    => sys_clk           ,
+--            probe0(0) => sfp_los(0)        ,
+--            probe1(0) => sfp_signal_detect ,
+--            probe2(0) => sfp_tx_disable    ,
+--            probe3(0) => not sfp_tx_disable,
+--            probe4(0) => sfp_rst_done      ,
+--            probe5(0) => sfp_phy_sel       ,
+--            probe6(0) => xgmii_lock        ,
+--            probe7(0) => mac_mdio_in       ,
+--            probe8(0) => sfp_mdio_in       ,
+--            --# 2604221355 Clock freq counters (100ms window): ~15,625,000 when healthy 156.25MHz; 0 if clock dead
+--            probe9    => cnt_rxaui_latched ,
+--            probe10   => cnt_sfpcore_latched
+--        );
 
         --# 2604221355 sys_clk toggle every 100ms (100MHz * 100ms = 10,000,000)
         WIN_TOG_PROC : process(sys_clk)

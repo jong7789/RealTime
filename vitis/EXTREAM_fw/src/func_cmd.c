@@ -1350,7 +1350,10 @@ void execute_cmd_gewt_calc(void) {
 //
 void execute_cmd_gain(u32 data) {
     func_gain_cal = data;
-    REG(ADDR_GAIN_CAL) = data;
+//    REG(ADDR_GAIN_CAL) = data;
+    //# 2606121620 keep gain reg 0 while bg NUC load runs (partial data in DDR);
+    //             finish re-applies func_gain_cal. Offset may lead gain (independent).
+    REG(ADDR_GAIN_CAL) = brns_bg_active() ? 0 : data;
     REG(ADDR_OFFSET_CAL) = data;    // dskim - 21.03.08 - offset 먼저 subtraction 하도록 변경
 
 //  if(func_gain_cal)   REG(ADDR_DDR_CH_EN) = 0b00110001;
@@ -1493,6 +1496,24 @@ void execute_cmd_ifs(u32 data) {
     	}
     }
     //####################################################
+
+    //$ 2607151649 execute_cmd_ifs: set ROIC 0x6D from ifs index (EXT3643R only).
+    //$ 2607161145 lookup-table version (was linear formula). x=func_ifs_index(0..15).
+    //$ Runs on every ifs change (UART/boot/auto-gain all pass through here).
+#if IFS_R6D_EN
+    if (mEXT3643R_series) {
+        //$ 2607161145 seeded 210-13*x; edit per-index for measured values. See fpga_info.h.
+        static const u8 ifs_r6d_tbl[16] = {
+            0xD2, 0xB4, 0xB4, 0xAB, 0x9E, 0x91, 0x84, 0x77,   // ifs  0.. 7
+            0x6A, 0x5D, 0x50, 0x43, 0x36, 0x29, 0x1C, 0x0F,   // ifs  8..15
+        };
+        u32 x = func_ifs_index;
+        if (x > 15) x = 15;                                 // index guard
+        execute_cmd_wroic(IFS_R6D_REG, ifs_r6d_tbl[x]);     // low byte to ROIC 0x6D
+        if(DEBUG_IFS)func_printf("[IFS_R6D] ifs=%u -> 0x6D=0x%02x\r\n",
+                                 (unsigned)x, (unsigned)ifs_r6d_tbl[x]);
+    }
+#endif
 }
 
 void execute_cmd_dgain(u32 data) {
@@ -1509,10 +1530,16 @@ void execute_cmd_reboot(void) {
     (*((void(*)())(0x00)))();
 }
 
+//# 2608191842 execute_cmd_rtempraw: select the XML temperature source (see func_temp_raw_mode)
+void execute_cmd_rtempraw(u32 data) {
+    func_temp_raw_mode = data ? 1 : 0;
+}
+
 void execute_cmd_rtemp(void) {
     read_ds1731_temp();
     // TI_ROIC
     read_roic_temp();
+    read_sfp_temp();  //# 2608191647 independent sensors: SFP DDM and Marvell MDIO both sampled
     read_phy_temp();
     read_fpga_temp();
 }
@@ -2856,6 +2883,382 @@ else
 }
 #endif
 
+//# 2606121417 brns_bg: background chunked NUC load (flash -> DDR CH1)
+// Purpose: replace boot-time blocking execute_cmd_brns() (6~12s) with a
+//          chunked loader driven from the main loop; main loop keeps running
+//          (gige_callback etc.) so ethernet connection is not blocked.
+// Chunk size 4096 dwords ~= 4ms per poll at ~1M dword/s flash read rate.
+//#define BRNS_BG_CHUNK_DWORDS    4096
+//# 2606121543 adaptive chunk: large while no ethernet (fast load), small while
+//             connected so GVCP/stream servicing latency stays ~0.5ms
+#define BRNS_BG_CHUNK_IDLE      4096    // dwords, ~4ms per chunk (no connection)
+#define BRNS_BG_CHUNK_CONN      512     // dwords, ~0.5ms per chunk (connected)
+//# 2607021900 FLA re-seek settle (us). Each chunk re-arms the FLA engine
+//             (ADDR_FLA_ADDR + CTRL=1 read-start); the FIRST FLA_DATA read
+//             needs the SPI fetch to complete, else it returns stale data ->
+//             1 corrupted pixel per chunk boundary (regular black dots at
+//             chunk-size multiples, e.g. (1216,2107)/(1792,2108) = x4096).
+//             Original execute_cmd_brns used msdelay(1) once; per-chunk needs
+//             only a few us. Tune if dots persist.
+#define BRNS_BG_RESEEK_SETTLE_US  10
+//# 2606121543 chunk timing: FPGA free-running counter, 100MHz = 10ns/tick
+//             (same source as disp_cmd_rtime; 32bit slice wraps every ~42.9s,
+//              unsigned diff is wrap-safe for sub-second chunk measurements)
+//#define BRNS_BG_TICK_REG        0x43E0C024
+//# 2606121720 timing measurement removed (counter read returned latched/stale
+//             values -> all-zero stats). Replaced by GEV-SPI-busy yield below.
+//             SPI idle warmup: resume chunks only after this many consecutive
+//             polls observe the GEV SPI engine idle (no clock source needed).
+#define BRNS_BG_SPI_IDLE_POLLS  1000
+//# 2606121740 event-driven suspend: libgige gige_event() (user.c) signals app
+//             connect (GVCP_CONFIG_WRITE -> XML download follows) and stream
+//             open / app disconnect / link down (-> resume). Poll-count value
+//             is a safety timeout only -- tune on HW using suspend/resume msgs.
+#define BRNS_BG_SUSPEND_POLLS   300000
+
+typedef enum {
+    BRNS_BG_IDLE = 0,   // nothing to do (or done)
+    BRNS_BG_PEND,       // requested, header parse on next poll
+    BRNS_BG_RUN         // transferring chunks
+} brns_bg_state_e;
+
+static brns_bg_state_e brns_bg_state = BRNS_BG_IDLE;
+static u8  brns_bg_restart    = 0;  // re-request received while running
+static u32 brns_bg_flash_addr = 0;  // next flash byte address to read
+static u32 brns_bg_ddr_addr   = 0;  // next DDR byte address to write
+static u32 brns_bg_ref_cnt    = 0;  // dword count within current ref (0-padding)
+static u32 brns_bg_remain     = 0;  // dwords left to transfer
+static u32 brns_bg_total      = 0;  // total dwords of this load (progress base)
+static u32 brns_bg_nun_num    = 0;  // ref image count - 1
+static u32 brns_bg_last_pct   = 0;  // last printed progress step (10% units)
+//# 2606121543 per-chunk transfer time statistics (us)
+//# 2606121720 timing stats removed (stale counter reads gave all-zero values)
+//static u32 brns_bg_t_last_us  = 0;  // last chunk time
+//static u32 brns_bg_t_min_us   = 0;  // min chunk time
+//static u32 brns_bg_t_max_us   = 0;  // max chunk time
+//static u32 brns_bg_t_sum_us   = 0;  // accumulated transfer time (sum of chunks)
+static u32 brns_bg_chunk_cnt  = 0;  // chunks completed
+//# 2606121720 GEV SPI yield state: pause chunks while host reads flash
+//             (XML download etc.) through the GEV core SPI engine
+static u32 brns_bg_spi_idle_cnt = 0;    // consecutive polls with SPI idle
+static u32 brns_bg_hold_cnt    = 0;     // polls yielded due to SPI activity (stat)
+//# 2606151027 SPI flash reads complete synchronously inside gige_callback
+//             (flash_done busy-wait) so the gcsr done bit is always 1 by the
+//             time we poll -> busy-bit detection never fires. Instead watch
+//             gige_spi_addr: it changes on every flash read (lib XML download
+//             or FW flash op), so a change since last poll == activity.
+static u32 brns_bg_spi_addr_prev = 0;   // last observed gige_spi_addr
+//# 2606121740 SPI busy episode flag (one detection message per episode) and
+//             event-driven suspend countdown (decremented per poll while held)
+static u8  brns_bg_spi_seen    = 0;     // 1 after busy msg until quiet again
+static u32 brns_bg_susp_polls  = 0;     // >0: suspended (no chunks)
+u32 func_ddrchen_brns_stat    = 0;  // 1 while loading: set_ddr_ch_en masks R_NUC
+
+//# 2606151610 brns_bg_reset: explicit boot init. These statics are zero-init ->
+//             .sbss/.bss (NOLOAD); this boot flow (bootloader + striped image)
+//             may not clear them, leaving garbage (observed: fdot ON after boot,
+//             layout-shift dependent). Call once from main before any use.
+void brns_bg_reset(void) {
+    brns_bg_state          = BRNS_BG_IDLE;
+    brns_bg_restart        = 0;
+    brns_bg_flash_addr     = 0;
+    brns_bg_ddr_addr       = 0;
+    brns_bg_ref_cnt        = 0;
+    brns_bg_remain         = 0;
+    brns_bg_total          = 0;
+    brns_bg_nun_num        = 0;
+    brns_bg_last_pct       = 0;
+    brns_bg_chunk_cnt      = 0;
+    brns_bg_spi_idle_cnt   = 0;
+    brns_bg_hold_cnt       = 0;
+    brns_bg_spi_addr_prev  = 0;
+    brns_bg_spi_seen       = 0;
+    brns_bg_susp_polls     = 0;
+    func_ddrchen_brns_stat = 0;
+//    func_offset_after_eth  = 0;     // func_basic.c global (extern via func_basic.h)
+    //$ 2606171840 brns_bg_reset: clear timer-based deferred grab as well
+    func_offset_after_tmr    = 0;   // disarm pending grab
+    func_offset_after_tmr_t0 = 0;   // reset t0 snapshot
+}
+
+void brns_bg_request(void) {
+    if (brns_bg_state != BRNS_BG_IDLE) { brns_bg_restart = 1; return; }
+    brns_bg_state = BRNS_BG_PEND;
+}
+
+u8 brns_bg_active(void) {
+    return (brns_bg_state != BRNS_BG_IDLE);
+}
+
+//# 2606121740 brns_bg_suspend: called from gige_event() on GVCP config write
+// (= app connected, XML download follows). Holds chunk transfers so READMEM
+// responses are not delayed by chunk time. No-op when no load is pending.
+void brns_bg_suspend(void) {
+    if (brns_bg_state == BRNS_BG_IDLE)  return;
+    if (brns_bg_susp_polls == 0)
+        func_printf("\r\n[BRNS-BG] suspend (app connect)\r\n");
+    brns_bg_susp_polls = BRNS_BG_SUSPEND_POLLS;     // (re)arm safety timeout
+}
+
+//# 2606121740 brns_bg_resume: called from gige_event() on stream open /
+// app disconnect / link down -- connection phase over, resume chunk load.
+void brns_bg_resume(void) {
+    if (brns_bg_susp_polls) {
+        brns_bg_susp_polls = 0;
+        func_printf("\r\n[BRNS-BG] resume (event)\r\n");
+    }
+}
+
+u8 brns_bg_progress(void) {
+    if (brns_bg_state != BRNS_BG_RUN || brns_bg_total == 0)
+        return (brns_bg_state == BRNS_BG_IDLE) ? 100 : 0;
+//    return (u8)(((brns_bg_total - brns_bg_remain) * 100) / brns_bg_total);
+    //# 2606121502 brns_bg_progress: divide-first to avoid u32 overflow (done*100 > 4.29G when total > ~43M dwords)
+    return (u8)((brns_bg_total - brns_bg_remain) / ((brns_bg_total / 100) + 1));
+}
+
+//# 2606121417 brns_bg_init: header parse, mirrors execute_cmd_brns() front half
+// Returns 1 on no/invalid NUC data (load skipped), 0 on started.
+static u8 brns_bg_init(void) {
+    u32 i;
+    u32 data_info[13] = {0, };
+    u8  flag_data = 0;
+    u32 flash_width = 0;
+    u32 flash_height = 0;
+    u32 flash_ref_num = 0;
+    u32 flash_width_x32 = 0;
+    u32 flash_addr = FLASH_NUC_INFO_BASEADDR;
+
+    for (i = 0; i < 13; i++) {
+        data_info[i] = flash_read_dword(flash_addr);
+        flash_addr += 4;
+        if(!flag_data) {
+            if(data_info[i] == 0xFFFFFFFF)  flag_data = 0;
+            else                            flag_data = 1;
+        }
+        if(!flag_data)  return 1;       // no NUC info in flash
+    }
+
+    func_img_avg_old = data_info[0];
+    flash_width      = data_info[10];
+    flash_height     = data_info[11];
+    flash_ref_num    = data_info[12];
+    if( mEXT4343R_series){ if(flash_ref_num > 5)  return 1; }
+    else                 { if(flash_ref_num >= 9) return 1; }
+
+    if(flash_ref_num > 1)   func_img_avg_dose1 = data_info[2];
+    if(flash_ref_num > 2)   func_img_avg_dose2 = data_info[3];
+    if(flash_ref_num > 3)   func_img_avg_dose3 = data_info[4];
+    if(flash_ref_num > 4)   func_img_avg_dose4 = data_info[5];
+
+    if(flash_width  >= MAX_WIDTH)   flash_width  = MAX_WIDTH;
+    if(flash_height >= MAX_HEIGHT)  flash_height = MAX_HEIGHT;
+    flash_width_x32 = (u32)(ceil(flash_width / 32.0)) * 32;
+
+    mpc_cal();
+
+    if (flash_ref_num == 0) brns_bg_nun_num = 0;    // prevent 0-1
+    else                    brns_bg_nun_num = flash_ref_num - 1;
+
+    brns_bg_total      = flash_width_x32 * flash_height * brns_bg_nun_num;
+    brns_bg_remain     = brns_bg_total;
+    brns_bg_ddr_addr   = ADDR_NUC_DATA;
+    brns_bg_flash_addr = FLASH_NUC_BASEADDR;
+    brns_bg_ref_cnt    = 0;
+    brns_bg_last_pct   = 0;
+//    //# 2606121543 reset chunk timing stats per load
+//    brns_bg_t_last_us  = 0;
+//    brns_bg_t_min_us   = 0;
+//    brns_bg_t_max_us   = 0;
+//    brns_bg_t_sum_us   = 0;
+    brns_bg_chunk_cnt  = 0;
+    //# 2606121720 reset SPI yield state per load
+    brns_bg_spi_idle_cnt = 0;
+    brns_bg_hold_cnt     = 0;
+
+    if (brns_bg_total == 0)     return 1;   // nothing to load
+
+    // NUC existence check
+    if(flash_read_dword(brns_bg_flash_addr)==0xFFFFFFFF)   return 1;
+
+//    REG(ADDR_FW_BUSY) = 1;
+    REG(ADDR_FW_BUSY) = 0; //# 260612 no busy use
+    func_ddrchen_brns_stat = 1;     // gate gain-corr NUC read until done
+    //# 2606121620 force NUC gain corr off while loading; offset(0x0050) may stay
+    //             on independently. Restored by execute_cmd_gain at finish.
+    REG(ADDR_GAIN_CAL) = 0;
+    //# 2606151027 seed addr snapshot AFTER all of init's own flash reads so the
+    //             first poll doesn't false-trigger on our header/existence read
+    brns_bg_spi_addr_prev = gige_spi_addr;
+//    func_printf("\r\n[BRNS-BG] Start: %u dwords, chunk=%u\r\n",
+//                (unsigned int)brns_bg_total, (unsigned int)BRNS_BG_CHUNK_DWORDS);
+    //# 2606121543 start message shows both adaptive chunk sizes
+    func_printf("\r\n[BRNS-BG] Start: %u dwords, chunk conn=%u/idle=%u\r\n",
+                (unsigned int)brns_bg_total,
+                (unsigned int)BRNS_BG_CHUNK_CONN, (unsigned int)BRNS_BG_CHUNK_IDLE);
+    return 0;
+}
+
+//# 2606121417 brns_bg_poll: one chunk per call; FLA engine re-armed per chunk
+// so SPI flash is free for other users between chunks. Replicates the
+// 0-padding / address-skip logic of execute_cmd_brns() inner loop.
+void brns_bg_poll(void) {
+    u32 i, pct;
+//    u32 chunk, t0;  //# 2606121543 adaptive chunk size + timing
+    u32 chunk;      //# 2606121720 timing removed (t0 dropped)
+
+    switch (brns_bg_state) {
+    case BRNS_BG_IDLE:
+        return;
+
+    case BRNS_BG_PEND:
+        if (brns_bg_init()) {       // parse header / existence check
+            func_printf("\r\n[BRNS-BG] No Flash Memory Data - NUC\r\n");
+            brns_bg_state = BRNS_BG_IDLE;
+            return;
+        }
+        brns_bg_state = BRNS_BG_RUN;
+        return;
+
+    case BRNS_BG_RUN:
+        //# 2606121502 brns_bg_poll: re-assert FW_BUSY every chunk; other commands
+        //             running between chunks clear it at their end (stomping)
+//        REG(ADDR_FW_BUSY) = 1;
+        //# 2606121604 brns_bg_poll: FW_BUSY removed during bg load -- XML_BUSY
+        //             (func_busy | REG(ADDR_FW_BUSY)) blocks host image output,
+        //             defeating the purpose of background loading. Follows the
+        //             '260612 no busy use' edit in brns_bg_init.
+        //# 2606121740 event-driven suspend (primary): armed by gige_event()
+        //             on app connect, cleared by stream open / disconnect /
+        //             link down / safety timeout. Decrements once per poll.
+        if (brns_bg_susp_polls) {
+            if (--brns_bg_susp_polls == 0)
+                func_printf("\r\n[BRNS-BG] resume (timeout)\r\n");
+            return;                             // suspended: no chunk
+        }
+        //# 2606151027 yield by detecting gige_spi_addr change (flash was read
+        //             since last poll: lib XML download or FW flash op). The
+        //             busy bit can't be seen because reads complete synchronously
+        //             inside gige_callback. On change: skip chunk + reset idle.
+        //             Resume after BRNS_BG_SPI_IDLE_POLLS consecutive no-change.
+        {
+            u32 spi_addr_now = gige_spi_addr;
+            if (spi_addr_now != brns_bg_spi_addr_prev) {    // flash accessed
+                brns_bg_spi_addr_prev = spi_addr_now;
+                brns_bg_spi_idle_cnt = 0;
+                brns_bg_hold_cnt++;
+                //# 2606121740 one detection message per busy episode (diagnostic)
+                if (!brns_bg_spi_seen) {
+                    brns_bg_spi_seen = 1;
+                    func_printf("\r\n[BRNS-BG] flash activity detected (hold=%u)\r\n",
+                                (unsigned int)brns_bg_hold_cnt);
+                }
+                return;                             // no chunk this poll
+            }
+        }
+        if (brns_bg_spi_idle_cnt < BRNS_BG_SPI_IDLE_POLLS) {
+            brns_bg_spi_idle_cnt++;             // quiet-window warmup
+            return;
+        }
+        brns_bg_spi_seen = 0;                   //# 2606121740 quiet again: re-arm msg
+        //# 2606121543 adaptive chunk: small while connected (stream/GVCP latency)
+        chunk = (func_ether_conn) ? BRNS_BG_CHUNK_CONN : BRNS_BG_CHUNK_IDLE;
+//        t0 = AREG(BRNS_BG_TICK_REG);  //# 2606121720 timing removed
+        // re-arm FLA engine each chunk so flash is free between chunks
+        REG(ADDR_FLA_ADDR) = brns_bg_flash_addr;
+        REG(ADDR_FLA_CTRL) = 1;     // read start
+        //# 2607021900 settle: wait for SPI fetch before first FLA_DATA read
+        //  (else first dword of each chunk is stale -> black dot at boundary)
+        usdelay(BRNS_BG_RESEEK_SETTLE_US);
+
+        for(i = 0; i < chunk && brns_bg_remain; i++, brns_bg_remain--) {
+            DREG(brns_bg_ddr_addr) = REG(ADDR_FLA_DATA);
+            brns_bg_ddr_addr += 4;
+            brns_bg_flash_addr += 4;
+            REG(ADDR_FLA_CTRL) = 0b11;  // manual address increment
+            REG(ADDR_FLA_CTRL) = 0b01;
+            if(++brns_bg_ref_cnt == brns_bg_nun_num) {
+                brns_bg_ref_cnt = 0;
+                DREG(brns_bg_ddr_addr) = 0;
+                if (def_gev_speed == 10)
+                    ;
+                else
+                    brns_bg_ddr_addr += (16 - (4*(brns_bg_nun_num)));
+            }
+        }
+        REG(ADDR_FLA_CTRL) = 0;     // release SPI direct ctrl between chunks
+
+//        //# 2606121543 chunk timing stats (10ns tick -> us, unsigned diff wrap-safe)
+//        brns_bg_t_last_us = (AREG(BRNS_BG_TICK_REG) - t0) / 100;
+//        if (brns_bg_chunk_cnt == 0 || brns_bg_t_last_us < brns_bg_t_min_us)
+//            brns_bg_t_min_us = brns_bg_t_last_us;
+//        if (brns_bg_t_last_us > brns_bg_t_max_us)
+//            brns_bg_t_max_us = brns_bg_t_last_us;
+//        brns_bg_t_sum_us += brns_bg_t_last_us;
+        //# 2606121720 timing stats removed (stale counter); chunk count kept
+        brns_bg_chunk_cnt++;
+
+        // progress message every 10% step
+//        pct = ((brns_bg_total - brns_bg_remain) * 100) / brns_bg_total;
+        //# 2606121502 brns_bg_poll: divide-first to avoid u32 overflow (done*100 > 4.29G when total > ~43M dwords)
+        pct = (brns_bg_total - brns_bg_remain) / ((brns_bg_total / 100) + 1);
+        if (pct >= brns_bg_last_pct + 10) {
+            brns_bg_last_pct = (pct / 10) * 10;
+            func_printf("[BRNS-BG] %u%% (%u/%u dwords)\r\n",
+                        (unsigned int)brns_bg_last_pct,
+                        (unsigned int)(brns_bg_total - brns_bg_remain),
+                        (unsigned int)brns_bg_total);
+        }
+
+        if (brns_bg_restart) {      // new request arrived mid-load: start over
+            brns_bg_restart = 0;
+            brns_bg_state = BRNS_BG_PEND;
+            func_printf("\r\n[BRNS-BG] restart requested\r\n");
+            return;
+        }
+        if (brns_bg_remain == 0) {
+            func_ddrchen_brns_stat = 0;
+//            REG(ADDR_FW_BUSY) = 0;
+            //# 2606121604 FW_BUSY no longer owned by bg load (see RUN entry note)
+//            func_printf("\r\n[BRNS-BG] Finished! brns\r\n");
+//            //# 2606121543 finish message with chunk timing statistics
+//            func_printf("\r\n[BRNS-BG] Finished! brns (chunks=%u avg=%uus min=%uus max=%uus xfer=%ums)\r\n", ...);
+            //# 2606121720 timing removed; show chunk count + SPI yield count
+            func_printf("\r\n[BRNS-BG] Finished! brns (chunks=%u spi_hold=%u)\r\n",
+                        (unsigned int)brns_bg_chunk_cnt,
+                        (unsigned int)brns_bg_hold_cnt);
+            brns_bg_state = BRNS_BG_IDLE;
+            //# 2606121620 NUC data ready: re-apply user/flash gain setting.
+            //             Writes GAIN+OFFSET together (gain on requires offset on).
+            //             MUST run after state=IDLE -- execute_cmd_gain guard
+            //             checks brns_bg_active() and would write 0 otherwise.
+            execute_cmd_gain(func_gain_cal);
+        }
+        return;
+    }
+}
+
+//# 2606121543 brns_bg_disp_status: status/stat dump for UART 'rns 3'
+//# 2606121720 timing stats removed; shows chunk counts + SPI yield stats
+// Shows load state + progress, active chunk sizes, chunks done, and how many
+// polls were yielded to the GEV SPI engine (host XML download from flash).
+void brns_bg_disp_status(void) {
+    if (brns_bg_active())
+        func_printf("\r\n[BRNS-BG] loading... %u%%\r\n", (unsigned int)brns_bg_progress());
+    else
+        func_printf("\r\n[BRNS-BG] idle (done or not requested)\r\n");
+    func_printf("[BRNS-BG] chunk: conn=%u / idle=%u dwords (eth=%u)\r\n",
+                (unsigned int)BRNS_BG_CHUNK_CONN, (unsigned int)BRNS_BG_CHUNK_IDLE,
+                (unsigned int)func_ether_conn);
+    func_printf("[BRNS-BG] chunks=%u spi_hold=%u spi_idle_cnt=%u\r\n",
+                (unsigned int)brns_bg_chunk_cnt,
+                (unsigned int)brns_bg_hold_cnt,
+                (unsigned int)brns_bg_spi_idle_cnt);
+    //# 2606121740 event-driven suspend remaining countdown (0 = not suspended)
+    func_printf("[BRNS-BG] suspend=%u polls remain\r\n",
+                (unsigned int)brns_bg_susp_polls);
+}
+
 //# 2605211347 rns_display: read-only diagnostic dump for UART 'rns' entry
 // Purpose: Show all addresses / function variables / ROM contents and the
 //          derived parameters that execute_cmd_brns would compute, WITHOUT
@@ -3824,8 +4227,10 @@ void execute_cmd_wddr(u32 data, u32 level) {
     REG(ADDR_DDR_CH_EN) = 0;
     //##### critical at 3643R #####
 //  msdelay(300); //# make image no error offset at booting //#260514
-    msdelay((u32)(3000.0f / func_frate)); //# 2605151233 wait 3 frame time (3000/frate ms)
+//    msdelay((u32)(3000.0f / func_frate)); //# 2605151233 wait 3 frame time (3000/frate ms)
     //######################################################
+    //$ 2607141159 Hold CH_EN=0 so FPGA FSM latches sch2_waddr from new base addr
+//    msdelay(1);
 
 //  REG(ADDR_DDR_CH_EN) = 0b01010101;
     //# 2605081700 wddr (write-DDR avg): D2M-style mask. main loop will overwrite after this routine returns
@@ -3840,8 +4245,20 @@ void execute_cmd_wddr(u32 data, u32 level) {
     if(DBG_wddr)func_printf("[DBG_wddr] level=%d\r\n",level);
 
     //##### critical at 3643R #####
-//  msdelay(300); //# make image no error offset at booting //#260514
-    msdelay((u32)(3000.0f / func_frate)); //# 2605151233 wait 3 frame time (3000/frate ms)
+  msdelay(300); //# make image no error offset at booting //#260514
+//    msdelay((u32)(3000.0f / func_frate));//# 260709 wait dismiss //# 2605151233 wait 3 frame time (3000/frate ms)
+    //$ 2607101735 wait 1 frame (min 200ms), call gige_callback every 200ms
+    {
+        u32 wait_ms = (u32)(1000.0f / func_frate);
+        if (wait_ms < 200) wait_ms = 200;
+        while (wait_ms > 200) {
+            msdelay(200);
+            gige_callback(0);
+            wait_ms -= 200;
+        }
+        msdelay(wait_ms);
+        gige_callback(0);
+    }
     //######################################################
     avg_status = get_ddr_pixel_avg(level);
     if(DBG_wddr)func_printf("[DBG_wddr] avg_status = %d\r\n",avg_status);
@@ -3849,8 +4266,13 @@ void execute_cmd_wddr(u32 data, u32 level) {
     if(avg_status==AVG_FAILURE) // 211207mbh
     {
         func_printf("AVG_FAILURE ! \r\n");
+        //$ 2607141159 Disable CH_EN before restoring DOSE0, then re-apply composer
+        REG(ADDR_DDR_CH_EN) = 0;
+        msdelay(1);
         set_ddr_waddr(ADDR_AVG_DATA_DOSE0, 2);
         set_ddr_raddr(ADDR_AVG_DATA_DOSE0, 2);
+        func_ddrchen_last_written = 0xFFFFFFFF;
+        set_ddr_ch_en();
         REG(ADDR_FW_BUSY) = 0;
         return;
     }
@@ -3879,26 +4301,33 @@ void execute_cmd_wddr(u32 data, u32 level) {
 
     if(func_hw_debug != 1)  func_printf("Image Average = %d\r\n", avg);
 
+    //$ 2607141159 Disable CH_EN before restoring DOSE0, then re-apply composer
+//    REG(ADDR_DDR_CH_EN) = 0;
+//    msdelay(1);
     set_ddr_waddr(ADDR_AVG_DATA_DOSE0, 2);
     set_ddr_raddr(ADDR_AVG_DATA_DOSE0, 2);
+    func_ddrchen_last_written = 0xFFFFFFFF;
+    set_ddr_ch_en();
 
     REG(ADDR_FW_BUSY) = 0;
     if(DBG_wddr)func_printf("[DBG_wddr] ADDR_FW_BUSY\r\n");
 
 }
 
+#define DBG_rddr 0
 void execute_cmd_rddr(u32 data, u32 level) {
     u32 addr = 0, avg = 0;
     switch(data) {
         case 0 :                                    break;
-        case 1 : addr = ADDR_AVG_DATA_DOSE0; if(DEBUG)func_printf(" AVG DOSE 0\r\n "); break;
-        case 2 : addr = ADDR_AVG_DATA_DOSE1; if(DEBUG)func_printf(" AVG DOSE 1\r\n ");  break;
-        case 3 : addr = ADDR_AVG_DATA_DOSE2; if(DEBUG)func_printf(" AVG DOSE 2\r\n ");  break;
-        case 4 : addr = ADDR_AVG_DATA_DOSE3; if(DEBUG)func_printf(" AVG DOSE 3\r\n ");  break;
-        case 5 : addr = ADDR_AVG_DATA_DOSE4; if(DEBUG)func_printf(" AVG DOSE 4\r\n ");  break;
-        case 6 : addr = ADDR_AVG_DATA_DOSE5; if(DEBUG)func_printf(" AVG DOSE 5\r\n ");  break;
+        case 1 : addr = ADDR_AVG_DATA_DOSE0; if(DBG_rddr)func_printf("DBG_rddr AVG DOSE 0\r\n "); break;
+        case 2 : addr = ADDR_AVG_DATA_DOSE1; if(DBG_rddr)func_printf("DBG_rddr AVG DOSE 1\r\n ");  break;
+        case 3 : addr = ADDR_AVG_DATA_DOSE2; if(DBG_rddr)func_printf("DBG_rddr AVG DOSE 2\r\n ");  break;
+        case 4 : addr = ADDR_AVG_DATA_DOSE3; if(DBG_rddr)func_printf("DBG_rddr AVG DOSE 3\r\n ");  break;
+        case 5 : addr = ADDR_AVG_DATA_DOSE4; if(DBG_rddr)func_printf("DBG_rddr AVG DOSE 4\r\n ");  break;
+        case 6 : addr = ADDR_AVG_DATA_DOSE5; if(DBG_rddr)func_printf("DBG_rddr AVG DOSE 5\r\n ");  break;
     }
 
+    if(DBG_rddr)func_printf("[DBG_rddr] addr = 0x%8x\r\n",addr);
     avg = get_ddr_frame_avg(addr, func_width, func_height);
 
     func_printf("\r\n read avg = %d \r\n ",avg);
@@ -4695,7 +5124,12 @@ void execute_cmd_diag(u32 data)
 
     func_printf("##################### \r\n");
     func_printf("##### bit align ##### \r\n");
+    //$ 2606021620 Use bcalfw snapshot if FW-driven mode, else hw register readback
+#if BOOT_BCAL_USE_FW
+    execute_cmd_bcalfw_rdata();
+#else
     execute_cmd_bcal_rdata();
+#endif
     func_printf("\r\n");
     }
     func_printf("################# \r\n");
@@ -5075,6 +5509,41 @@ void execute_cmd_bcal_rdata()
     REG(ADDR_BCAL_CTRL) = keep; // value return
 }
 
+//$ 2606021620 Print saved bcalfw snapshot for diag (AFE3256 models only)
+void execute_cmd_bcalfw_rdata(void) {
+    if (bcalfw_snap_cnt == 0) {
+        func_printf("  [bcalfw] no snapshot (bcalfw not executed yet)\r\n");
+        return;
+    }
+    func_printf("===== bcalfw report (wait_us=%lu, at boot) =====\r\n",
+                (unsigned long)bcalfw_snap_wait_us);
+    func_printf("   tap=0         1         2         3            result\r\n");
+    func_printf("       01234567890123456789012345678901\r\n");
+    for (u32 ch = 0; ch < bcalfw_snap_cnt; ch++) {
+        char map_str[33];
+        for (int t = 0; t < 32; t++)
+            map_str[t] = bcalfw_snap[ch].stable_map[t] ? 'o' : '-';
+        if (bcalfw_snap[ch].s_status == 0 &&
+            bcalfw_snap[ch].s_mid >= 0 && bcalfw_snap[ch].s_mid < 32)
+            map_str[bcalfw_snap[ch].s_mid] = '@';
+        map_str[32] = '\0';
+        u8 mid_ok = (bcalfw_snap[ch].s_status == 0 &&
+                     bcalfw_snap[ch].s_mid >= 0 && bcalfw_snap[ch].s_mid < 32);
+        u8 par_ok = (bcalfw_snap[ch].w_status == 0 &&
+                     bcalfw_snap[ch].w_par == BCAL_FW_PAR_TARGET);
+        if (mid_ok && par_ok)
+            func_printf("ch%2lu  [%s]  mid=%2d w=%2d bs=%2d par=0x%06lX  \033[32m  OK\033[0m\r\n",
+                        (unsigned long)ch, map_str,
+                        bcalfw_snap[ch].s_mid, bcalfw_snap[ch].s_width,
+                        bcalfw_snap[ch].w_bs,  (unsigned long)bcalfw_snap[ch].w_par);
+        else
+            func_printf("ch%2lu  [%s]  s_st=%2d w_st=%2d mid=%2d bs=%2d  \033[31mFAIL\033[0m\r\n",
+                        (unsigned long)ch, map_str,
+                        bcalfw_snap[ch].s_status, bcalfw_snap[ch].w_status,
+                        bcalfw_snap[ch].s_mid,    bcalfw_snap[ch].w_bs);
+    }
+}
+
 void execute_cmd_wsm(u32 time100ms)
 {
 /*  -- ##### Write reg #####
@@ -5303,6 +5772,34 @@ u32 func_acc_value; //# 230721 acc value save, acc not support at global EXT1 mo
 //             reads this and returns early when 0 -- avoids REG(ADDR_ACC_CTRL)
 //             polling traffic while ACC is disabled.
 u8  func_acc_enabled = 0;
+
+//$ 2607241407 execute_cmd_spc: build ADDR_SPC_CTRL(0x4A8) from on/dark/restore/satref.
+// Reg layout: [0]en [7:4]dark_idx [11:8]restore_idx [15:12]satref_idx.
+// Args are actual values; mapped to the FPGA enum index (unknown -> safe default).
+static u32 spc_dark_idx(u32 v) {
+    switch(v){ case 1:return 0; case 128:return 1; case 256:return 2; case 512:return 3; case 1024:return 4; default:return 3; }
+}
+static u32 spc_val_idx(u32 v) {   // restore & satref share the same value set
+    switch(v){ case 65535:return 0; case 65534:return 1; case 65530:return 2; case 60000:return 3; default:return 0; }
+}
+void execute_cmd_spc(u32 on, u32 dark, u32 restore, u32 satref)
+{
+    u32 v = ((spc_val_idx(satref)  & 0xF) << 12) |
+            ((spc_val_idx(restore) & 0xF) << 8)  |
+            ((spc_dark_idx(dark)   & 0xF) << 4)  |
+            ((on & 1) << 0);
+    REG(ADDR_SPC_CTRL) = v;
+    func_printf("spc set: on=%d dark=%d restore=%d satref=%d -> ADDR_SPC_CTRL(0x4A8)=0x%04x \r\n",
+                on & 1, dark, restore, satref, v);
+}
+
+//$ 2607241741 execute_cmd_spc_en: toggle only bit0 (enable), keep dark/restore/satref fields (RMW)
+void execute_cmd_spc_en(u32 on)
+{
+    u32 v = (REG(ADDR_SPC_CTRL) & 0xFFFE) | (on & 1);
+    REG(ADDR_SPC_CTRL) = v;
+    func_printf("spc en=%d -> ADDR_SPC_CTRL(0x4A8)=0x%04x \r\n", on & 1, v);
+}
 
 void execute_cmd_acc(u32 enable, u32 pagelimit)
 {
@@ -5656,6 +6153,8 @@ void execute_cmd_settimingprofile(u32* data)
     profile_data.tshr_lpf1 = data[3] * 100;
     profile_data.tshs_lpf2 = data[4] * 100;
     profile_data.tgate = data[5] * 100;
+    profile_data.filter = FILTER_5;               //$ 2607021050 init filter (was uninitialized -> UB in lpf_sel)
+    profile_data.m_clock = FPGA_TFT_MAIN_CLK;     //$ 2607021050 init to avoid stack garbage
     if(AFE3256_series) 	roic_3256_settingprofile(&profile_data); //$ 251121
     else				roic_settimingprofile(&profile_data);
 //  roic_settimingprofile(data[0], data[1], data[2], data[3], data[4], data[5]);
@@ -6948,7 +7447,7 @@ void execute_cmd_doc(void){ //$ 260305
 	execute_cmd_wroic(0x0D,  0x4800);
     execute_cmd_wroic(0x94,  0x8001);
     execute_cmd_wroic(0x89,  0x3230);
-    execute_cmd_wroic(0x80,  0x082D);
+    execute_cmd_wroic(0x80,  0x082D); //$ 2607241132 execute_cmd_doc: EN_TDEF kept on during DOC-calib regardless of TDEF_EN (ISOPANEL, no real overload)
     execute_cmd_wroic(0x4C,  0x0005);
     execute_cmd_wroic(0x51,  0x0306);
     execute_cmd_wroic(0x4B,  0x8003);
@@ -6967,7 +7466,8 @@ void execute_cmd_doc(void){ //$ 260305
     execute_cmd_wroic(0x0D,  keep0x0D);
     execute_cmd_wroic(0x94,  0x0001);
     execute_cmd_wroic(0x89,  0x3000);
-    execute_cmd_wroic(0x80,  0x080D);
+//    execute_cmd_wroic(0x80,  0x080D);
+    execute_cmd_wroic(0x80,  ROIC80_NORMAL); //$ 2607241132 execute_cmd_doc: restore reg0x80 with TDEF per TDEF_EN (was hardcoded 0x080D)
 
     execute_cmd_grab(grab);
     REG(ADDR_FW_BUSY) = 0;

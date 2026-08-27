@@ -421,3 +421,32 @@ set_clock_groups -asynchronous -group [get_clocks ROIC_DCLK_P0]  -group [get_clo
  -group [get_clocks -of_objects [get_pins CPU_2DDR/cpu_i/clk_wiz_0/inst/CLK_CORE_DRP_I/clk_inst/mmcm_adv_inst/CLKOUT1]] \
  -group [get_clocks -of_objects [get_pins U0_TI_TFT_TOP/U0_TI_CLOCK_MANAGER/CLK_GEN/inst/plle2_adv_inst/CLKOUT1]] \
  -group [get_clocks -of_objects [get_pins CPU_2DDR/cpu_i/clk_wiz_0/inst/CLK_CORE_DRP_I/clk_inst/mmcm_adv_inst/CLKOUT0]]
+ 
+ # ============================================================================
+# FLASH_CTRL: halfclk generated clock (SPI SCK source)
+# isysclk (100 MHz, CLKOUT1) → clkcnt(1) register → divide-by-4 = 25 MHz
+# Without this constraint, ALL SPI timing paths are unchecked by P&R
+# ============================================================================
+create_generated_clock -name flash_halfclk \
+    -source [get_pins U0_TI_TFT_TOP/U0_TI_CLOCK_MANAGER/CLK_GEN/inst/plle2_adv_inst/CLKOUT1] \
+    -divide_by 4 \
+    [get_pins u_flash_ctrl/halfclk_reg/Q]
+
+# smwCnt[0:2]: state machine cycle counter, NOT actual clocks
+# Vivado may infer clock-gating from synthesis; constrain conservatively
+create_generated_clock -name flash_smwCnt0 \
+    -source [get_pins u_flash_ctrl/halfclk_reg/Q] \
+    -divide_by 2 \
+    [get_pins {u_flash_ctrl/smwCnt_reg[0]/Q}]
+
+create_generated_clock -name flash_smwCnt1 \
+    -source [get_pins u_flash_ctrl/halfclk_reg/Q] \
+    -divide_by 4 \
+    [get_pins {u_flash_ctrl/smwCnt_reg[1]/Q}]
+
+create_generated_clock -name flash_smwCnt2 \
+    -source [get_pins u_flash_ctrl/halfclk_reg/Q] \
+    -divide_by 8 \
+    [get_pins {u_flash_ctrl/smwCnt_reg[2]/Q}]
+
+set_clock_groups -asynchronous -group [get_clocks -of_objects [get_pins U0_TI_TFT_TOP/U0_TI_CLOCK_MANAGER/CLK_GEN/inst/plle2_adv_inst/CLKOUT1]] -group [get_clocks flash_halfclk]

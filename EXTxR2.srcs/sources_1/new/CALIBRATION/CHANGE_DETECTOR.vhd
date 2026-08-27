@@ -126,8 +126,10 @@ architecture behavioral of change_detector is
     end component;
 
     type   type_reg12b is array (3 - 1 downto 0) of std_logic_vector(12 - 1 downto 0);
+    type   type_reg13b is array (3 - 1 downto 0) of std_logic_vector(13 - 1 downto 0); --# 26052615
     signal reg_width_shft  : type_reg12b := (others => (others => '0'));
-    signal reg_height_shft : type_reg12b := (others => (others => '0'));
+--    signal reg_height_shft : type_reg12b := (others => (others => '0'));
+    signal reg_height_shft : type_reg13b := (others => (others => '0')); --# 26052615
 
     type   type_sm is (sm_idle, sm_1, sm_2, sm_end);
     signal sm_compare      : type_sm := sm_idle;
@@ -149,10 +151,10 @@ architecture behavioral of change_detector is
     signal Hcnt_p1 : std_logic_vector(12 - 1 downto 0);
     signal Hcnt_p2 : std_logic_vector(12 - 1 downto 0);
     signal Hcnt_p3 : std_logic_vector(12 - 1 downto 0);
-    signal Vcnt_p0 : std_logic_vector(12 - 1 downto 0);
-    signal Vcnt_p1 : std_logic_vector(12 - 1 downto 0);
-    signal Vcnt_p2 : std_logic_vector(12 - 1 downto 0);
-    signal Vcnt_p3 : std_logic_vector(12 - 1 downto 0);
+    signal Vcnt_p0 : std_logic_vector(13 - 1 downto 0); --# 26052615
+    signal Vcnt_p1 : std_logic_vector(13 - 1 downto 0);
+    signal Vcnt_p2 : std_logic_vector(13 - 1 downto 0);
+    signal Vcnt_p3 : std_logic_vector(13 - 1 downto 0);
     signal Data_p0 : std_logic_vector(16 - 1 downto 0);
     signal Data_p1 : std_logic_vector(16 - 1 downto 0);
     signal Data_p2 : std_logic_vector(16 - 1 downto 0);
@@ -160,10 +162,12 @@ architecture behavioral of change_detector is
 
 --  !size
     signal reg_width        : std_logic_vector(12 - 1 downto 0) := (others => '0');
-    signal reg_height       : std_logic_vector(12 - 1 downto 0) := (others => '0');
+--    signal reg_height       : std_logic_vector(12 - 1 downto 0) := (others => '0');
+    signal reg_height       : std_logic_vector(13 - 1 downto 0) := (others => '0'); --# 26052615
     signal brick_width      : std_logic_vector(8 - 1 downto 0)  := (others => '0');
-    signal brick_height     : std_logic_vector(8 - 1 downto 0)  := (others => '0');
-    signal brick_total      : std_logic_vector(16 - 1 downto 0) := (others => '0');
+--    signal brick_height     : std_logic_vector(8 - 1 downto 0)  := (others => '0');
+    signal brick_height     : std_logic_vector(9 - 1 downto 0)  := (others => '0');
+    signal brick_total      : std_logic_vector(17 - 1 downto 0) := (others => '0'); --# 26052615
     signal brick_total_mask : std_logic_vector(16 - 1 downto 0) := (others => '0');
 
     signal bx_cnt        : std_logic_vector(12 - 1 downto 0) := (others => '0');
@@ -273,7 +277,8 @@ begin
             reg_height_shft <= reg_height_shft(reg_height_shft'high - 1 downto 0) & i_reg_height;
             reg_height      <= reg_height_shft(reg_height_shft'high);
             brick_width     <= reg_width(12 - 1 downto 4);  -- b'8 <= b'12/16
-            brick_height    <= reg_height(12 - 1 downto 4); -- b'8 <= b'12/16
+--            brick_height    <= reg_height(12 - 1 downto 4); -- b'8 <= b'12/16
+            brick_height    <= reg_height(13 - 1 downto 4); -- b'8 <= b'12/16 --# 26052615
             --
         end if;
     end process;
@@ -493,7 +498,8 @@ begin
 --  \__,_||_|  \_/
 -- !div
 -- In the bram, I saved half of data(cause same address access), so divider also should be a half.
-    brick_total_mask <= '0' & brick_total(16 - 1 downto 1) when compare_en_p1 = '1' else (others => '0');
+--    brick_total_mask <= '0' & brick_total(17 - 1 downto 1) when compare_en_p1 = '1' else (others => '0');
+    brick_total_mask <= brick_total(17 - 1 downto 1) when compare_en_p1 = '1' else (others => '0'); --# 26052615
     u_div_g0 : div_u32_DIV_u16
         port map (
             aclk                   => clk,

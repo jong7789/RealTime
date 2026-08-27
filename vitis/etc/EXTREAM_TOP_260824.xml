@@ -72,6 +72,7 @@
             <pFeature>TemperatureBoard1</pFeature>
             <pFeature>TemperatureBoard2</pFeature>
             <pFeature>TemperatureBoard3</pFeature>
+			<pFeature>TemperatureROIC</pFeature>
             <pFeature>TemperatureFPGA</pFeature>
             <pFeature>TemperaturePHY</pFeature>
             <pFeature>UpdateState</pFeature>
@@ -85,7 +86,6 @@
             <pFeature>AbleGainNum</pFeature>
             <pFeature>AbleDnr</pFeature>
 			<pFeature>AbleAcc</pFeature>
-            <pFeature>PwrCtrl</pFeature>
         </Category>
         <Category Name="AccessAuthority" NameSpace="Standard">
             <ToolTip>Category for the access authority.</ToolTip>
@@ -488,6 +488,7 @@
 		  <pSelected>TemperatureBoard1</pSelected>
           <pSelected>TemperatureBoard2</pSelected>
           <pSelected>TemperatureBoard3</pSelected>
+		  <pSelected>TemperatureROIC</pSelected>
 		  <pSelected>TemperatureFPGA</pSelected>
 		  <pSelected>TemperaturePHY</pSelected>
       </Integer>
@@ -535,6 +536,17 @@
           <DisplayNotation>Fixed</DisplayNotation>
           <DisplayPrecision>1</DisplayPrecision>
       </Float>
+      <Float Name="TemperatureROIC" NameSpace="Standard">
+          <ToolTip>ROIC Temperature.</ToolTip>
+          <Description>ROIC Temperature.</Description>
+          <DisplayName>ROIC</DisplayName>
+          <Visibility>Beginner</Visibility>
+          <ImposedAccessMode>RO</ImposedAccessMode>
+          <pValue>TemperatureROICReg</pValue>
+          <Unit>C</Unit>
+          <DisplayNotation>Fixed</DisplayNotation>
+          <DisplayPrecision>1</DisplayPrecision>
+      </Float>   	  
       <Float Name="TemperatureFPGA" NameSpace="Standard">
           <ToolTip>FPGA Temperature.</ToolTip>
           <Description>FPGA Temperature.</Description>
@@ -651,15 +663,6 @@
           <ImposedAccessMode>RO</ImposedAccessMode>
           <pValue>AbleAccReg</pValue>
       </Integer>	  
-      <!-- 2607141553 opwr_en manual override register -->
-      <Integer Name="PwrCtrl" NameSpace="Custom">
-          <ToolTip>Power Enable Override: bit[31]=override_en, bit[10:0]=opwr_en pins</ToolTip>
-          <Description>Manual override for opwr_en GPIO pins. bit[31]=1 enables register control (sequencer bypassed). bit[10:0] map to each PWR_EN pin (model-dependent).</Description>
-          <DisplayName>Power Control Override</DisplayName>
-          <Visibility>Expert</Visibility>
-          <ImposedAccessMode>RW</ImposedAccessMode>
-          <pValue>PwrCtrlReg</pValue>
-      </Integer>
   </Group>
   <!-- ***************************************** -->
   <!-- Access Authority -->
@@ -859,67 +862,67 @@
           <Visibility>Beginner</Visibility>
           <ImposedAccessMode>RW</ImposedAccessMode>            
           <EnumEntry Name="Step0" NameSpace="Standard">
-              <DisplayName>0.3pC</DisplayName>
+              <DisplayName>0.3125pC</DisplayName>
               <Value>0</Value>
           </EnumEntry>            
           <EnumEntry Name="Step1" NameSpace="Standard">
-              <DisplayName>0.6pC</DisplayName>
+              <DisplayName>0.625pC</DisplayName>
               <Value>1</Value>
           </EnumEntry>            
           <EnumEntry Name="Step2" NameSpace="Standard">
-              <DisplayName>1.2pC</DisplayName>
+              <DisplayName>1.25pC</DisplayName>
               <Value>2</Value>
           </EnumEntry>            
           <EnumEntry Name="Step3" NameSpace="Standard">
-              <DisplayName>1.8pC</DisplayName>
+              <DisplayName>1.875pC</DisplayName>
               <Value>3</Value>
           </EnumEntry>            
           <EnumEntry Name="Step4" NameSpace="Standard">
-              <DisplayName>2.4pC</DisplayName>
+              <DisplayName>2.5pC</DisplayName>
               <Value>4</Value>
           </EnumEntry>            
           <EnumEntry Name="Step5" NameSpace="Standard">
-              <DisplayName>3.0pC</DisplayName>
+              <DisplayName>3.125pC</DisplayName>
               <Value>5</Value>
           </EnumEntry>            
           <EnumEntry Name="Step6" NameSpace="Standard">
-              <DisplayName>3.6pC</DisplayName>
+              <DisplayName>3.75pC</DisplayName>
               <Value>6</Value>
           </EnumEntry>            
           <EnumEntry Name="Step7" NameSpace="Standard">
-              <DisplayName>4.2pC</DisplayName>
+              <DisplayName>4.375pC</DisplayName>
               <Value>7</Value>
           </EnumEntry>            
           <EnumEntry Name="Step8" NameSpace="Standard">
-              <DisplayName>4.8pC</DisplayName>
+              <DisplayName>5.0pC</DisplayName>
               <Value>8</Value>
 		  </EnumEntry>            
 		  <EnumEntry Name="Step9" NameSpace="Standard">
-			  <DisplayName>5.4pC</DisplayName>
+			  <DisplayName>5.625pC</DisplayName>
 			  <Value>9</Value>
           </EnumEntry>            
 		  <EnumEntry Name="Step10" NameSpace="Standard">
-			  <DisplayName>6.0pC</DisplayName>
+			  <DisplayName>6.25pC</DisplayName>
 			  <Value>10</Value>
           </EnumEntry>            
 		  <EnumEntry Name="Step11" NameSpace="Standard">
-			  <DisplayName>6.6pC</DisplayName>
+			  <DisplayName>6.875pC</DisplayName>
 			  <Value>11</Value>
           </EnumEntry>            
 		  <EnumEntry Name="Step12" NameSpace="Standard">
-			  <DisplayName>7.2pC</DisplayName>
+			  <DisplayName>7.5pC</DisplayName>
 			  <Value>12</Value>
           </EnumEntry>            
 		  <EnumEntry Name="Step13" NameSpace="Standard">
-			  <DisplayName>7.8pC</DisplayName>
+			  <DisplayName>8.125pC</DisplayName>
 			  <Value>13</Value>
           </EnumEntry>            
 		  <EnumEntry Name="Step14" NameSpace="Standard">
-			  <DisplayName>8.4pC</DisplayName>
+			  <DisplayName>8.75pC</DisplayName>
 			  <Value>14</Value>
           </EnumEntry>            
 		  <EnumEntry Name="Step15" NameSpace="Standard">
-			  <DisplayName>9.0pC</DisplayName>
+			  <DisplayName>9.375pC</DisplayName>
 			  <Value>15</Value>
           </EnumEntry>            
           <pValue>AnalogGainReg</pValue>
@@ -4431,15 +4434,11 @@
         <Cachable>NoCache</Cachable>
         <Endianess>BigEndian</Endianess>
     </IntReg>
-        <!-- 2607141553 opwr_en override register (FPGA ADDR_PWR_CTRL = 0x04A4, GEV offset = 0xA394) -->
-    <IntReg Name="PwrCtrlReg">
-        <Description>PwrCtrlReg</Description>
-        <Visibility>Invisible</Visibility>
-        <Address>0xA394</Address>
-        <Length>4</Length>
-        <AccessMode>RW</AccessMode>
-        <pPort>Device</pPort>
-        <Sign>Unsigned</Sign>
-        <Endianess>BigEndian</Endianess>
-    </IntReg>
+	<FloatReg Name="TemperatureROICReg">
+		<Address>0xA394</Address>
+		<Length>4</Length>
+		<AccessMode>RO</AccessMode>
+		<pPort>Device</pPort>
+		<Endianess>BigEndian</Endianess>
+	</FloatReg>	
 </RegisterDescription>

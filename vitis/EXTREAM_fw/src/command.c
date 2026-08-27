@@ -58,6 +58,7 @@ const CMD_STRUCT CMD_MAT[MAX_CMD_NUM] = {
     {"rus2"     , UART_CMD_rus2         , "Read User Setting + NUC Info (Debug)"       , 0 }, //# 2605201841 renamed from "debug"
     {"rtime"    , UART_CMD_rtime        , "Display Running Time"                       , 0 },
     {"rtemp"    , UART_CMD_rtemp        , "Read Temperature"                           , 0 },
+    {"rtempraw" , UART_CMD_rtempraw     , "XML temp source: 0=set temp, 1=raw die"     , 0 }, //# 2608191842
     {"reboot"   , UART_CMD_reboot       , "Rebooting"                                  , 0 },
     {"edgec"    , UART_CMD_edge_cut     , "Edge Cut"                                   , 0 }, // dskim
     {"edges"    , UART_CMD_edge_save    , "Write Edge Value to Flash Memory"           , 0 }, // dskim
@@ -74,6 +75,7 @@ const CMD_STRUCT CMD_MAT[MAX_CMD_NUM] = {
     {"edge"     , UART_CMD_edge         , "edge"                                       , 0 }, // mbh 210923
     {"dnr"      , UART_CMD_dnr          , "dnr"                                        , 0 }, // mbh 210923
     {"acc"      , UART_CMD_acc          , "acc"                                        , 0 }, // mbh 210928
+    {"spc"      , UART_CMD_spc          , "short pixel cover"                          , 0 }, //$ 2607241407
     {"eao"      , UART_CMD_eao          , "1ernal Auto offset"                         , 0 }, // mbh 211025
     {"trig"     , UART_CMD_trig         , "API External Trigger"                       , 0 }, // mbh 211105
     {"rom"      , UART_CMD_rom          , "Flash rom, eeprom write ready command"      , 0 }, // mbh 211116
@@ -111,6 +113,7 @@ const CMD_STRUCT CMD_MAT[MAX_CMD_NUM] = {
 	{"apm"      , UART_CMD_apm          , "APM 3-slot BW [ms] (default 200, seq)"      , 0 }, //# 2605071158 3 slots sequential: M00/GEV/Sensor
 	{"ddrburst" , UART_CMD_ddrburst     , "DDR AXI burst [N] (32/64/128/256, runtime)" , 0 }, //# 2605071529 quantize-down then map to mode 0..3
 	{"watch"    , UART_CMD_watch        , "REG watch: 1=on 0=off [+addrs to add/remove]", 0 }, //# 2605131158
+	{"pwr"      , UART_CMD_pwr          , "opwr_en override: pwr / pwr 0 / pwr 1 <hex>", 0 }, //$ 2607141553
 
     {"tser"     , UART_CMD_tser         , "Access TFT Serial Number"                   , 0 },
     {"pser"     , UART_CMD_pser         , "Access Panel Serial Number"                 , 0 },
@@ -523,6 +526,48 @@ u8 UART_CMD_ddrburst (u8 num, u32* data) {
         func_printf("DDR AXI burst limit set to %u beats (mode %u). Effect: next AXI tx\r\n",
                     beats, mode);
         return CMD_OK;
+    }
+    return CMD_ERR3;
+}
+
+//$ 2607141553 opwr_en manual override via ADDR_PWR_CTRL.
+//  Usage: pwr              -> print current override state and each bit value
+//         pwr 0            -> disable override (bit31=0, sequencer resumes)
+//         pwr 1 <hex>      -> enable override with opwr_en=<hex> (e.g. pwr 1 1FF)
+//  Note: bit[31]=override_en, bit[10:0]=opwr_en pins (PWR_NUM varies per model)
+u8 UART_CMD_pwr (u8 num, u32* data) {
+    u32 regv, override_en, pins;
+    int i;
+
+    if (num == 0) {
+        regv       = REG(ADDR_PWR_CTRL);
+        override_en = (regv >> 31) & 0x1U;
+        pins        = regv & 0x7FFU;
+        func_printf("PWR_CTRL: 0x%08X  override=%s\r\n",
+                    (unsigned int)regv, override_en ? "ON" : "OFF");
+        func_printf("  opwr_en bits: ");
+        for (i = 10; i >= 0; i--) {
+            func_printf("[%2d]=%d ", i, (int)((pins >> i) & 0x1U));
+        }
+        func_printf("\r\n");
+        return CMD_OK;
+    }
+    else if (num == 1) {
+        if (data[0] == 0U) {
+            REG(ADDR_PWR_CTRL) = 0U;
+            func_printf("PWR_CTRL: override disabled (sequencer mode)\r\n");
+            return CMD_OK;
+        }
+        return CMD_ERR3;
+    }
+    else if (num == 2) {
+        if (data[0] == 1U) {
+            pins = data[1] & 0x7FFU;
+            REG(ADDR_PWR_CTRL) = (1U << 31) | pins;
+            func_printf("PWR_CTRL: override ON  opwr_en=0x%03X\r\n", (unsigned int)pins);
+            return CMD_OK;
+        }
+        return CMD_ERR3;
     }
     return CMD_ERR3;
 }
@@ -1237,6 +1282,24 @@ u8 UART_CMD_rtemp (u8 num, u32* data) {
         return CMD_ERR3;
 }
 
+/*# 2608191842 rtempraw: pick which FPGA/PHY/SFP temperature XML reports.
+ * No arg prints the current mode; "rtempraw 0|1" sets it. RAM only, lost on reboot,
+ * because raw die readings are for diagnosis and should not become the shipped default. */
+u8 UART_CMD_rtempraw (u8 num, u32* data) {
+    if (num == 0) {
+        disp_cmd_rtempraw();
+        return CMD_OK;
+    }
+    else if (num == 1) {
+        if (data[0] > 1) return CMD_ERR4;
+        execute_cmd_rtempraw(data[0]);
+        disp_cmd_rtempraw();
+        return CMD_OK;
+    }
+    else
+        return CMD_ERR3;
+}
+
 u8 UART_CMD_rtime (u8 num, u32* data) {
     if (num == 0) {
         disp_cmd_rtime();
@@ -1406,6 +1469,11 @@ u8 UART_CMD_atp(u8 num, u32* data) {
 }
 
 u8 UART_CMD_wtp(u8 num, u32* data) { // set timing profile
+    //$ 2607061609 Block wtp while image output is active to avoid gate line
+    if(num != 0 && (REG(ADDR_OUT_EN) & 1)) {
+        func_printf("\r\n[WTP] blocked: OUT_EN is active. Stop streaming first.\r\n");
+        return CMD_ERR6;
+    }
     if(num == 0) {
         disp_cmd_wtp();
         return CMD_OK;
@@ -1651,6 +1719,29 @@ u8 UART_CMD_acc(u8 num, u32* data) { // mbh 210923
     else if(num == 2)
     {
         execute_cmd_acc(data[0], data[1]);
+            return CMD_OK;
+    }
+    return CMD_ERR3;
+}
+
+//$ 2607241407 UART_CMD_spc: short pixel cover -> ADDR_SPC_CTRL(0x4A8)
+// spc                            -> show help + current value
+// spc <on>                       -> toggle bit0 only, keep other fields (RMW) //$ 2607241741
+// spc <on> <dark> <rst> <sat>    -> full set (values mapped to reg nibble index)
+u8 UART_CMD_spc(u8 num, u32* data) { //$ 2607241407
+    if(num == 0)
+    {
+        disp_cmd_spc();
+        return CMD_OK;
+    }
+    else if(num == 1)
+    {
+        execute_cmd_spc_en(data[0]); //$ 2607241741 bit0 RMW only
+            return CMD_OK;
+    }
+    else if(num == 4)
+    {
+        execute_cmd_spc(data[0], data[1], data[2], data[3]);
             return CMD_OK;
     }
     return CMD_ERR3;
@@ -2186,7 +2277,8 @@ u8 UART_CMD_rddr(u8 num, u32* data) {
     }
     else if(num == 1) {
         if(data[0] < 1 || data[0] > 5)  return CMD_ERR4;
-        execute_cmd_rddr(data[0], 0);
+        //execute_cmd_rddr(data[0], 0);
+        func_rddr_token = data[0]; //$ 2607131936 deferred via token (execute_rddr_cmd in while loop)
         return CMD_OK;
     }
     else
@@ -2744,13 +2836,44 @@ u8 UART_CMD_rns(u8 num, u32* data) {
         return CMD_OK;
     }
 
-    else if(num == 1) { // "rns 1" burst rns
-        if(REG(ADDR_OUT_EN))                return CMD_ERR5;
+    //# 2606121641 FIX: num is ARGUMENT COUNT, value comes in data[0]
+    //              ('rns 3' -> num=1, data[0]=3). Previous num==2/3 branches were
+    //              unreachable and 'rns 2/3' fell into the sync full-load path.
+    else if(num == 1) {
+        switch(data[0]) {
+        case 1 : // "rns 1" burst rns (legacy sync full load)
+            if(REG(ADDR_OUT_EN))                return CMD_ERR5;
+            //# 2606121417 UART rns1: reject while background NUC load in progress
+            if(brns_bg_active())                return CMD_ERR5;    // busy: bg load running
 
-        execute_cmd_grab(0);
-        if(execute_cmd_brns())              return CMD_ERR9;
-        execute_cmd_grab(grab);
-        return CMD_OK;
+            execute_cmd_grab(0);
+            if(execute_cmd_brns())              return CMD_ERR9;
+            execute_cmd_grab(grab);
+            return CMD_OK;
+
+        //# 2606121417 UART rns2: request background NUC reload (BRNS_BG_LOAD=1 only)
+        case 2 :
+#if BRNS_BG_LOAD
+            brns_bg_request();
+            func_printf("\r\n[BRNS-BG] reload requested\r\n");
+            return CMD_OK;
+#else
+            return CMD_ERR3;    // not available in legacy build
+#endif
+
+        //# 2606121417 UART rns3: background NUC load status query
+        case 3 :
+#if BRNS_BG_LOAD
+            //# 2606121543 rns3: extended dump incl. chunk sizes + timing stats
+            brns_bg_disp_status();
+            return CMD_OK;
+#else
+            return CMD_ERR3;
+#endif
+
+        default :
+            return CMD_ERR3;
+        }
     }
     else
         return CMD_ERR3;

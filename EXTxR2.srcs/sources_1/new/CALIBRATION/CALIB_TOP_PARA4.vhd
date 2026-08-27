@@ -28,6 +28,8 @@ entity CALIB_TOP_PARA4 is
         ireg_mpc_point3       : in std_logic_vector(15 downto 0);
         ireg_mpc_posoffset    : in std_logic_vector(16 - 1 downto 0);
 
+        ireg_spc_ctrl         : in std_logic_vector(16 - 1 downto 0); --$ 2607241407 Short Pixel Cover ctrl (0x04A8)
+
         ireg_rdefect_wen      : in std_logic;
         ireg_rdefect_addr     : in std_logic_vector(3 downto 0);
         ireg_rdefect_wdata    : in std_logic_vector(15 downto 0); -- news en 210817mbh
@@ -239,6 +241,25 @@ architecture behavioral of CALIB_TOP_PARA4 is
             ovcnt  : out std_logic_vector(13 - 1 downto 0); --# 2604231608 Expand V-axis 12->13bit
             ohcnt  : out std_logic_vector(12 - 1 downto 0);
             odata  : out std_logic_vector(64 - 1 downto 0)
+        );
+    end component;
+
+    --$ 2607241407 Short Pixel Cover block (between AVG and TPC)
+    component SHORT_PIXEL_COVER_PARA4
+        port (
+            idata_clk     : in  std_logic;
+            idata_rstn    : in  std_logic;
+            ireg_spc_ctrl : in  std_logic_vector(16 - 1 downto 0);
+            ihsync        : in  std_logic;
+            ivsync        : in  std_logic;
+            ivcnt         : in  std_logic_vector(13 - 1 downto 0);
+            ihcnt         : in  std_logic_vector(12 - 1 downto 0);
+            idata         : in  std_logic_vector(64 - 1 downto 0);
+            ohsync        : out std_logic;
+            ovsync        : out std_logic;
+            ovcnt         : out std_logic_vector(13 - 1 downto 0);
+            ohcnt         : out std_logic_vector(12 - 1 downto 0);
+            odata         : out std_logic_vector(64 - 1 downto 0)
         );
     end component;
 
@@ -470,6 +491,21 @@ architecture behavioral of CALIB_TOP_PARA4 is
     signal iavg_rinfo_d1 : std_logic_vector(64 - 1 downto 0);
     signal iofs_rinfo_d1 : std_logic_vector(64 - 1 downto 0);
 
+    --$ 2607241407 SHORT_PIXEL_COVER: block output + DDR coeff delay-match (keep pixel/coeff aligned into TPC)
+    constant SPC_LAT : integer := 4; --# must equal SHORT_PIXEL_COVER_PARA4 latency
+    signal sspc_hsync : std_logic;
+    signal sspc_vsync : std_logic;
+    signal sspc_hcnt  : std_logic_vector(11 downto 0);
+    signal sspc_vcnt  : std_logic_vector(12 downto 0); --# 2604231608 V-axis 12->13bit
+    signal sspc_data  : std_logic_vector(64 - 1 downto 0);
+
+    type ty_lat_128 is array (1 to SPC_LAT) of std_logic_vector(128 - 1 downto 0);
+    type ty_lat_64  is array (1 to SPC_LAT) of std_logic_vector(64 - 1 downto 0);
+    signal itpc_rdata_lat_sr : ty_lat_128;
+    signal iavg_rinfo_lat_sr : ty_lat_64;
+    signal itpc_rdata_lat    : std_logic_vector(128 - 1 downto 0);
+    signal iavg_rinfo_lat    : std_logic_vector(64 - 1 downto 0);
+
     signal sstate_tftd,
            sstate_tftd_d1,
            sstate_tftd_d2,
@@ -625,6 +661,42 @@ begin
     itpc_vcnt  <= ivcnt_d1  when stream_tpc_en = '1' else (others => '0');
     itpc_data  <= idata_d1  when stream_tpc_en = '1' else (others => '0');
 
+-- █▀ █▀█ █▀▀
+-- ▄█ █▀▀ █▄▄
+-- %spc short pixel cover
+    --$ 2607241407 SHORT_PIXEL_COVER between AVG and TPC (live data path)
+    U0_SHORT_PIXEL_COVER : SHORT_PIXEL_COVER_PARA4
+    port map (
+        idata_clk     => idata_clk,
+        idata_rstn    => idata_rstn,
+        ireg_spc_ctrl => ireg_spc_ctrl,
+        ihsync        => itpc_hsync,
+        ivsync        => itpc_vsync,
+        ivcnt         => itpc_vcnt,
+        ihcnt         => itpc_hcnt,
+        idata         => itpc_data,
+        ohsync        => sspc_hsync,
+        ovsync        => sspc_vsync,
+        ovcnt         => sspc_vcnt,
+        ohcnt         => sspc_hcnt,
+        odata         => sspc_data
+    );
+
+    --$ 2607241407 delay DDR gain/offset by SPC_LAT to realign with SPC-delayed pixels into TPC
+    process (idata_clk)
+    begin
+        if (idata_clk'event and idata_clk = '1') then
+            itpc_rdata_lat_sr(1) <= itpc_rdata_d1;
+            iavg_rinfo_lat_sr(1) <= iavg_rinfo_d1;
+            for i in 2 to SPC_LAT loop
+                itpc_rdata_lat_sr(i) <= itpc_rdata_lat_sr(i - 1);
+                iavg_rinfo_lat_sr(i) <= iavg_rinfo_lat_sr(i - 1);
+            end loop;
+        end if;
+    end process;
+    itpc_rdata_lat <= itpc_rdata_lat_sr(SPC_LAT);
+    iavg_rinfo_lat <= iavg_rinfo_lat_sr(SPC_LAT);
+
 -- █▀▀ ▄▀█ █ █▄░█
 -- █▄█ █▀█ █ █░▀█
 -- %gain
@@ -645,15 +717,22 @@ begin
         ireg_mpc_posoffset => ireg_mpc_posoffset,
 --      id2m_dark          => id2m_dark,
 
-        itpc_rdata         => itpc_rdata_d1,
-        iavg_rinfo         => iavg_rinfo_d1,
+--      itpc_rdata         => itpc_rdata_d1,    --$ 2607241407 SPC_LAT delayed
+--      iavg_rinfo         => iavg_rinfo_d1,    --$ 2607241407 SPC_LAT delayed
+        itpc_rdata         => itpc_rdata_lat,
+        iavg_rinfo         => iavg_rinfo_lat,
 --      iofs_rinfo         => iofs_rinfo_d1,
 
-        ihsync             => itpc_hsync,
-        ivsync             => itpc_vsync,
-        ihcnt              => itpc_hcnt,
-        ivcnt              => itpc_vcnt,
-        idata              => itpc_data,
+--      ihsync             => itpc_hsync,       --$ 2607241407 via SPC
+--      ivsync             => itpc_vsync,
+--      ihcnt              => itpc_hcnt,
+--      ivcnt              => itpc_vcnt,
+--      idata              => itpc_data,
+        ihsync             => sspc_hsync,
+        ivsync             => sspc_vsync,
+        ihcnt              => sspc_hcnt,
+        ivcnt              => sspc_vcnt,
+        idata              => sspc_data,
 
         ohsync             => shsync_tpc,
         ovsync             => svsync_tpc,

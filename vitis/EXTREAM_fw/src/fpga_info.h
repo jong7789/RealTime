@@ -10,8 +10,35 @@
 
 #include <xparameters.h>
 // Compatibility: old BSP uses XPAR_M1_AXI_GEV_BASEADDR, new BSP uses XPAR__CPU4DDR_I_M1_AXI_GEV_BASEADDR
+//#ifndef XPAR__CPU4DDR_I_M1_AXI_GEV_BASEADDR
+//#define XPAR__CPU4DDR_I_M1_AXI_GEV_BASEADDR XPAR_M1_AXI_GEV_BASEADDR
+//#endif
+// BSP compat: new BSP(_CPU_I_) vs old(_CPU4DDR_I_ or short name)
+#ifdef XPAR__CPU_I_M1_AXI_GEV_BASEADDR
+//$ 2606011642 BSP rename compat: new _CPU_I_ BSP detected, map all legacy names
+#define XPAR__CPU4DDR_I_M1_AXI_GEV_BASEADDR XPAR__CPU_I_M1_AXI_GEV_BASEADDR
+//# 2605291217 BSP rename compat: legacy short name -> current _CPU_I_ name (func_cmd.c gige_init sites)
+#define XPAR_M1_AXI_GEV_BASEADDR            XPAR__CPU_I_M1_AXI_GEV_BASEADDR
+//# 2605291217 BSP rename compat: SYSTEM CPU IRQ masks (int.h INT_MASK_GIGE/FB)
+#define XPAR_SYSTEM_CPU_IRQ_0_MASK          XPAR_SYSTEM__CPU_I_CPU_IRQ_0_MASK
+#define XPAR_SYSTEM_CPU_IRQ_1_MASK          XPAR_SYSTEM__CPU_I_CPU_IRQ_1_MASK
+#else
+//$ 2606011642 BSP rename compat: old BSP - map _CPU4DDR_I_ long name if missing
 #ifndef XPAR__CPU4DDR_I_M1_AXI_GEV_BASEADDR
-#define XPAR__CPU4DDR_I_M1_AXI_GEV_BASEADDR XPAR_M1_AXI_GEV_BASEADDR
+#define XPAR__CPU4DDR_I_M1_AXI_GEV_BASEADDR    XPAR_M1_AXI_GEV_BASEADDR
+#endif
+//$ 2606171653 BSP rename compat: CPU4DDR BSP - map legacy short names (gige_init, IRQ masks)
+#ifdef XPAR__CPU4DDR_I_M1_AXI_GEV_BASEADDR
+#ifndef XPAR_M1_AXI_GEV_BASEADDR
+#define XPAR_M1_AXI_GEV_BASEADDR            XPAR__CPU4DDR_I_M1_AXI_GEV_BASEADDR
+#endif
+#endif
+#ifdef XPAR_SYSTEM__CPU4DDR_I_CPU_IRQ_0_MASK
+#ifndef XPAR_SYSTEM_CPU_IRQ_0_MASK
+#define XPAR_SYSTEM_CPU_IRQ_0_MASK          XPAR_SYSTEM__CPU4DDR_I_CPU_IRQ_0_MASK
+#define XPAR_SYSTEM_CPU_IRQ_1_MASK          XPAR_SYSTEM__CPU4DDR_I_CPU_IRQ_1_MASK
+#endif
+#endif
 #endif
 #include "xil_types.h"
 #include "func_printf.h"
@@ -177,6 +204,56 @@ extern char HW_VER[16];
 #define DEBUGDDR 0
 #define DEBUGXML_R 1
 #define DEBUGXML_W 1
+//# 2608191920 BD (NCT175/DS1731) outlier rejection. A single dropped readback bit turned
+//# 41.9C into 9.4C (hi byte 41 -> 9, exactly bit5), and the old guard let it through while
+//# blocking stable readings. Temperature cannot move this fast between polls, so a jump
+//# larger than STEP_MAX is held until CONFIRM_N consecutive samples agree on it.
+#define BD_TEMP_STEP_MAX_C  8.0f   // max plausible change between two polls [C]
+#define BD_TEMP_CONFIRM_N   2      // agreeing samples needed to accept a large jump
+#define BD_TEMP_ABSENT_LO   0x0000 // sensor missing / bus never ran
+#define BD_TEMP_ABSENT_HI   0xFFFF // no ACK, SDA pulled up only
+
+//# 2608201518 Board temperature IC select. read_ds1731_temp() used to ALTERNATE the
+//# pointer between 0xAA and 0x00 every call to "support both" ICs. 0x00 is not a DS1731
+//# command (its set is 0xAC/0xAA/0x51/0x22/0xA1/0xA2), so on a DS1731 board every other
+//# read returned undefined data - that is where the bogus 9.3C came from. Pin the pointer
+//# to the installed part instead.
+//#   1 = DS1731 : 0xAA "Read Temperature" (init already sends 0xAC 0x0C / 0x51 / 0xAA)
+//#   0 = NCT175 / LM75-compatible : pointer register 0x00 = Temperature
+#define BD_TEMP_IC_DS1731   1
+#if BD_TEMP_IC_DS1731
+#define BD_TEMP_PTR         0xAA
+#else
+#define BD_TEMP_PTR         0x00
+#endif
+
+//# 2608201518 Rejections in a row before the filter assumes its own reference is wrong
+//# and re-arms. Guards against a boot glitch getting latched as bd_last permanently.
+#define BD_TEMP_RESYNC_N    8
+
+//# 2608211132 Absolute plausibility window. The step filter is relative, so on the very
+//# first sample it has no reference and cannot reject anything - at power-on BD0/BD1 both
+//# reported -60.0 C (raw 0xC400, bit-identical on two separate ICs, so a deterministic
+//# register state rather than a bus glitch) and it went straight out to rtemp and XML.
+//# A board sensor can never read these values, so gate on the range as well.
+//# DS1731 spec range is -55..+125 C; keep the window inside what a chassis can reach.
+#define BD_TEMP_MIN_C       (-30.0f)
+#define BD_TEMP_MAX_C       125.0f
+
+//# 2608201518 Print the raw 16-bit word per BD sensor in rtemp. Set to 0 for normal use.
+//# 2608201531 back to 0: BD diagnosis done - BD0/BD1 answer (0x2cb0/0x27f0), BD2/BD3
+//# return 0xffff (no ACK) and are confirmed not populated on this board.
+#define DBG_BDRAW           0
+
+//# 2608201531 Raw ADC code print inside read_roic_temp(). It used to be an unconditional
+//# func_printf, so "ROIC Temp = nn" appeared unformatted ahead of the rtemp listing.
+//# The value is the 9-bit register 0x78 code, not a temperature - debug only.
+#define DBG_ROICTEMP        0
+
+//# 2608191856 Trace every temperature value XML actually reads (FPGA/PHY/SFP/BD).
+//# Set to 0 to remove the prints - the host polls these nodes continuously, so leaving
+//# it on floods the UART and slows the main loop.
+#define DBG_XMLTEMP 0
 #define DBGDFEC 0
 //#define DEBUGXML_PRINT
 //#define ROMDOWNLOADER //# Rom Download program  21.11.17mbh
@@ -276,7 +353,8 @@ extern char HW_VER[16];
 
 #define DBG_WATCH_COMPILE   1                //# 1 = compile in watcher; 0 = REG == FREG
 #define DBG_WATCH_MAX       8                //# number of address slots
-#define DBG_WATCH_FLAG_ALL  0x01u            //# bit0 of dbg_watch_flags: print every REG() access (sampled)
+//#define DBG_WATCH_FLAG_ALL  0x01u            //# bit0 of dbg_watch_flags: print every REG() access (sampled)
+#define DBG_WATCH_FLAG_ALL  0x00u            //# disable dbg_watch
 #define DBG_WATCH_ALL_DIV   100u             //# in ALL mode, print 1 of every N accesses
 
 #if DBG_WATCH_COMPILE
@@ -295,6 +373,76 @@ extern void dbg_watch_check(u32 access_addr, const char *fname, int line);
 #define DREG(x) (*(volatile u32 *)(DDR3_CALIB_REGS + x))
 #define AREG(x) (*(volatile u32 *)(x))
 #define XREG(x) (*(volatile u32 *)(XGIGE_REGS + x))
+
+//$ 2606161124 boot section profiler (LAP)
+//  ADDR_FREERUN_CNT(0x0454) = 32-bit 100MHz free-run (10ns/count, wraps ~42.9s).
+//  u32 subtract is wrap-safe while an interval is < 42.9s. LAP(tag) prints the
+//  time spent SINCE the previous LAP. DBG_LAP=0 -> all LAP/LAP_INIT compile to no-op.
+//  FREG() (raw, no REG-watcher overhead) is used for accurate timing.
+#define DBG_LAP        1
+//$ 2607101034 DBG_IMGOUT: print RCNT0/3/9 video stats inside every LAP (boot only)
+#define DBG_IMGOUT     0
+#define FREERUN_NOW()  FREG(ADDR_FREERUN_CNT)
+#define LAP_INIT()     do { if(DBG_LAP){ _lap_prev = FREERUN_NOW(); } } while(0)
+#define LAP(tag)       do { if(DBG_LAP){                                       \
+    u32 _n = FREERUN_NOW();                                                     \
+    u32 _d = (u32)(_n - _lap_prev);            /* wrap-safe elapsed counts */   \
+    func_printf("[LAP] %-22s %lu.%03lu ms\r\n", (tag),                         \
+        (unsigned long)(_d / 100000),          /* ms integer part */           \
+        (unsigned long)((_d / 100) % 1000));   /* us -> 3-digit fraction */     \
+    if(DBG_IMGOUT){                                                             \
+        func_printf("[IMGOUT] ALIGN  ");                                        \
+        execute_cmd_read_video(ADDR_SYNC_RCNT0,ADDR_SYNC_RDATA_AVCN0,ADDR_SYNC_RDATA_BGLW0); \
+        func_printf("[IMGOUT] DDR3   ");                                        \
+        execute_cmd_read_video(ADDR_SYNC_RCNT3,ADDR_SYNC_RDATA_AVCN3,ADDR_SYNC_RDATA_BGLW3); \
+        func_printf("[IMGOUT] OUT    ");                                        \
+        execute_cmd_read_video(ADDR_SYNC_RCNT9,ADDR_SYNC_RDATA_AVCN9,ADDR_SYNC_RDATA_BGLW9); \
+    }                                                                           \
+    _lap_prev = FREERUN_NOW();   /* re-sample: exclude this printf's own time */ \
+} } while(0)
+
+//$ 2606161124 while-loop profiler (LAPW) - same as LAP but prints ONLY when a
+//  section took >= LAP_WHILE_MS (default 10ms). Avoids flooding the per-iteration
+//  loop. Uses its own _lapw_prev so it never disturbs the boot LAP chain.
+#define LAP_WHILE_MS   10u                          /* print threshold [ms] */
+#define LAP_WHILE_CNT  (LAP_WHILE_MS * 100000u)     /* -> counts (100MHz: 100000/ms) */
+#define LAPW_INIT()    do { if(DBG_LAP){ _lapw_prev = FREERUN_NOW(); } } while(0)
+#define LAPW(tag)      do { if(DBG_LAP){                                        \
+    u32 _n = FREERUN_NOW();                                                     \
+    u32 _d = (u32)(_n - _lapw_prev);           /* wrap-safe elapsed counts */   \
+    if (_d >= LAP_WHILE_CNT)                                                    \
+        func_printf("[LAPW] %-22s %lu.%03lu ms\r\n", (tag),                    \
+            (unsigned long)(_d / 100000),                                      \
+            (unsigned long)((_d / 100) % 1000));                               \
+    _lapw_prev = FREERUN_NOW();   /* re-sample: exclude this printf's own time */ \
+} } while(0)
+
+//$ 2606161124 aggregated while-loop profiler (LAPW_AGG) for repetitive sections
+//  (e.g. brns_bg_poll runs hundreds of times). Accumulates over 'every' calls,
+//  then prints ONE summary line: count + avg + max [ms] + running TOTAL [s].
+//  Block-scope statics -> each call site keeps its own counters. avg/max/cnt
+//  reset every window; _atot_us (cumulative total) persists and is zeroed only
+//  when 'reset' is nonzero (pass rising-edge of the activity gate at load start).
+//  _atot_us is us in u32 -> safe up to ~71 min total. Set 'every' larger = fewer prints.
+//$ 2606161224 add 'reset' param + cumulative total (tot=.. s)
+#define LAPW_AGG(tag, every, reset) do { if(DBG_LAP){                           \
+    static u32 _acnt = 0, _asum_us = 0, _amax = 0, _atot_us = 0;                \
+    u32 _n = FREERUN_NOW();                                                     \
+    u32 _d = (u32)(_n - _lapw_prev);           /* wrap-safe elapsed counts */   \
+    if (reset) { _acnt = 0; _asum_us = 0; _amax = 0; _atot_us = 0; }            \
+    _acnt++; _asum_us += _d / 100; _atot_us += _d / 100;   /* us */             \
+    if (_d > _amax) _amax = _d;                                                 \
+    if (_acnt >= (u32)(every)) {                                                \
+        u32 _avg_us = _asum_us / _acnt;                                         \
+        func_printf("[LAPW] %-18s x%lu avg=%lu.%03lu max=%lu.%03lu tot=%lu.%03lu s\r\n", \
+            (tag), (unsigned long)_acnt,                                        \
+            (unsigned long)(_avg_us / 1000), (unsigned long)(_avg_us % 1000),   \
+            (unsigned long)(_amax / 100000), (unsigned long)((_amax / 100) % 1000), \
+            (unsigned long)(_atot_us / 1000000), (unsigned long)((_atot_us / 1000) % 1000)); \
+        _acnt = 0; _asum_us = 0; _amax = 0;                                     \
+    }                                                                           \
+    _lapw_prev = FREERUN_NOW();   /* re-sample: exclude this printf's own time */ \
+} } while(0)
 
 #define ERROR 0
 #define OK 1
@@ -454,14 +602,47 @@ extern void dbg_watch_check(u32 access_addr, const char *fname, int line);
 #define MIN_OFFSETY    0
 //#define INTERVALX      4
 //### must be 16. FPGA ROI is designed in 16-pixel increments
-#define INTERVALX      4  //# 231012 16->4 231115 only offset interval 16.
+//#define INTERVALX      4  //# 231012 16->4 231115 only offset interval 16.
+#define INTERVALX      16   //# 260601 4->16 framebuf min size
 #define OFFSINTVX      16 //# 231115
 #define INTERVALY      2
 #define MIN_DGAIN      1
 #define MAX_DGAIN   1600
 // TI_ROIC
-#define MIN_IFS         0 // #0.3 roic gain added 220706mbh
-#define MAX_IFS        16 //$ 260224 31->39 //$ 260403 39->16
+//#define MIN_IFS         0
+//#define MAX_IFS        16 //$ 260224 31->39 //$ 260403 39->16
+//$ 2607221549 ifs range split per ROIC family, then folded back into MIN_IFS/MAX_IFS
+//$ so existing users of the macro keep working unchanged. AFE3256 step0 (0.3125pC,
+//$ AFE3256_Cfb table index 0) is excluded; AFE2256 keeps 0 because there 0 selects
+//$ the 0.3pC special sequence in execute_cmd_ifs(), not a gain table index.
+//$ NOTE: MIN_IFS/MAX_IFS are runtime expressions now - not usable as array size or case label.
+#define MIN_IFS_2256    0       //$ 2607221549 AFE2256 lower bound (0 = 0.3pC path)
+#define MAX_IFS_2256   16       //$ 2607221549 AFE2256 upper bound
+#define MIN_IFS_3256    0       //$ 2607221549 AFE3256 lower bound, step0 0.3125pC excluded
+#define MAX_IFS_3256   16       //$ 2607221549 AFE3256 upper bound
+#define MIN_IFS        (AFE3256_series ? MIN_IFS_3256 : MIN_IFS_2256)   //$ 2607221549 runtime bound
+#define MAX_IFS        (AFE3256_series ? MAX_IFS_3256 : MAX_IFS_2256)   //$ 2607221549 runtime bound
+
+//$ 2607241132 AFE3256 pixel short detection (TDEF = reg0x80 bit11 EN_TDEF) master switch.
+//$ Why: false-trigger at low a-gain makes dotted-line artifact; turn TDEF off for normal op.
+//$ 0: OFF (all normal-op 0x80 writes = 0x000D), 1: ON (=0x080D). DOC-calib site (0x082D) unaffected.
+#define TDEF_EN         1
+#define ROIC80_NORMAL   (TDEF_EN ? 0x080D : 0x000D)   //$ 2607241132 reg0x80 normal-operation value
+
+//$ 2607151649 ifs->ROIC 0x6D map (EXT3643R only). //$ 2607161145 switched from
+//$ runtime formula to lookup table ifs_r6d_tbl[] in func_cmd.c, indexed by
+//$ func_ifs_index (0..15). Set on every ifs change in execute_cmd_ifs().
+//  Table seeded from 210-13*x (low byte to ROIC 0x6D); edit per-index freely:
+//    ifs  0: 210 0xD2    ifs  8: 106 0x6A
+//    ifs  1: 197 0xC5    ifs  9:  93 0x5D
+//    ifs  2: 184 0xB8    ifs 10:  80 0x50
+//    ifs  3: 171 0xAB    ifs 11:  67 0x43
+//    ifs  4: 158 0x9E    ifs 12:  54 0x36
+//    ifs  5: 145 0x91    ifs 13:  41 0x29
+//    ifs  6: 132 0x84    ifs 14:  28 0x1C
+//    ifs  7: 119 0x77    ifs 15:  15 0x0F
+#define IFS_R6D_EN     0        //$ 2607151649 1=enable, 0=disable
+#define IFS_R6D_REG    0x6D     //$ 2607151649 target ROIC register
 
 //#ifdef EXT4343R
 //    #define TFT_TIMING_MODE   3
@@ -760,6 +941,41 @@ extern void dbg_watch_check(u32 access_addr, const char *fname, int line);
 
 // 2605071529 DDR AXI burst limit selector (2-bit mode: 00=32 / 01=64 / 10=128 / 11=256 beats)
 #define ADDR_DDR_BURST        0x04A0
+//$ 2607141553 opwr_en manual override: bit[31]=override_en, bit[10:0]=opwr_en value (max PWR_NUM=11)
+#define ADDR_PWR_CTRL         0x04A4
+//$ 2607241407 Short Pixel Cover: [0]en [7:4]dark(1/128/256/512/1024) [11:8]restore(65535/34/30/60000) [15:12]satref(65535/34/30/60000)
+#define ADDR_SPC_CTRL         0x04A8
+
+//# 2608191217 5th I2C slave readback (SFP DDM), same block/register family as ADDR_I2C_RDATA0..3.
+//# With RSIZE=2 and I2C_MODE[15:8]=0x60: [15:0] = A2h[96..97] = int16 temperature, 1/256 degC.
+#define ADDR_I2C_RDATA4       0x047C
+
+//# 2608191217 ADDR_I2C_MODE (0x0140) field layout - no new register, bits added to the existing one
+#define I2C_MODE_AUTO_BIT     (1u << 0)  // free-running slave sweep (existing behavior)
+#define I2C_MODE_SFP_EN_BIT   (1u << 1)  // include slave 4 (SFP A2h 0x51) in the sweep
+#define I2C_MODE_SFP_PTR_SFT  8          // [15:8] byte pointer sent to the SFP slave
+
+//# 2608191217 SFP DDM access constants (SFF-8472 Table 9-16)
+#define SFP_DDM_PTR_TEMP      0x60    // A2h byte 96: Temperature MSB
+
+//# 2608191706 Marvell PHY temperature sensor, MMD 31 (MTD_C_UNIT_GENERAL).
+//# Register split per mtd_api/mtdApiRegs.h:113-114 - the FW used to read the CTRL
+//# register by mistake, which is why it needed a 20C fudge. Now reads DATA like
+//# mtdReadTemperature() (mtdDiagnostics.c:1934) does.
+#define PHY_TEMP_REG_CTRL     0xF08A  // MTD_CUNIT_TEMP_SENSOR_CTRL (enable only)
+#define PHY_TEMP_REG_DATA     0xF08C  // MTD_CUNIT_TEMP_SENSOR      (reading)
+#define PHY_TEMP_OFS_STD      75      // mtdReadTemperature(): (s16)(raw & 0xFF) - 75
+
+//# 2608191733 IC die temperature -> set (enclosure) temperature, for FPGA / PHY / SFP.
+//# A fixed subtraction is wrong physics: die temp = ambient + self-heating, and a module
+//# just plugged in from a 26C room has no self-heating yet, so "raw - 10" reported 16C.
+//# Scale the rise above ambient instead, so the correction fades out as the part cools:
+//#     T_set = ANCHOR + (T_ic - ANCHOR) * (SPAN - REF_OFS) / SPAN,  SPAN = REF_IC - ANCHOR
+//#     T_ic <= ANCHOR -> reported as-is (nothing to remove)
+//# Tuning: REF_OFS is the reduction wanted at REF_IC, i.e. the old fixed offset.
+#define TEMP_ANCHOR_C         20.0f  // cold start: sensor == set temperature
+#define TEMP_REF_IC_C         50.0f  // typical steady-state die reading
+#define TEMP_REF_OFS_C        10.0f  // wanted reduction at TEMP_REF_IC_C
 
 // 2604242200 BCAL_FW_CTRL bit positions
 #define BCAL_FW_CTRL_EN_BIT        (1u << 0)
@@ -785,6 +1001,7 @@ extern void dbg_watch_check(u32 access_addr, const char *fname, int line);
 
 #define MCLK_062   62
 #define MCLK_125   125
+#define MCLK_120   120
 #define MCLK_200   200
 #define MCLK_160   160 //$ 241213 jyp
 #define MCLK_180   180 //# 260514
@@ -797,13 +1014,17 @@ extern void dbg_watch_check(u32 access_addr, const char *fname, int line);
 #define CMDSTR_1024 1024
 
 #define TIRST_350   350
+#define TIRST_500   500
 #define TIRST_1000 1000
+#define TIRST_1500 1500 //$ 2607021050 3643R shs>oe feasibility
 #define TIRST_2000 2000
 #define TIRST_3000 3000
 #define TIRST_4000 4000 //$ 241213 jyp
 
+#define LPF1_500     500
 #define LPF1_1000   1000
 #define LPF1_1200   1200
+#define LPF1_1500   1500 //$ 2607021050 3643R shs>oe feasibility
 #define LPF1_1750   1750
 #define LPF1_2000   2000
 #define LPF1_3000   3000
@@ -812,6 +1033,8 @@ extern void dbg_watch_check(u32 access_addr, const char *fname, int line);
 #define LPF2_1750   1750
 #define LPF2_3500   3500 //$ 251121
 #define LPF2_2000   2000
+#define LPF2_2500   2500
+#define LPF2_7500   7500 //$ 2607021050 3643R shs>oe feasibility
 #define LPF2_4000   4000
 #define LPF2_6000   6000
 #define LPF2_8000   8000
@@ -825,8 +1048,11 @@ extern void dbg_watch_check(u32 access_addr, const char *fname, int line);
 #define TGATE_1100   1100
 #define TGATE_1500   1500
 #define TGATE_2000   2000
+#define TGATE_2500	 2500
 #define TGATE_3000   3000
 #define TGATE_4000   4000
+#define TGATE_5000   5000
+#define TGATE_6000   6000
 #define TGATE_7000   7000
 #define TGATE_8000   8000
 #define TGATE_10000 10000
@@ -981,12 +1207,14 @@ extern u32 mEXT2832R_series;
 extern u32 mEXT2430R_series;
 extern u32 mEXT1024_series; // 241014 jyp
 extern u32 mEXT3643R_series;
+extern u32 def_sfp_port; //$ 2606171455 SFP port enable flag (EXT3643R only)
 
 extern u32 AFE3256_series;
 
 extern u8 func_able_binn_num; //# 230926 //# 250317
 extern u8 func_able_gain_num;
 extern u8 func_able_dnr;
+extern u8 func_able_acc;
 //extern u8 func_gige_disconnected;   //# 2605131508 1=gige link down (composer forces ADDR_DDR_CH_EN=0)
 //# 2605131659 ADDR_DDR_CH_EN force-off tokens (separate per source, OR-combined in composer)
 extern u8 func_ddrchen_gigedisconn_stat;   //# 2605131659 1=gige link down (forces ADDR_DDR_CH_EN=0)

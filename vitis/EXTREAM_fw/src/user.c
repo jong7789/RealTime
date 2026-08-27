@@ -150,10 +150,10 @@ u32 get_user_reg(u32 address, u16 *status)
         case XML_PANEL_SER2     :  if (DEBUGXML_R)func_printf("--- get XML_PANEL_SER2 (%s) $$$\r\n",&PANEL_SERIAL[8] );  return set_str_data(&PANEL_SERIAL[8]);
         case XML_PANEL_SER3     :  if (DEBUGXML_R)func_printf("--- get XML_PANEL_SER3 (%s) $$$\r\n",&PANEL_SERIAL[12]);  return set_str_data(&PANEL_SERIAL[12]);
         case XML_BWIDTH         :  fval = (func_width * func_height * 16 * func_frate) / 1048576.0;
-                                   temp = (u32*)&fval;                    
+                                   temp = (u32*)&fval;
                                    if (DEBUGXML_R){func_printf("--- get XML_BWIDTH (%d) $$$\r\n",(*temp));}                return (*temp);
         case XML_GEV_SPEED      :  if (DEBUGXML_R)func_printf("--- get XML_GEV_SPEED (%d) $$$\r\n",GEV_SPEED);           return GEV_SPEED;
-        case XML_FRATE_MIN      :     temp = (u32*)&func_frate_min;        
+        case XML_FRATE_MIN      :     temp = (u32*)&func_frate_min;
                                    if (DEBUGXML_R) {
                                         char DEBUG_MSG[16];
                                          memset(DEBUG_MSG, 0, sizeof(DEBUG_MSG));  //#220502
@@ -162,7 +162,7 @@ u32 get_user_reg(u32 address, u16 *status)
                                         func_printf("--- get XML_FRATE_MIN (%s) $$$\r\n", DEBUG_MSG);
                                    }
                                    return (*temp);
-        case XML_FRATE_MAX      :  temp = (u32*)&func_frate_max;        
+        case XML_FRATE_MAX      :  temp = (u32*)&func_frate_max;
                                    if (DEBUGXML_R) {
                                         char DEBUG_MSG[16];
                                          memset(DEBUG_MSG, 0, sizeof(DEBUG_MSG));  //#220502
@@ -195,7 +195,7 @@ u32 get_user_reg(u32 address, u16 *status)
         case XML_IMG_AVG_DOSE4  :  if (DEBUGXML_R)func_printf("--- get XML_IMG_AVG_DOSE4 (%d) $$$\r\n",func_img_avg_dose4);      return func_img_avg_dose4;
         case XML_BINNING_MODE   :  if (DEBUGXML_R)func_printf("--- get XML_BINNING_MODE (%d) $$$\r\n",func_binning_mode);        return func_binning_mode;
 //      case XML_DOT_NUMBER     :     return func_defect_cnt + func_defect_cnt2;
-        case XML_DOT_NUMBER     :  if (DEBUGXML_R)func_printf("--- get XML_DOT_NUMBER (%d) $$$\r\n",func_defect_cnt + func_defect_cnt2 + func_defect_cnt3); 
+        case XML_DOT_NUMBER     :  if (DEBUGXML_R)func_printf("--- get XML_DOT_NUMBER (%d) $$$\r\n",func_defect_cnt + func_defect_cnt2 + func_defect_cnt3);
                                        return func_defect_cnt + func_defect_cnt2 + func_defect_cnt3;    // dskim - 21.03.02 - factory map
         case XML_IMAGE_PROC     :  if (DEBUGXML_R)func_printf("--- get XML_IMAGE_PROC (%d) $$$\r\n",func_img_proc);                 return func_img_proc;
         case XML_ACCESS_AUTH    :  if (DEBUGXML_R)func_printf("--- get XML_ACCESS_AUTH (%d) $$$\r\n",func_access_level);            return func_access_level;
@@ -215,20 +215,35 @@ u32 get_user_reg(u32 address, u16 *status)
         case XML_MANUAL_DOT_Y   :  if (DEBUGXML_R)func_printf("--- get XML_MANUAL_DOT_Y (%d) $$$\r\n",func_pointy);                 return func_pointy;
         case XML_UPDATE_STATE   :  if (DEBUGXML_R)func_printf("--- get XML_UPDATE_STATE (%d) $$$\r\n",0);                           return 0;
         case XML_SHUTTER_MODE   :  if (DEBUGXML_R)func_printf("--- get XML_SHUTTER_MODE (%d) $$$\r\n",func_shutter_mode);           return func_shutter_mode;
+        //# 2608191856 BD nodes carry no correction, so only the value is traced
+        //# 2608211132 raw word added: it tells a filtered/held value apart from what the
+        //# bus actually returned, which is what identified the 0xC400 (-60C) power-on state.
         case XML_TEMP_BD0       :    read_ds1731_temp();
-                                    temp = (u32*)&func_ds1731_temp[0];    
+                                    if (DBG_XMLTEMP) { func_printf("[XMLTEMP] BD0      -> sent ");
+                                        float_printf(func_ds1731_temp[0], 1);
+                                        func_printf(" (raw 0x%04x)\r\n", (unsigned)(REG(ADDR_I2C_RDATA0) & 0xFFFF)); }
+                                    temp = (u32*)&func_ds1731_temp[0];
                                     return (*temp);
         case XML_TEMP_BD1       :    // read_ds1731_temp(); no need to read
-                                    temp = (u32*)&func_ds1731_temp[1];    
+                                    if (DBG_XMLTEMP) { func_printf("[XMLTEMP] BD1      -> sent ");
+                                        float_printf(func_ds1731_temp[1], 1);
+                                        func_printf(" (raw 0x%04x)\r\n", (unsigned)(REG(ADDR_I2C_RDATA1) & 0xFFFF)); }
+                                    temp = (u32*)&func_ds1731_temp[1];
                                     return (*temp);
-        case XML_TEMP_FPGA      :    read_fpga_temp();
-                                    temp = (u32*)&func_fpga_temp;        
-                                    return (*temp);
-        case XML_TEMP_PHY       :    read_phy_temp();
-                                    return func_phy_temp;
+        //# 2608191842 both temperature nodes follow "rtempraw": 0 = set temperature
+        //# (ic_to_set_temp applied, default), 1 = raw die reading.
+        case XML_TEMP_FPGA      :    return xml_fpga_temp();
+        //# 2608191647 XML_TEMP_PHY carries the SFP module temperature while the SFP link is up
+        //# (Marvell is bypassed then), otherwise the Marvell PHY temperature. UART rtemp is NOT
+        //# affected - it prints PHY and SFP as separate lines. Integer degC, so the DDM
+        //# 1/256 fraction is rounded off here. Selection lives in xml_phy_temp (func_basic.c).
+        case XML_TEMP_PHY       :    return xml_phy_temp();
                                     // TI_ROIC
 //      case XML_IFS              :    return ROIC_MAT[1].data;
-        case XML_IFS              :  if (DEBUGXML_R)func_printf("--- get XML_IFS (%d) $$$\r\n",ROIC_MAT[0].data);       return ROIC_MAT[0].data;    // dskim
+//        case XML_IFS              :  if (DEBUGXML_R)func_printf("--- get XML_IFS (%d) $$$\r\n",ROIC_MAT[0].data);       return ROIC_MAT[0].data;    // dskim
+        //$ 2606171106 user_read XML_IFS: AFE3256 stores gain step in func_ifs_index (ROIC_MAT[1]=SEL_CFB),
+        //$ but read returned stale ROIC_MAT[0]; branch so 'get xml ifs' round-trips the set value.
+        case XML_IFS              :  if (DEBUGXML_R)func_printf("--- get XML_IFS (%d) $$$\r\n", AFE3256_series ? func_ifs_index : ROIC_MAT[0].data);  return AFE3256_series ? func_ifs_index : ROIC_MAT[0].data;    //$ 2606171106
         case XML_IFS_MIN          :  if (DEBUGXML_R)func_printf("--- get XML_IFS_MIN (%d) $$$\r\n",MIN_IFS);            return MIN_IFS;
         case XML_IFS_MAX          :  if (DEBUGXML_R)func_printf("--- get XML_IFS_MAX (%d) $$$\r\n",MAX_IFS);            return MAX_IFS;
         case XML_AVG_LEVEL        :  if (DEBUGXML_R)func_printf("--- get XML_AVG_LEVEL (%d) $$$\r\n",user_avg_level);   return user_avg_level;
@@ -288,14 +303,20 @@ u32 get_user_reg(u32 address, u16 *status)
         case XML_BOOT_COUNT          :  if (DEBUGXML_R)func_printf("--- get XML_BOOT_COUNT (%d) $$$\r\n",func_boot_count);         return func_boot_count;
         case XML_OPERATING_TIME_H    :  if (DEBUGXML_R)func_printf("--- get XML_OPERATING_TIME_H (%d) $$$\r\n",func_oper_time_h);  return func_oper_time_h;
         case XML_OPERATING_TIME_M    :  if (DEBUGXML_R)func_printf("--- get XML_OPERATING_TIME_M (%d) $$$\r\n",func_oper_time_m);  return func_oper_time_m;
+        //# 2608191856 BD nodes carry no correction, so only the value is traced
         case XML_TEMP_BD2            :    read_ds1731_temp();
+                                        if (DBG_XMLTEMP) { func_printf("[XMLTEMP] BD2      -> sent ");
+                                            float_printf(func_ds1731_temp[2], 1); func_printf("\r\n"); }
                                         temp = (u32*)&func_ds1731_temp[2];
                                         return (*temp);
         case XML_TEMP_BD3            :    read_ds1731_temp();
+                                        if (DBG_XMLTEMP) { func_printf("[XMLTEMP] BD3      -> sent ");
+                                            float_printf(func_ds1731_temp[3], 1); func_printf("\r\n"); }
                                         temp = (u32*)&func_ds1731_temp[3];
                                         return (*temp);
         case XML_SW_CALIB_MODE       :  if (DEBUGXML_R)func_printf("--- get XML_SW_CALIB_MODE (%d) $$$\r\n",func_sw_calibration_mode);    return func_sw_calibration_mode;
         case XML_LOAD_HW_CALIB       :  if (DEBUGXML_R)func_printf("--- get XML_LOAD_HW_CALIB (%d) $$$\r\n",is_load_hw_calibration);      return is_load_hw_calibration;
+        case XML_RDDR_CMD            :  if (DEBUGXML_R)func_printf("--- get XML_RDDR_CMD (%d) $$$\r\n",func_rddr_token);              return func_rddr_token; //$ 2607131936
         //#
         case XML_HW_VER0        :  if (DEBUGXML_R)func_printf("--- get XML_HW_VER0  (%s) $$$\r\n",&HW_VER[0]     );  return set_str_data(&HW_VER[0]);
         case XML_HW_VER1        :  if (DEBUGXML_R)func_printf("--- get XML_HW_VER1  (%s) $$$\r\n",&HW_VER[4]     );  return set_str_data(&HW_VER[4]);
@@ -312,9 +333,14 @@ u32 get_user_reg(u32 address, u16 *status)
         case XML_ABLE_BINN_NUM  : if (DEBUGXML_R)func_printf("--- get XML_ABLE_BINN_NUM (%d) $$$\r\n",func_able_binn_num); return func_able_binn_num;
         case XML_ABLE_GAIN_NUM  : if (DEBUGXML_R)func_printf("--- get XML_ABLE_GAIN_NUM (%d) $$$\r\n",func_able_gain_num); return func_able_gain_num;
         case XML_ABLE_DNR       : if (DEBUGXML_R)func_printf("--- get XML_ABLE_DNR (%d) $$$\r\n"     ,func_able_dnr);      return func_able_dnr;
+        case XML_ABLE_ACC		: if (DEBUGXML_R)func_printf("--- get XML_ABLE_ACC (%d) $$$\r\n"     ,func_able_acc);	   return func_able_acc;
         //$ 250627
         case XML_READ_DEFECT_STT : if (DEBUGXML_R)func_printf("--- get XML_READ_DEFECT_STT (%d) $$$\r\n",func_read_defect_stt); return func_read_defect_stt;
         case XML_READ_DEFECT_NUM : if (DEBUGXML_R)func_printf("--- get XML_READ_DEFECT_NUM (%d) $$$\r\n",func_read_defect_num); return func_read_defect_num;
+        //$ 2606181441 expose brns bg load progress (0..100, 100=IDLE/done) for UI bar
+        case XML_BRNS_BG_PCT     : if (DEBUGXML_R)func_printf("--- get XML_BRNS_BG_PCT (%d) $$$\r\n",(u32)brns_bg_progress()); return (u32)brns_bg_progress();
+        //$ 2607141553 opwr_en override: read back current register value
+        case XML_PWR_CTRL        : if (DEBUGXML_R)func_printf("--- get XML_PWR_CTRL (0x%08X) $$$\r\n",(unsigned int)REG(ADDR_PWR_CTRL)); return REG(ADDR_PWR_CTRL);
 
         // Packet size margin
         case 0x10000000:    return SCPS_MIN + (gige_get_gev_version() == 2 ? 48 : 36);
@@ -338,7 +364,7 @@ u32 get_user_reg(u32 address, u16 *status)
                                 #endif
                                 return flash_read_dword(address - 0xFE000000);
                             }
-/*    	
+/*
         // User registers
         case 0x0000A000:        return video_gcsr;
         case 0x0000A004:        return video_width;
@@ -918,7 +944,7 @@ void set_user_reg(u32 address, u32 value, u16 *status)
                                     }
                                     value = 0;
                                     break;
-        case XML_SHUTTER_MODE    :   if (DEBUGXML_W)func_printf("$$$ set XML_SHUTTER_MODE (%d) $$$\r\n",value); 
+        case XML_SHUTTER_MODE    :   if (DEBUGXML_W)func_printf("$$$ set XML_SHUTTER_MODE (%d) $$$\r\n",value);
         {
                                     execute_cmd_smode(value);
                                     if (value==0) // if rolling shutter mode set freerun. 220121mbh
@@ -942,6 +968,14 @@ void set_user_reg(u32 address, u32 value, u16 *status)
 //                                    if(REG(ADDR_OUT_EN))    // dskim //# comment 221109
 //                                        *status = GEV_STATUS_ACCESS_DENIED;
 //                                    else
+//                                        execute_cmd_ifs(value);
+                                   //$ 2607221549 set_user_reg XML_IFS: range guard (was unchecked).
+                                   //$ MIN_IFS/MAX_IFS are runtime bounds per ROIC family, so a client
+                                   //$ writing 0xA164 raw cannot select AFE3256 step0 (0.3125pC) even
+                                   //$ though the XML enum entry is only hidden on the client side.
+                                   if(value < (u32)MIN_IFS || value > (u32)MAX_IFS)
+                                       *status = GEV_STATUS_INVALID_PARAMETER;
+                                   else
                                         execute_cmd_ifs(value);
                                    break;
         case XML_IFS_MIN         : break;
@@ -1101,6 +1135,9 @@ void set_user_reg(u32 address, u32 value, u16 *status)
 //                                      execute_cmd_load_hw_calibration(value);
                                         func_hwload_flag = value;
                                         break;
+        case XML_RDDR_CMD             : if (DEBUGXML_W)func_printf("$$$ set XML_RDDR_CMD (%d) $$$\r\n",value);
+                                        func_rddr_token = value; //$ 2607131936 deferred to while(1) via execute_rddr_cmd
+                                        break;
         case XML_FPGA_REBOOT          : if (DEBUGXML_W)func_printf("$$$ set XML_FPGA_REBOOT (%d) $$$\r\n",value);
                                         execute_cmd_fpgareboot();
                                         break;
@@ -1127,6 +1164,11 @@ void set_user_reg(u32 address, u32 value, u16 *status)
         case XML_READ_DEFECT_NUM	  : if (DEBUGXML_W)func_printf("$$$ set XML_READ_DEFECT_NUM (%d) $$$\r\n",value);
         								func_read_defect_num = value;
         								break;
+        case XML_BRNS_BG_PCT		  : break;   //$ 2606181441 RO: ignore host writes
+        //$ 2607141553 opwr_en override: write directly to FPGA register
+        case XML_PWR_CTRL         : if (DEBUGXML_W)func_printf("$$$ set XML_PWR_CTRL (0x%08X) $$$\r\n",(unsigned int)value);
+                                    REG(ADDR_PWR_CTRL) = value;
+                                    break;
         // Packet size margins
         case 0x10000000:
         case 0x10000004:
@@ -1548,6 +1590,10 @@ void user_callback(void)
         if ((REG(ADDR_OUT_EN) & 0x00000001) != (old_gcsr & 0x00000001) && (func_check_booting != 1))
         {
             if (REG(ADDR_OUT_EN) & 0x00000001) {
+                //# #2606151550 2606151409 DBG: trace acq-start (post-connect transmission hang hunt)
+                //# func_printf("\r\n[ACQ] start: gcsr=0x%08x ddrchen=0x%02x offset_pend=%u\r\n",
+                //#             (unsigned)gige_gcsr, (unsigned)REG(ADDR_DDR_CH_EN),
+                //#             (unsigned)func_offset_after_tmr); //$ 2606171840 renamed
                 execute_cmd_op_acq_start();
                 //# 2605081100 Reset framebuf state before each acq start. fstat dump on stuck showed
                 //# 0 OVFLW but reader stalled (RD_ACT 1->0, IF_EMPTY=1) with 168 dropped blocks /
@@ -1682,6 +1728,10 @@ u32 gige_event(u32 id, u32 param, __attribute__((unused)) void *data)
                 framebuf_control |= FRAMEBUF_C_EXTSTAT;         // Enable extended GVSP status codes
             else
                 framebuf_control &= ~FRAMEBUF_C_EXTSTAT;        // Disable extended GVSP status codes
+            //# 2606121740 app connected, XML download follows: hold brns_bg chunks
+#if BRNS_BG_LOAD
+            brns_bg_suspend();
+#endif
             break;
 
         // Open or close stream channel
@@ -1695,6 +1745,10 @@ u32 gige_event(u32 id, u32 param, __attribute__((unused)) void *data)
                 REG(ADDR_OUT_EN)        = 0x00000000;                 // Reset video in module
                 gige_set_acquisition_status(0, 0);              // Acquisition off
             }
+            //# 2606121740 stream opened: connection phase over, resume brns_bg
+#if BRNS_BG_LOAD
+            if (param)  brns_bg_resume();
+#endif
             break;
 
         // Write access into the stream channel configuration register
@@ -1712,6 +1766,10 @@ u32 gige_event(u32 id, u32 param, __attribute__((unused)) void *data)
                 video_gcsr        = 0x00000000;                 // Reset video in module
                 gige_set_acquisition_status(0, 0);              // Acquisition off
             }
+            //# 2606121740 app closed control channel: resume brns_bg
+#if BRNS_BG_LOAD
+            brns_bg_resume();
+#endif
             break;
 
         // Physical link disconnected
@@ -1721,6 +1779,10 @@ u32 gige_event(u32 id, u32 param, __attribute__((unused)) void *data)
             video_gcsr = 0x00000000;                            // Reset video in module
             REG(ADDR_OUT_EN) = 0x00000000;                            // Reset video in module
             gige_set_acquisition_status(0, 0);                  // Acquisition off
+            //# 2606121740 link down: resume brns_bg
+#if BRNS_BG_LOAD
+            brns_bg_resume();
+#endif
             break;
 
         // Write access to the physical link configuration register

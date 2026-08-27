@@ -9,8 +9,18 @@ package TOP_HEADER is
 -- constant GNR_MODEL  : string := "EXT1616R";
 
 constant FPGA_VER  : std_logic_vector(19 downto 0) := x"2_01_13";
-constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0528_13";
+constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0826_17";
 
+-- # 2_01_13 26_0826_17 :  --# 4343RD DATA Reverse
+-- # 2_01_13 26_0826_16 :  --# 4343RD SFP ROIC DOUT13 Test
+-- # 2_01_13 26_0826_10 :  --# 4343RD SFP AFE2256
+-- # 2_01_13 26_0825_11 :  --# 4343RD SFP SYSTEM BD V0.4
+-- # 2_01_13 26_0723_10 :  --# 4343RD SFP, SDO A/B pin swap
+-- # 2_01_13 26_0720_16 :  --# 4343RD SFP, roic data map change
+-- # 2_01_13 26_0707_11 :  --# # FLASH_CTRL: halfclk generated clock (SPI SCK source) __ gain load make odd img
+-- # 2_01_13 26_0706_18 :  --$ 2607061847 TPC_PROC_PARA4: fix gain rounding overflow (0xFFFF+1 wrap to 0)
+-- # 2_01_13 26_0529_11 :  --$ 2605291129 TOP_HEADER : GEN_ACC 1
+-- # 2_01_13 26_0528_13 :  --$ 2605281211 MASK_PARA4: clean rewrite (functional equiv to 2605271746..2605281121 fix chain)
 -- # 2_01_13 26_0528_13 :  --$ 2605281211 MASK_PARA4: clean rewrite (functional equiv to 2605271746..2605281121 fix chain)
 -- # 2_01_13 26_0528_12 :  --$ 2605281121 MASK_PARA4: inj_active_now combinational early-exit (fix next-frame row0 word0)
 -- # 2_01_13 26_0528_11 :  --$ 2605281049 MASK_PARA4: advance inj_wait by 1cyc (fix 1st word of row 3071 mux+addr)
@@ -560,6 +570,11 @@ constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0528_13";
     constant HIGHV : std_logic_vector(255 downto 0) := (others => '1');
 
     constant TPC_1418                 : string := "1418"; -- "1616" or "1418"
+    --# 2608241851 TI_DATA_ALIGN line buffer implementation select (AFE2256 path)
+    --# '0' = distributed RAM : DPRAM_16x64_64x16 x8/ch (4 bank + 4:1 lane pack)
+    --# '1' = block RAM       : BRAM_16x512_64x128 x1/ch (bank/lane folded into address)
+    --# Read latency is 1 clk in both cases. IP BRAM_16x512_64x128 must exist for '1'.
+    constant GEN_DPRAM_BRAM           : std_logic := '1';
     function ilaswitch                (s : string) return string;
     -- ### debug ila on off
      constant ILA_ON                  : string := ilaswitch(SIMULATION);
@@ -597,7 +612,8 @@ constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0528_13";
     constant GEN_DGAIN    : std_logic := '0'; -- $250321
     constant GEN_OSD      : std_logic := '0'; -- #220209
     constant GEN_EDGE     : std_logic := '1'; -- #230210
-    constant GEN_BNC      : std_logic := '0'; -- #230904
+    constant GEN_BNC      : std_logic := '0'; -- #230904 --# 2608241621 auto B&C calc
+    constant GEN_BC       : std_logic := '0'; --# 2608241621 B&C apply x4, PARA4 only
     constant GEN_EQ       : std_logic := '0'; -- #230904
     constant GEN_DEFECT   : std_logic := '1'; -- $260122
     -- IMG_OUT
@@ -875,7 +891,9 @@ constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0528_13";
 
     constant ADDR_BNC_CTRL        : std_logic_vector(15 downto 0) := x"0474"; --# 230721
     constant ADDR_BNC_HIGH        : std_logic_vector(15 downto 0) := x"0478";
---    constant ADDR_                : std_logic_vector(15 downto 0) := x"047C";
+    --# 2608191217 5th I2C slave readback (SFP DDM), joins the ADDR_I2C_RDATA0..3 family.
+    --# With RSIZE=2 and MODE[15:8]=0x60: [15:0] = A2h[96..97] = int16 temperature, 1/256 degC.
+    constant ADDR_I2C_RDATA4      : std_logic_vector(15 downto 0) := x"047C";
     constant ADDR_OFGA_LIM        : std_logic_vector(15 downto 0) := x"0480"; --# 230725
 
     constant ADDR_EQ_CTRL         : std_logic_vector(15 downto 0) := x"0484"; --# 230817
@@ -892,6 +910,10 @@ constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0528_13";
 --# 2605071529 DDR3 AXI burst limit selector (runtime, applied next AXI transaction)
 --#   reg[1:0] : 00=32 / 01=64 (default) / 10=128 / 11=256 beats
     constant ADDR_DDR_BURST       : std_logic_vector(15 downto 0) := x"04A0";
+    --$ 2607141553 opwr_en manual override: bit[31]=override_en, bit[10:0]=opwr_en value (max PWR_NUM=11)
+    constant ADDR_PWR_CTRL        : std_logic_vector(15 downto 0) := x"04A4";
+    --$ 2607241407 Short Pixel Cover: [0]en [7:4]dark(1/128/256/512/1024) [11:8]restore(65535/34/30/60000) [15:12]satref(65535/34/30/60000)
+    constant ADDR_SPC_CTRL        : std_logic_vector(15 downto 0) := x"04A8";
 --# 221110 fpga reboot
     constant ADDR_FPGA_REBOOT       : std_logic_vector(15 downto 0) := x"1000";
 
@@ -1273,10 +1295,11 @@ PACKAGE BODY TOP_HEADER is
     function ROIC_BY_MODEL (s : string) return string is
         variable val : string(1 to 7);
     begin
-           if(s = "EXT4343RD"  ) then val := "AFE3256";
-        elsif(s = "EXT3643R"   ) then val := "AFE3256";
-        else                          val := "AFE2256";
-        end if;
+--           if(s = "EXT4343RD"  ) then val := "AFE3256";
+--        elsif(s = "EXT3643R"   ) then val := "AFE3256"; --# 260803
+--        else                          val := "AFE2256";
+--        end if;
+        val := "AFE2256"; --# 26_0824_11
         return (val);
     end ROIC_BY_MODEL;
 
@@ -2129,7 +2152,7 @@ PACKAGE BODY TOP_HEADER is
         elsif(s = "EXT4343RI_4" ) then val := 5;
         elsif(s = "EXT4343RCI_1") then val := 5;
         elsif(s = "EXT4343RCI_2") then val := 5;
-        elsif(s = "EXT4343RD"  ) then val := 6;
+        elsif(s = "EXT4343RD"  ) then val := 7;
         elsif(s = "EXT3643R"   ) then val := 7;
         end if;
         return val;
@@ -2503,10 +2526,9 @@ end function DDR_AXI0_STRB;
     --# 260320 SFP port count: 1=SFP used, 0=null array (ports disappear)
     function FUNC_SFP_NUM (s : string) return integer is
     begin
-        if    (s = "EXT3643R") then
-            return 1;
-        else
-            return 0;
+        if    (s = "EXT3643R")  then  return 1;
+        elsif (s = "EXT4343RD") then  return 1;
+        else                          return 0;
         end if;
     end FUNC_SFP_NUM;
 

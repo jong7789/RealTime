@@ -84,8 +84,6 @@
             <pFeature>AbleBinnNum</pFeature>
             <pFeature>AbleGainNum</pFeature>
             <pFeature>AbleDnr</pFeature>
-			<pFeature>AbleAcc</pFeature>
-            <pFeature>PwrCtrl</pFeature>
         </Category>
         <Category Name="AccessAuthority" NameSpace="Standard">
             <ToolTip>Category for the access authority.</ToolTip>
@@ -184,8 +182,6 @@
             <pFeature>SWCalibrationMode</pFeature>
             <pFeature>LoadHWCalibration</pFeature>
             <pFeature>FactoryMapMode</pFeature>
-            <!--$ 2606181441 BRNS bg load progress (RO, UI poll for progress bar) -->
-            <pFeature>BrnsBgProgress</pFeature>
         </Category>
         <Category Name="ImageProcessing" NameSpace="Standard">
             <ToolTip>Category for the image processing.</ToolTip>
@@ -620,45 +616,28 @@
           <pValue>OperatingTimeMReg</pValue>
       </Integer>
       <Integer Name="AbleBinnNum" NameSpace="Standard">
-          <ToolTip>Binning Available Number</ToolTip>
-          <Description>Binning Available Number</Description>
+          <ToolTip>Binning Avaliable Number</ToolTip>
+          <Description>Binning Avaliable Number</Description>
           <DisplayName>AbleBinnNum</DisplayName>
           <Visibility>Beginner</Visibility>
           <ImposedAccessMode>RO</ImposedAccessMode>
           <pValue>AbleBinnNumReg</pValue>
       </Integer>
       <Integer Name="AbleGainNum" NameSpace="Standard">
-          <ToolTip>Gain Calibration Available Number</ToolTip>
-          <Description>Gain Calibration Available Number</Description>
+          <ToolTip>Gain Calibration Avaliable Number</ToolTip>
+          <Description>Gain Calibration Avaliable Number</Description>
           <DisplayName>AbleGainNum</DisplayName>
           <Visibility>Beginner</Visibility>
           <ImposedAccessMode>RO</ImposedAccessMode>
           <pValue>AbleGainNumReg</pValue>
       </Integer>
       <Integer Name="AbleDnr" NameSpace="Standard">
-          <ToolTip>DNR Available</ToolTip>
-          <Description>DNR Available</Description>
+          <ToolTip>DNR Avaliable</ToolTip>
+          <Description>DNR Avaliable</Description>
           <DisplayName>AbleDnr</DisplayName>
           <Visibility>Beginner</Visibility>
           <ImposedAccessMode>RO</ImposedAccessMode>
           <pValue>AbleDnrReg</pValue>
-      </Integer>
-      <Integer Name="AbleAcc" NameSpace="Standard">
-          <ToolTip>ACC Available</ToolTip>
-          <Description>ACC Available</Description>
-          <DisplayName>AbleAcc</DisplayName>
-          <Visibility>Beginner</Visibility>
-          <ImposedAccessMode>RO</ImposedAccessMode>
-          <pValue>AbleAccReg</pValue>
-      </Integer>	  
-      <!-- 2607141553 opwr_en manual override register -->
-      <Integer Name="PwrCtrl" NameSpace="Custom">
-          <ToolTip>Power Enable Override: bit[31]=override_en, bit[10:0]=opwr_en pins</ToolTip>
-          <Description>Manual override for opwr_en GPIO pins. bit[31]=1 enables register control (sequencer bypassed). bit[10:0] map to each PWR_EN pin (model-dependent).</Description>
-          <DisplayName>Power Control Override</DisplayName>
-          <Visibility>Expert</Visibility>
-          <ImposedAccessMode>RW</ImposedAccessMode>
-          <pValue>PwrCtrlReg</pValue>
       </Integer>
   </Group>
   <!-- ***************************************** -->
@@ -851,79 +830,16 @@
           <Min>0</Min>
           <Max>65535</Max>
       </Integer>
-      <Enumeration Name="AnalogGain" NameSpace="Standard">
-          <!-- Optional element -->
+      <Integer Name="AnalogGain" NameSpace="Standard">
           <ToolTip>Controls the analog gain to change the bright of image.</ToolTip>
           <Description>Controls the analog gain to change the bright of image. If the value is changed, you have to get calibration data once more.</Description>
           <DisplayName>Analog Gain</DisplayName>
           <Visibility>Beginner</Visibility>
-          <ImposedAccessMode>RW</ImposedAccessMode>            
-          <EnumEntry Name="Step0" NameSpace="Standard">
-              <DisplayName>0.3pC</DisplayName>
-              <Value>0</Value>
-          </EnumEntry>            
-          <EnumEntry Name="Step1" NameSpace="Standard">
-              <DisplayName>0.6pC</DisplayName>
-              <Value>1</Value>
-          </EnumEntry>            
-          <EnumEntry Name="Step2" NameSpace="Standard">
-              <DisplayName>1.2pC</DisplayName>
-              <Value>2</Value>
-          </EnumEntry>            
-          <EnumEntry Name="Step3" NameSpace="Standard">
-              <DisplayName>1.8pC</DisplayName>
-              <Value>3</Value>
-          </EnumEntry>            
-          <EnumEntry Name="Step4" NameSpace="Standard">
-              <DisplayName>2.4pC</DisplayName>
-              <Value>4</Value>
-          </EnumEntry>            
-          <EnumEntry Name="Step5" NameSpace="Standard">
-              <DisplayName>3.0pC</DisplayName>
-              <Value>5</Value>
-          </EnumEntry>            
-          <EnumEntry Name="Step6" NameSpace="Standard">
-              <DisplayName>3.6pC</DisplayName>
-              <Value>6</Value>
-          </EnumEntry>            
-          <EnumEntry Name="Step7" NameSpace="Standard">
-              <DisplayName>4.2pC</DisplayName>
-              <Value>7</Value>
-          </EnumEntry>            
-          <EnumEntry Name="Step8" NameSpace="Standard">
-              <DisplayName>4.8pC</DisplayName>
-              <Value>8</Value>
-		  </EnumEntry>            
-		  <EnumEntry Name="Step9" NameSpace="Standard">
-			  <DisplayName>5.4pC</DisplayName>
-			  <Value>9</Value>
-          </EnumEntry>            
-		  <EnumEntry Name="Step10" NameSpace="Standard">
-			  <DisplayName>6.0pC</DisplayName>
-			  <Value>10</Value>
-          </EnumEntry>            
-		  <EnumEntry Name="Step11" NameSpace="Standard">
-			  <DisplayName>6.6pC</DisplayName>
-			  <Value>11</Value>
-          </EnumEntry>            
-		  <EnumEntry Name="Step12" NameSpace="Standard">
-			  <DisplayName>7.2pC</DisplayName>
-			  <Value>12</Value>
-          </EnumEntry>            
-		  <EnumEntry Name="Step13" NameSpace="Standard">
-			  <DisplayName>7.8pC</DisplayName>
-			  <Value>13</Value>
-          </EnumEntry>            
-		  <EnumEntry Name="Step14" NameSpace="Standard">
-			  <DisplayName>8.4pC</DisplayName>
-			  <Value>14</Value>
-          </EnumEntry>            
-		  <EnumEntry Name="Step15" NameSpace="Standard">
-			  <DisplayName>9.0pC</DisplayName>
-			  <Value>15</Value>
-          </EnumEntry>            
+          <ImposedAccessMode>RW</ImposedAccessMode>
           <pValue>AnalogGainReg</pValue>
-      </Enumeration>      	  
+          <pMin>AnalogGainMinReg</pMin>
+          <pMax>AnalogGainMaxReg</pMax>
+      </Integer>
       <Integer Name="DigitalGain" NameSpace="Standard">
           <ToolTip>Controls the digital gain to change the bright of image.</ToolTip>
           <Description>Controls the digital gain to change the bright of image.</Description>
@@ -4307,13 +4223,6 @@
     <pPort>Device</pPort>
     <Endianess>BigEndian</Endianess>
   </IntReg>
- <IntReg Name="AbleAccReg">
-    <Address>0xA38C</Address>
-    <Length>4</Length>
-    <AccessMode>RW</AccessMode>
-    <pPort>Device</pPort>
-    <Endianess>BigEndian</Endianess>
-  </IntReg>  
   <IntReg Name="GevSCPSPacketSizeMinReg">
     <Visibility>Invisible</Visibility>
     <Address>0x10000000</Address>
@@ -4407,39 +4316,5 @@
         <LSB>31</LSB>
         <MSB>16</MSB>
         <Endianess>BigEndian</Endianess>
-    </MaskedIntReg>
-
-    <!--$ 2606181441 BRNS bg load progress (FW pushes 0..100 via brns_bg_progress) -->
-    <Group Comment="BRNS BG Status">
-        <Integer Name="BrnsBgProgress" NameSpace="Custom">
-            <ToolTip>Gain reference data load progress (background).</ToolTip>
-            <Description>Gain reference (NUC) data load progress in percent. 0..100, 100 = idle or load complete. Poll this value to update a progress bar while gain data is being loaded from flash to DDR in the background.</Description>
-            <DisplayName>Gain Load Progress</DisplayName>
-            <Visibility>Beginner</Visibility>
-            <ImposedAccessMode>RO</ImposedAccessMode>
-            <pValue>BrnsBgPctReg</pValue>
-            <Min>0</Min>
-            <Max>100</Max>
-            <Unit>%</Unit>
-        </Integer>
-    </Group>
-    <IntReg Name="BrnsBgPctReg">
-        <Address>0xA390</Address>
-        <Length>4</Length>
-        <AccessMode>RO</AccessMode>
-        <pPort>Device</pPort>
-        <Cachable>NoCache</Cachable>
-        <Endianess>BigEndian</Endianess>
-    </IntReg>
-        <!-- 2607141553 opwr_en override register (FPGA ADDR_PWR_CTRL = 0x04A4, GEV offset = 0xA394) -->
-    <IntReg Name="PwrCtrlReg">
-        <Description>PwrCtrlReg</Description>
-        <Visibility>Invisible</Visibility>
-        <Address>0xA394</Address>
-        <Length>4</Length>
-        <AccessMode>RW</AccessMode>
-        <pPort>Device</pPort>
-        <Sign>Unsigned</Sign>
-        <Endianess>BigEndian</Endianess>
-    </IntReg>
+    </MaskedIntReg> 
 </RegisterDescription>

@@ -63,6 +63,7 @@ void disp_cmd_usname(void);
 void disp_cmd_ipmode(void);
 void disp_cmd_rtime(void);
 void disp_cmd_rtemp(void);
+void disp_cmd_rtempraw(void); //# 2608191842 XML temp source + set/raw pairs
 void disp_cmd_flash(void);
 void disp_cmd_eeprom(void);
 void disp_cmd_erase(void);
@@ -120,6 +121,7 @@ void disp_cmd_pwdac(void);
 //void disp_cmd_pixpos(void);
 void disp_cmd_dnr(void);
 void disp_cmd_acc(void);
+void disp_cmd_spc(void); //$ 2607241407 Short Pixel Cover help/decode
 void disp_cmd_topv(void);
 void disp_cmd_bnc(void);
 void disp_cmd_eq(void);

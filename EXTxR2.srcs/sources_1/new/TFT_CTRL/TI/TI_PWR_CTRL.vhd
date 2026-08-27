@@ -12,6 +12,7 @@ entity TI_PWR_CTRL is
         imain_rstn          : in  std_logic;
 
         ireg_pwr_mode       : in  std_logic;
+        ireg_pwr_ctrl       : in  std_logic_vector(31 downto 0); --$ 2607141553 bit[31]=override_en, bit[10:0]=opwr_en
         ireg_erase_en       : in  std_logic;
         ireg_erase_time     : in  std_logic_vector(31 downto 0);
 
@@ -47,6 +48,8 @@ architecture Behavioral of TI_PWR_CTRL is
     signal serase_en     : std_logic;
     signal serase_cnt    : std_logic_vector(31 downto 0);
     signal serase_time   : std_logic_vector(31 downto 0);
+    --$ 2607141553 sequencer output; MUX with ireg_pwr_ctrl at output stage
+    signal s_opwr_en     : std_logic_vector(PWR_NUM(GNR_MODEL)-1 downto 0);
 
     signal stime_1st   : integer := (1 * T_1MS(GNR_MODEL));
     signal stime_2nd   : integer := (2 * T_1MS(GNR_MODEL));
@@ -227,13 +230,13 @@ begin
             end if;
         end process;
 
-        opwr_en(0) <= spwr_vbias_en when serase_en = '0' else '0';
-        opwr_en(1) <= spwr_vgh_en;
-        opwr_en(2) <= spwr_gate_3v3_en;
-        opwr_en(3) <= spwr_vgl_en;
-        opwr_en(4) <= spwr_roic_en;
-        opwr_en(5) <= spwr_roic_avdd1_en;
-        opwr_en(6) <= spwr_roic_avdd2_en;
+        s_opwr_en(0) <= spwr_vbias_en when serase_en = '0' else '0'; --$ 2607141553
+        s_opwr_en(1) <= spwr_vgh_en;
+        s_opwr_en(2) <= spwr_gate_3v3_en;
+        s_opwr_en(3) <= spwr_vgl_en;
+        s_opwr_en(4) <= spwr_roic_en;
+        s_opwr_en(5) <= spwr_roic_avdd1_en;
+        s_opwr_en(6) <= spwr_roic_avdd2_en;
 
     end generate;
 
@@ -304,15 +307,15 @@ begin
             end if;
         end process;
 
-        opwr_en(0) <= spwr_vgh_en;
-        opwr_en(1) <= spwr_vbias_en when serase_en = '0' else '0';
-        opwr_en(2) <= spwr_gate_3v3_en;
-        opwr_en(3) <= spwr_vgl_en;
-        opwr_en(4) <= spwr_roic_en;
-        opwr_en(5) <= spwr_r1_avdd1_en;
-        opwr_en(6) <= spwr_r1_avdd2_en;
-        opwr_en(7) <= spwr_r2_avdd1_en;
-        opwr_en(8) <= spwr_r2_avdd2_en;
+        s_opwr_en(0) <= spwr_vgh_en; --$ 2607141553
+        s_opwr_en(1) <= spwr_vbias_en when serase_en = '0' else '0';
+        s_opwr_en(2) <= spwr_gate_3v3_en;
+        s_opwr_en(3) <= spwr_vgl_en;
+        s_opwr_en(4) <= spwr_roic_en;
+        s_opwr_en(5) <= spwr_r1_avdd1_en;
+        s_opwr_en(6) <= spwr_r1_avdd2_en;
+        s_opwr_en(7) <= spwr_r2_avdd1_en;
+        s_opwr_en(8) <= spwr_r2_avdd2_en;
 
     end generate;
 
@@ -384,13 +387,13 @@ begin
             end if;
         end process;
 
-        opwr_en(0) <= spwr_n_bias_aen when serase_en = '0' else '0';
-        opwr_en(1) <= spwr_pgate_on;
-        opwr_en(2) <= spwr_vgl_en;
-        opwr_en(3) <= spwr_vgh_en;
-        opwr_en(4) <= spwr_roic_en_l;
+        s_opwr_en(0) <= spwr_n_bias_aen when serase_en = '0' else '0'; --$ 2607141553
+        s_opwr_en(1) <= spwr_pgate_on;
+        s_opwr_en(2) <= spwr_vgl_en;
+        s_opwr_en(3) <= spwr_vgh_en;
+        s_opwr_en(4) <= spwr_roic_en_l;
         --* 4343R_TI_S
-        --* opwr_en(5)      <= spwr_roic_en_r;
+        --* s_opwr_en(5) <= spwr_roic_en_r;
 
     end generate;
 
@@ -464,15 +467,15 @@ begin
             end if;
         end process;
 
-        opwr_en(0) <= spwr_vgh_en;
-        opwr_en(1) <= spwr_vbias_en when serase_en = '0' else '0';
-        opwr_en(2) <= spwr_gate_3v3_en;
-        opwr_en(3) <= spwr_vgl_en;
-        opwr_en(4) <= spwr_roic_en;
-        opwr_en(5) <= spwr_r1_avdd1_en;
-        opwr_en(6) <= spwr_r1_avdd2_en;
---      opwr_en(7)      <= spwr_r2_avdd1_en;
---      opwr_en(8)      <= spwr_r2_avdd2_en;
+        s_opwr_en(0) <= spwr_vgh_en; --$ 2607141553
+        s_opwr_en(1) <= spwr_vbias_en when serase_en = '0' else '0';
+        s_opwr_en(2) <= spwr_gate_3v3_en;
+        s_opwr_en(3) <= spwr_vgl_en;
+        s_opwr_en(4) <= spwr_roic_en;
+        s_opwr_en(5) <= spwr_r1_avdd1_en;
+        s_opwr_en(6) <= spwr_r1_avdd2_en;
+--      s_opwr_en(7) <= spwr_r2_avdd1_en;
+--      s_opwr_en(8) <= spwr_r2_avdd2_en;
 
     end generate;
 
@@ -642,17 +645,17 @@ begin
             o_data               => shv_dac_dq
         );
 
-        opwr_en(0)  <= spwr_n_bias_aen when serase_en = '0' else '0';
-        opwr_en(1)  <= spwr_pgate_on;
-        opwr_en(2)  <= spwr_vgl_en;
-        opwr_en(3)  <= spwr_vgh_en;
-        opwr_en(4)  <= spwr_roic_en_l;
-        opwr_en(5)  <= shv_pwr_en;
-        opwr_en(6)  <= shv_sw;
-        opwr_en(7)  <= shvr_sw;
-        opwr_en(8)  <= shv_dac_dq;
-        opwr_en(9)  <= shv_dac_clk;
-        opwr_en(10) <= shv_dac_syncn;
+        s_opwr_en(0)  <= spwr_n_bias_aen when serase_en = '0' else '0'; --$ 2607141553
+        s_opwr_en(1)  <= spwr_pgate_on;
+        s_opwr_en(2)  <= spwr_vgl_en;
+        s_opwr_en(3)  <= spwr_vgh_en;
+        s_opwr_en(4)  <= spwr_roic_en_l;
+        s_opwr_en(5)  <= shv_pwr_en;
+        s_opwr_en(6)  <= shv_sw;
+        s_opwr_en(7)  <= shvr_sw;
+        s_opwr_en(8)  <= shv_dac_dq;
+        s_opwr_en(9)  <= shv_dac_clk;
+        s_opwr_en(10) <= shv_dac_syncn;
 
 --### xdc map ###                                             4343rc    810
 -- set_property PACKAGE_PIN  D26  [get_ports {PWR_EN[5]}] ; # DIO2_2    HV_PWR_EN
@@ -846,17 +849,17 @@ begin
             o_data               => shv_dac_dq
         );
 
-        opwr_en(0)  <= spwr_vgh_en;
-        opwr_en(1)  <= shv_dac_dq;
-        opwr_en(2)  <= spwr_gate_3v3_en;
-        opwr_en(3)  <= spwr_vgl_en;
-        opwr_en(4)  <= spwr_roic_en_l;
-        opwr_en(5)  <= spwr_r1_avdd1_en;
-        opwr_en(6)  <= spwr_r1_avdd2_en;
-        opwr_en(7)  <= shv_dac_clk;
-        opwr_en(8)  <= shv_dac_syncn;
-        opwr_en(9)  <= shv_sw;
-        opwr_en(10) <= shvr_sw;
+        s_opwr_en(0)  <= spwr_vgh_en; --$ 2607141553
+        s_opwr_en(1)  <= shv_dac_dq;
+        s_opwr_en(2)  <= spwr_gate_3v3_en;
+        s_opwr_en(3)  <= spwr_vgl_en;
+        s_opwr_en(4)  <= spwr_roic_en_l;
+        s_opwr_en(5)  <= spwr_r1_avdd1_en;
+        s_opwr_en(6)  <= spwr_r1_avdd2_en;
+        s_opwr_en(7)  <= shv_dac_clk;
+        s_opwr_en(8)  <= shv_dac_syncn;
+        s_opwr_en(9)  <= shv_sw;
+        s_opwr_en(10) <= shvr_sw;
 
 --# PWR
 --set_property PACKAGE_PIN D11 [get_ports { PWR_EN[0]  }]; # VGH_EN   IO_L14N_T2_SRCC_16
@@ -934,12 +937,13 @@ begin
             end if;
         end process;
 
-        opwr_en(0) <= spwr_vbias_en when serase_en = '0' else '0';
-        opwr_en(1) <= spwr_vgh_en;
-        opwr_en(2) <= spwr_gate_3v3_en;
-        opwr_en(3) <= spwr_vgl_en;
-        opwr_en(4) <= spwr_roic_en;
-        opwr_en(5) <= spwr_roic_avdd_en;
+        s_opwr_en(0) <= spwr_vbias_en when serase_en = '0' else '0';
+        s_opwr_en(1) <= spwr_vgh_en;
+        s_opwr_en(2) <= spwr_gate_3v3_en;
+        s_opwr_en(3) <= spwr_vgl_en;
+        s_opwr_en(4) <= spwr_roic_en;
+        s_opwr_en(5) <= spwr_roic_en; --# 260720 roic 1/2  
+        s_opwr_en(6) <= spwr_roic_avdd_en;
     end generate;
 
     EXT3643R : if(GNR_MODEL = "EXT3643R") generate
@@ -951,65 +955,134 @@ begin
     signal spwr_vgl_en       : std_logic;
     signal spwr_roic_en      : std_logic;
     signal spwr_roic_avdd_en : std_logic;
+    --$ 2607141804 local 200ms-step time constants (independent of shared stime_*)
+    signal stime_3643_200ms   : integer := (200  * T_1MS(GNR_MODEL));
+    signal stime_3643_400ms   : integer := (400  * T_1MS(GNR_MODEL));
+    signal stime_3643_600ms   : integer := (600  * T_1MS(GNR_MODEL));
+    signal stime_3643_800ms   : integer := (800  * T_1MS(GNR_MODEL));
+    signal stime_3643_1000ms  : integer := (1000 * T_1MS(GNR_MODEL));
+    signal stime_3643_1200ms  : integer := (1200 * T_1MS(GNR_MODEL));
 
     begin
+--        --# 3643R power sequence (sync reset)
+--        process(imain_clk)
+--        begin
+--            if (imain_clk'event and imain_clk = '1') then
+--                if (imain_rstn = '0') then
+--                    spwr_cnt           <= (others => '0');
+--                    spwr_vgh_en        <= '0';
+--                    spwr_vbias_en      <= '0';
+--                    spwr_vbias_sw      <= '0';
+--                    spwr_gate_3v3_en   <= '0';
+--                    spwr_vgl_en        <= '0';
+--                    spwr_roic_en       <= '0';
+--                    spwr_roic_avdd_en  <= '0';
+--                    spwr_done          <= '0';
+--                else
+--                    if (sreg_pwr_mode = '1') then
+--                        spwr_cnt          <= (others => '0');
+--                        spwr_vgh_en       <= '0';
+--                        spwr_vbias_en     <= '0';
+--                        spwr_vbias_sw     <= '0';
+--                        spwr_gate_3v3_en  <= '0';
+--                        spwr_vgl_en       <= '0';
+--                        spwr_roic_en      <= '0';
+--                        spwr_roic_avdd_en <= '0';
+--                        spwr_done         <= '0';
+--                    else
+--                        if (spwr_cnt = stime_1st - 1) then
+--                            spwr_done         <= '1';
+--                            spwr_vgh_en       <= '1';
+--                            spwr_vbias_en     <= '1';
+--                            spwr_vbias_sw     <= '1';
+--                            spwr_gate_3v3_en  <= '1';
+--                            spwr_vgl_en       <= '1';
+--                            spwr_roic_en      <= '1';
+--                            spwr_roic_avdd_en <= '1';
+--                        else
+--                            if (spwr_cnt = stime_1st - 1) then
+--                                NULL;
+--                            end if;
+--                            spwr_cnt  <= spwr_cnt + '1';
+--                            spwr_done <= '0';
+--                        end if;
+--                    end if;
+--                end if;
+--            end if;
+--        end process;
 
-        --# 3643R power sequence (sync reset)
+        --# 3643R power-on sequence: 200ms per step (sync reset)
+        --# roic_en / roic_avdd_en: ON immediately when pwr_mode=0 (no sequencing delay)
+        --# SEQ1  200ms: gate_3v3_en
+        --# SEQ2  400ms: vgl_en
+        --# SEQ3  600ms: vbias_en
+        --# SEQ4  800ms: vbias_sw
+        --# SEQ5 1000ms: vgh_en
+        --# SEQ6 1200ms: done
         process(imain_clk)
         begin
             if (imain_clk'event and imain_clk = '1') then
                 if (imain_rstn = '0') then
                     spwr_cnt           <= (others => '0');
-                    spwr_vgh_en        <= '0';
-                    spwr_vbias_en      <= '0';
-                    spwr_vbias_sw      <= '0';
                     spwr_gate_3v3_en   <= '0';
                     spwr_vgl_en        <= '0';
+                    spwr_vbias_en      <= '0';
+                    spwr_vbias_sw      <= '0';
+                    spwr_vgh_en       <= '0';
                     spwr_roic_en       <= '0';
                     spwr_roic_avdd_en  <= '0';
                     spwr_done          <= '0';
                 else
                     if (sreg_pwr_mode = '1') then
                         spwr_cnt          <= (others => '0');
-                        spwr_vgh_en       <= '0';
-                        spwr_vbias_en     <= '0';
-                        spwr_vbias_sw     <= '0';
                         spwr_gate_3v3_en  <= '0';
                         spwr_vgl_en       <= '0';
+                        spwr_vbias_en     <= '0';
+                        spwr_vbias_sw     <= '0';
+                        spwr_vgh_en       <= '0';
                         spwr_roic_en      <= '0';
                         spwr_roic_avdd_en <= '0';
                         spwr_done         <= '0';
                     else
-                        if (spwr_cnt = stime_1st - 1) then
-                            spwr_done         <= '1';
-                            spwr_vgh_en       <= '1';
-                            spwr_vbias_en     <= '1';
-                            spwr_vbias_sw     <= '1';
-                            spwr_gate_3v3_en  <= '1';
-                            spwr_vgl_en       <= '1';
+                        --$ 2607141804 roic: enable immediately on pwr_mode=0, no delay
                             spwr_roic_en      <= '1';
                             spwr_roic_avdd_en <= '1';
+                        if (spwr_cnt = stime_3643_1200ms - 1) then
+                            spwr_done <= '1';
                         else
-                            if (spwr_cnt = stime_1st - 1) then
-                                NULL;
-                            end if;
                             spwr_cnt  <= spwr_cnt + '1';
                             spwr_done <= '0';
+                            if    (spwr_cnt = stime_3643_200ms  - 1) then
+                                spwr_gate_3v3_en <= '1';
+                            elsif (spwr_cnt = stime_3643_400ms  - 1) then
+                                spwr_vgl_en      <= '1';
+                            elsif (spwr_cnt = stime_3643_600ms  - 1) then
+                                spwr_vbias_en    <= '1';
+                            elsif (spwr_cnt = stime_3643_800ms  - 1) then
+                                spwr_vbias_sw    <= '1';
+                            elsif (spwr_cnt = stime_3643_1000ms - 1) then
+                                spwr_vgh_en      <= '1';
+                            end if;
                         end if;
                     end if;
                 end if;
             end if;
         end process;
 
-        opwr_en(0) <= spwr_vbias_en when serase_en = '0' else '0';
-        opwr_en(1) <= spwr_vgh_en;
-        opwr_en(2) <= spwr_gate_3v3_en;
-        opwr_en(3) <= spwr_vgl_en;
-        opwr_en(4) <= spwr_roic_en;
-        opwr_en(5) <= spwr_roic_avdd_en;
-        opwr_en(6) <= spwr_vbias_sw when serase_en = '0' else '0';
+        s_opwr_en(0) <= spwr_vbias_en    when serase_en = '0' else '0'; --$ 2607141553
+        s_opwr_en(1) <= spwr_vgh_en;
+        s_opwr_en(2) <= spwr_gate_3v3_en;
+        s_opwr_en(3) <= spwr_vgl_en;
+        s_opwr_en(4) <= spwr_roic_en;
+        s_opwr_en(5) <= spwr_roic_avdd_en;
+        s_opwr_en(6) <= spwr_vbias_sw    when serase_en = '0' else '0';
     end generate;
 
+    --$ 2607141553 MUX: ireg_pwr_ctrl[31]=1 -> register override, =0 -> sequencer output
+    --  Only the lower PWR_NUM bits of ireg_pwr_ctrl are used; upper bits ignored per model.
+    opwr_en <= ireg_pwr_ctrl(PWR_NUM(GNR_MODEL)-1 downto 0)
+               when ireg_pwr_ctrl(31) = '1'
+               else s_opwr_en;
 
     opwr_done   <= spwr_done;
     oerase_done <= serase_done;

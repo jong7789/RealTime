@@ -363,6 +363,7 @@ void execute_cmd_dgain(u32 data);
 void execute_cmd_iproc(u32 data);
 void execute_cmd_reboot(void);
 void execute_cmd_rtemp(void);
+void execute_cmd_rtempraw(u32 data); //# 2608191842 XML temp source select
 void execute_cmd_wus(u32 data);
 u8 execute_cmd_rus(u32 data);
 u8 execute_cmd_rus2(u32 data);        // dskim
@@ -379,6 +380,23 @@ u8 execute_cmd_rns(void);
 void rns_display(void);   //# 2605211347 read-only rns diagnostic dump
 u8 execute_cmd_brns(void);
 u8 execute_cmd_brns_old(void);
+//# 2606121417 BRNS_BG_LOAD: NUC flash->DDR load mode selector
+//             0 = legacy: synchronous execute_cmd_brns() inside get_calib_init()
+//                 (blocks main loop 6~12s, may run before ethernet connection)
+//             1 = background: brns_bg_* state machine, chunked per main-loop
+//                 iteration so gige_callback() stays responsive during load
+#ifndef BRNS_BG_LOAD
+#define BRNS_BG_LOAD 1
+#endif
+void brns_bg_reset(void);       //# 2606151610 explicit boot init (.bss-clear independent)
+void brns_bg_request(void);     // request NUC load (restart if already running)
+void brns_bg_poll(void);        // call every main-loop iteration
+u8   brns_bg_active(void);      // 1 while load pending/running
+u8   brns_bg_progress(void);    // 0..100 (%) for status query
+void brns_bg_disp_status(void); //# 2606121543 'rns 3' status + chunk timing dump
+void brns_bg_suspend(void);     //# 2606121740 gige_event: app connect -> hold chunks
+void brns_bg_resume(void);      //# 2606121740 gige_event: stream open/disc -> resume
+extern u32 func_ddrchen_brns_stat;  // masks DDR_CH_EN_R_NUC while loading
 void execute_cmd_wds(void);
 void execute_cmd_wds_factory(void);
 void execute_cmd_wds_manual(void);
@@ -435,6 +453,7 @@ void execute_cmd_timg(u32 data);
 void execute_cmd_rclk();
 void execute_cmd_diag(u32 data);
 void execute_cmd_bcal_rdata();
+void execute_cmd_bcalfw_rdata(void);   //$ 2606021620 bcalfw snapshot for diag
 void execute_cmd_wsm(u32 time100ms);
 void execute_cmd_rsm(u32 smsel);
 void execute_cmd_d2m_set(Profile_Def *profile);
@@ -444,6 +463,8 @@ void execute_cmd_edge(u32 edge, u32 offset);
 void execute_cmd_dnr(u32 edge, u32 offset);
 void execute_cmd_dnr_setting(u32 dnr, u32 edge, u32 offset);    // dskim - 21.10.20
 void execute_cmd_acc(u32 enable, u32 pagelimit);
+void execute_cmd_spc(u32 on, u32 dark, u32 restore, u32 satref); //$ 2607241407 Short Pixel Cover ctrl
+void execute_cmd_spc_en(u32 on); //$ 2607241741 SPC enable bit0 RMW only
 void execute_cmd_racc(u32 enable);
 void execute_cmd_osd(u32 on, u32 size, u32 mode);
 void execute_cmd_eao(u32 enable);

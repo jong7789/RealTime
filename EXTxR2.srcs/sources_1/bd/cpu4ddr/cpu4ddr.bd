@@ -1,7 +1,7 @@
 {
   "design": {
     "design_info": {
-      "boundary_crc": "0x93DE4E246C12857B",
+      "boundary_crc": "0x93DE4E24F2B3DE37",
       "device": "xc7k160tffg676-3",
       "gen_directory": "../../../../EXTxR2.gen/sources_1/bd/cpu4ddr",
       "name": "cpu4ddr",
@@ -1854,7 +1854,7 @@
             "value_src": "default"
           },
           "FREQ_HZ": {
-            "value": "360000000",
+            "value": "240000000",
             "value_src": "default"
           },
           "FREQ_TOLERANCE_HZ": {
@@ -1880,7 +1880,7 @@
             "value_src": "default"
           },
           "FREQ_HZ": {
-            "value": "30000000",
+            "value": "20000000",
             "value_src": "default"
           },
           "FREQ_TOLERANCE_HZ": {
@@ -3137,25 +3137,25 @@
             "value": "BUFGCE"
           },
           "CLKOUT1_JITTER": {
-            "value": "270.092"
+            "value": "332.831"
           },
           "CLKOUT1_PHASE_ERROR": {
-            "value": "300.991"
+            "value": "301.601"
           },
           "CLKOUT1_REQUESTED_OUT_FREQ": {
-            "value": "30"
+            "value": "20"
           },
           "CLKOUT2_DRIVES": {
             "value": "BUFGCE"
           },
           "CLKOUT2_JITTER": {
-            "value": "188.083"
+            "value": "222.688"
           },
           "CLKOUT2_PHASE_ERROR": {
-            "value": "300.991"
+            "value": "301.601"
           },
           "CLKOUT2_REQUESTED_OUT_FREQ": {
-            "value": "360"
+            "value": "240"
           },
           "CLKOUT2_USED": {
             "value": "true"
@@ -3188,13 +3188,13 @@
             "value": "FDBK_AUTO"
           },
           "MMCM_CLKFBOUT_MULT_F": {
-            "value": "54.000"
+            "value": "48.000"
           },
           "MMCM_CLKOUT0_DIVIDE_F": {
-            "value": "36.000"
+            "value": "48.000"
           },
           "MMCM_CLKOUT1_DIVIDE": {
-            "value": "3"
+            "value": "4"
           },
           "MMCM_DIVCLK_DIVIDE": {
             "value": "5"

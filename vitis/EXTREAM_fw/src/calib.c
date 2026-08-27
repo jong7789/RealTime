@@ -110,7 +110,13 @@ void get_calib_init(void)
     execute_cmd_grab(0);
     if(DBG_calinit)func_printf("[DBG_calinit] # get_calib_init execute_cmd_grab\r\n");
 
-    execute_cmd_brns();
+//    execute_cmd_brns();
+    //# 2606121417 get_calib_init: brns sync->background selector (BRNS_BG_LOAD)
+#if BRNS_BG_LOAD
+    brns_bg_request();          // deferred: chunked load in main loop, no blocking here
+#else
+    execute_cmd_brns();         // legacy: blocking load here
+#endif
     if(DBG_calinit)func_printf("[DBG_calinit] # get_calib_init execute_cmd_brns\r\n");
 
     // dskim - 21.03.04
@@ -135,22 +141,41 @@ void get_calib_init(void)
 //### 1. default
 //    msdelay(5000); //# what is this? # 241216
 //### 2. only once wait
+/*
     if(!wait5sec_once) //# 241217 not sure needs 5sec wait, but avoid error happen.
     {
-            for(int i=0; i<40; i++) //# 241217 insert GIGE connection.
+//            for(int i=0; i<40; i++) //# 241217 insert GIGE connection.
+            for(int i=0; i<4; i++) //# 241217 insert GIGE connection.
             {
             	gige_callback(0);
             	msdelay(500);
             }
     	wait5sec_once = 1;
     }
-
+*/
  	gige_callback(0);
  	// msdelay(100);
 
 //  execute_cmd_wddr(1, 7);     // dskim - 0.00.08 - 여러번 수행 하도록 변경
     if (func_shutter_mode==0){ // if global shutter mode save in flash, it makes API boot problem. 211027mbh
-        execute_cmd_wddr(1, user_avg_level);        // dskim - 21.02.15
+//        execute_cmd_wddr(1, user_avg_level);        // dskim - 21.02.15
+        //# 2606151121 defer offset grab until ethernet connected (OFFSET_AFTER_ETH)
+//#if OFFSET_AFTER_ETH
+//        func_offset_after_eth = 1;  // check_offset_after_eth() grabs it post-connect
+//#else
+//        execute_cmd_wddr(1, user_avg_level);    // legacy: immediate (may be unstable)
+//#endif
+        //$ 2606171840 defer offset grab by OFFSET_AFTER_TMR_MS after this point
+#if OFFSET_AFTER_TMR
+        //$ 2607061533 EXT3643R needs 40s settle; others use 18s default
+        func_offset_after_tmr_cnt = mEXT3643R_series
+            ? (OFFSET_AFTER_TMR_MS_3643R * 100000u)
+            : (OFFSET_AFTER_TMR_MS_DEFAULT * 100000u);
+        func_offset_after_tmr    = 1;                // arm
+        func_offset_after_tmr_t0 = FREERUN_NOW();    // t0 snapshot (boot-section time)
+#else
+        execute_cmd_wddr(1, user_avg_level);         // legacy: immediate (may be unstable)
+#endif
         func_calib_cmd = 0; //# prevent double getting offset 220519
     }
     msdelay(100);
@@ -1692,7 +1717,7 @@ void set_calib_cdefect(void){
     u32 i;
     u32 defect[MAX_LINE_DEFECT] = {0, };
     u32 defect_cnt = 0;
-u32 wdata = 0, rdata = 0;
+    u32 wdata = 0, rdata = 0;
 
     // dskim - 21.03.02 - factory map
     u32 defect_final[MAX_LINE_DEFECT] = {0, };
@@ -1792,8 +1817,8 @@ u32 wdata = 0, rdata = 0;
         }
         defect_col_pre = defect_col;
     }
-//   func_printf("defect_cnt=%d \r\n",defect_cnt);
-//   func_printf("defect_cnt_final=%d \r\n",defect_cnt_final);
+//  func_printf("defect_cnt=%d \r\n",defect_cnt);
+//  func_printf("defect_cnt_final=%d \r\n",defect_cnt_final);
 
     // ########## double line decode ##########
     u32 defect_col_center = 0;
@@ -1838,7 +1863,7 @@ u32 wdata = 0, rdata = 0;
             REG(ADDR_CDEFECT_WDATA) = defect_final_line[i]; // 210817
             REG(ADDR_CDEFECT_WEN) = 1;  // 210215
             REG(ADDR_CDEFECT_WEN) = 0;  // 210215
-        //   func_printf("defect_final_line[%d]=%d\r\n",i,  defect_final_line[i]);
+//          func_printf("defect_final_line[%d]=%d\r\n",i,  defect_final_line[i]);
         }
     }
 

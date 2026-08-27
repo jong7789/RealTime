@@ -497,6 +497,9 @@ begin
                 if (sgain_cal = '1') then
                     if smulti_data_11d(i)(32 - 1 downto 28) > 0 then
                         sdata_gain_cal_12d(i) <= (others => '1');
+                    --$ 2607061847 Saturate on rounding overflow (bits[27:12]=0xFFFF + bit[11]=1 wraps to 0)
+                    elsif smulti_data_11d(i)(27 downto 12) = x"FFFF" and smulti_data_11d(i)(11) = '1' then
+                        sdata_gain_cal_12d(i) <= (others => '1');
                     else
                         sdata_gain_cal_12d(i) <= smulti_data_11d(i)(16 + 12 - 1 downto 12) +
                                                  smulti_data_11d(i)(11); --# 0.5 round

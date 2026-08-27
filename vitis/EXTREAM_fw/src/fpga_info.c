@@ -72,6 +72,7 @@ u32 mEXT1616R_series;
 u32 mEXT2832R_series;
 u32 mEXT2430R_series;
 u32 mEXT3643R_series;
+u32 def_sfp_port; //$ 2606171455 load_fpga_model: SFP port enable flag (EXT3643R only)
 
 u32 AFE3256_series;
 
@@ -129,7 +130,7 @@ void load_fpga_model(void) {
 //    █▀█ █▀█ █ █▀▀
 //    █▀▄ █▄█ █ █▄▄
     if( msame(mEXT4343RD)||
-    	msame(mEXT3643R))	AFE3256_series=1;
+    	msame(mEXT3643R))	AFE3256_series=0;
     else					AFE3256_series=0;
 
 //    █▀ █▀▀ █▀█ █ █▀▀ █▀
@@ -176,14 +177,24 @@ void load_fpga_model(void) {
         mEXT1024_series = 1;
     else
         mEXT1024_series = 0;
-    if (msame(mEXT3643R)) 	mEXT3643R_series = 1;
-    else					mEXT3643R_series = 0;
+    if (msame(mEXT3643R))
+    	mEXT3643R_series = 1;
+    else
+    	mEXT3643R_series = 0;
+
+    //$ 2606171455 load_fpga_model: enable SFP port handling on EXT3643R only (only model with SFP module)
+    if ((msame(mEXT3643R)) ||
+    	(msame(mEXT4343RD)) )
+    	def_sfp_port = 1;
+    else
+    	def_sfp_port = 0;
 
     if(DBG_MODEL) func_printf("mEXT4343R_series = %d\r\n"  ,mEXT4343R_series);
     if(DBG_MODEL) func_printf("mEXT1616R_series = %d\r\n"  ,mEXT1616R_series);
     if(DBG_MODEL) func_printf("mEXT2832R_series = %d\r\n"  ,mEXT2832R_series);
     if(DBG_MODEL) func_printf("mEXT1024_series  = %d\r\n"  ,mEXT1024_series);
     if(DBG_MODEL) func_printf("mEXT3643R_series  = %d\r\n" ,mEXT3643R_series);
+    if(DBG_MODEL) func_printf("def_sfp_port      = %d\r\n" ,def_sfp_port); //$ 2606171455
 
     // ###################################################################
 
@@ -224,12 +235,13 @@ void load_fpga_model(void) {
     }
     else if(msame(mEXT4343RD  ))
     {
-    	FPGA_TFT_MAIN_CLK =  30000000;
-    	FPGA_TFT_DATA_CLK = 360000000;
+    	FPGA_TFT_MAIN_CLK =  20000000;
+    	FPGA_TFT_DATA_CLK = FPGA_TFT_MAIN_CLK * 12;
     }
     else if(msame(mEXT3643R   ))
     {
         FPGA_TFT_MAIN_CLK =  18000000;
+//        FPGA_TFT_MAIN_CLK =  12000000; //# 18M->12 10FPS #260729
         FPGA_TFT_DATA_CLK = FPGA_TFT_MAIN_CLK * 12;
     }
     else
@@ -484,8 +496,9 @@ void load_frame_rate(void)
     else if( (msame(mEXT2430RD    )) )  MAX_FRATE = 10.0; // fps
     else if( (msame(mEXT1024      )) )  MAX_FRATE = 25.0; //$ 241014 jyp
     else if( (msame(mEXT1024RL    )) )  MAX_FRATE =  6.0; //$ 250703
-    else if( (msame(mEXT4343RD    )) )  MAX_FRATE = 60.0;
+    else if( (msame(mEXT4343RD    )) )  MAX_FRATE = 50.0;
     else if( (msame(mEXT3643R     )) )  MAX_FRATE = 15.0;
+//    else if( (msame(mEXT3643R     )) )  MAX_FRATE = 10.0; //# 15FPS-> 10 260730
     else                                MAX_FRATE = 40.0;
  
 }
@@ -513,6 +526,7 @@ void load_frame_rate(void)
 u8 func_able_binn_num  = 0; //# 230926 //# 250317 load_func_able
 u8 func_able_gain_num  = 0;
 u8 func_able_dnr   = 0;
+u8 func_able_acc   = 0;
 //# 2605131508 GigE link state mirror used by set_ddr_ch_en composer. Default 1
 //             (disconnected) so the FPGA ADDR_DDR_CH_EN stays 0x00 from boot
 //             until the first gige_gcsr "case 3: Device Discovery Success" event
@@ -529,33 +543,33 @@ u8 func_ddrchen_gcal_stat        = 0;   //# 2605131659 default 0 (no calib in pr
 
 void load_func_able(void) //# 250317 load_func_able
 {
-         if( (msame(mEXT1616R     )) ) {func_able_binn_num=0b0011; func_able_gain_num=4; func_able_dnr=1;}
-    else if( (msame(mEXT1616RL    )) ) {func_able_binn_num=0b0011; func_able_gain_num=4; func_able_dnr=1;}
-    else if( (msame(mEXT4343R     )) ) {func_able_binn_num=0b1111; func_able_gain_num=4; func_able_dnr=1;}
-    else if( (msame(mEXT4343R_1   )) ) {func_able_binn_num=0b1111; func_able_gain_num=4; func_able_dnr=1;}
-    else if( (msame(mEXT4343R_2   )) ) {func_able_binn_num=0b1111; func_able_gain_num=4; func_able_dnr=1;}
-    else if( (msame(mEXT4343R_3   )) ) {func_able_binn_num=0b0001; func_able_gain_num=4; func_able_dnr=1;}//# nt gate no binning
-    else if( (msame(mEXT4343R_4   )) ) {func_able_binn_num=0b1111; func_able_gain_num=4; func_able_dnr=1;}
-    else if( (msame(mEXT4343RC_1  )) ) {func_able_binn_num=0b1111; func_able_gain_num=4; func_able_dnr=1;}
-    else if( (msame(mEXT4343RC_2  )) ) {func_able_binn_num=0b1111; func_able_gain_num=4; func_able_dnr=1;}
-    else if( (msame(mEXT4343RC_3  )) ) {func_able_binn_num=0b0001; func_able_gain_num=4; func_able_dnr=1;} //# nt gate no binning
-    else if( (msame(mEXT4343RCL_1 )) ) {func_able_binn_num=0b1111; func_able_gain_num=4; func_able_dnr=1;}
-    else if( (msame(mEXT4343RCL_2 )) ) {func_able_binn_num=0b1111; func_able_gain_num=4; func_able_dnr=1;}
-    else if( (msame(mEXT4343RCL_3 )) ) {func_able_binn_num=0b0001; func_able_gain_num=4; func_able_dnr=1;} //# nt gate no binning
-    else if( (msame(mEXT4343RI_2  )) ) {func_able_binn_num=0b1111; func_able_gain_num=1; func_able_dnr=0;}
-    else if( (msame(mEXT4343RI_4  )) ) {func_able_binn_num=0b1111; func_able_gain_num=1; func_able_dnr=0;}
-    else if( (msame(mEXT4343RCI_1 )) ) {func_able_binn_num=0b1111; func_able_gain_num=1; func_able_dnr=0;}
-    else if( (msame(mEXT4343RCI_2 )) ) {func_able_binn_num=0b1111; func_able_gain_num=1; func_able_dnr=0;}
-    else if( (msame(mEXT2430R     )) ) {func_able_binn_num=0b1111; func_able_gain_num=4; func_able_dnr=1;}
-    else if( (msame(mEXT2430RI    )) ) {func_able_binn_num=0b1111; func_able_gain_num=1; func_able_dnr=0;}
-    else if( (msame(mEXT2832R     )) ) {func_able_binn_num=0b0011; func_able_gain_num=4; func_able_dnr=1;}
-    else if( (msame(mEXT2832R_2   )) ) {func_able_binn_num=0b0011; func_able_gain_num=4; func_able_dnr=1;}
-    else if( (msame(mEXT810R      )) ) {func_able_binn_num=0b0011; func_able_gain_num=4; func_able_dnr=1;}
-    else if( (msame(mEXT2430RD    )) ) {func_able_binn_num=0b0011; func_able_gain_num=4; func_able_dnr=1;}
-    else if( (msame(mEXT1024      )) ) {func_able_binn_num=0b0011; func_able_gain_num=1; func_able_dnr=1;}
-    else if( (msame(mEXT1024RL    )) ) {func_able_binn_num=0b0011; func_able_gain_num=1; func_able_dnr=1;} //$ 250703
-    else if( (msame(mEXT4343RD    )) ) {func_able_binn_num=0b0011; func_able_gain_num=1; func_able_dnr=1;}
-    else if( (msame(mEXT3643R     )) ) {func_able_binn_num=0b0011; func_able_gain_num=1; func_able_dnr=1;}
+         if( (msame(mEXT1616R     )) ) {func_able_binn_num=0b0011; func_able_gain_num=4; func_able_dnr=1; func_able_acc=1;}
+    else if( (msame(mEXT1616RL    )) ) {func_able_binn_num=0b0011; func_able_gain_num=4; func_able_dnr=1; func_able_acc=1;}
+    else if( (msame(mEXT4343R     )) ) {func_able_binn_num=0b1111; func_able_gain_num=4; func_able_dnr=1; func_able_acc=1;}
+    else if( (msame(mEXT4343R_1   )) ) {func_able_binn_num=0b1111; func_able_gain_num=4; func_able_dnr=1; func_able_acc=1;}
+    else if( (msame(mEXT4343R_2   )) ) {func_able_binn_num=0b1111; func_able_gain_num=4; func_able_dnr=1; func_able_acc=1;}
+    else if( (msame(mEXT4343R_3   )) ) {func_able_binn_num=0b0001; func_able_gain_num=4; func_able_dnr=1; func_able_acc=1;}//# nt gate no binning
+    else if( (msame(mEXT4343R_4   )) ) {func_able_binn_num=0b1111; func_able_gain_num=4; func_able_dnr=1; func_able_acc=1;}
+    else if( (msame(mEXT4343RC_1  )) ) {func_able_binn_num=0b1111; func_able_gain_num=4; func_able_dnr=1; func_able_acc=1;}
+    else if( (msame(mEXT4343RC_2  )) ) {func_able_binn_num=0b1111; func_able_gain_num=4; func_able_dnr=1; func_able_acc=1;}
+    else if( (msame(mEXT4343RC_3  )) ) {func_able_binn_num=0b0001; func_able_gain_num=4; func_able_dnr=1; func_able_acc=1;} //# nt gate no binning
+    else if( (msame(mEXT4343RCL_1 )) ) {func_able_binn_num=0b1111; func_able_gain_num=4; func_able_dnr=1; func_able_acc=1;}
+    else if( (msame(mEXT4343RCL_2 )) ) {func_able_binn_num=0b1111; func_able_gain_num=4; func_able_dnr=1; func_able_acc=1;}
+    else if( (msame(mEXT4343RCL_3 )) ) {func_able_binn_num=0b0001; func_able_gain_num=4; func_able_dnr=1; func_able_acc=1;} //# nt gate no binning
+    else if( (msame(mEXT4343RI_2  )) ) {func_able_binn_num=0b1111; func_able_gain_num=1; func_able_dnr=0; func_able_acc=1;}
+    else if( (msame(mEXT4343RI_4  )) ) {func_able_binn_num=0b1111; func_able_gain_num=1; func_able_dnr=0; func_able_acc=1;}
+    else if( (msame(mEXT4343RCI_1 )) ) {func_able_binn_num=0b1111; func_able_gain_num=1; func_able_dnr=0; func_able_acc=1;}
+    else if( (msame(mEXT4343RCI_2 )) ) {func_able_binn_num=0b1111; func_able_gain_num=1; func_able_dnr=0; func_able_acc=1;}
+    else if( (msame(mEXT2430R     )) ) {func_able_binn_num=0b1111; func_able_gain_num=4; func_able_dnr=1; func_able_acc=1;}
+    else if( (msame(mEXT2430RI    )) ) {func_able_binn_num=0b1111; func_able_gain_num=1; func_able_dnr=0; func_able_acc=1;}
+    else if( (msame(mEXT2832R     )) ) {func_able_binn_num=0b0011; func_able_gain_num=4; func_able_dnr=1; func_able_acc=1;}
+    else if( (msame(mEXT2832R_2   )) ) {func_able_binn_num=0b0011; func_able_gain_num=4; func_able_dnr=1; func_able_acc=1;}
+    else if( (msame(mEXT810R      )) ) {func_able_binn_num=0b0011; func_able_gain_num=4; func_able_dnr=1; func_able_acc=1;}
+    else if( (msame(mEXT2430RD    )) ) {func_able_binn_num=0b0011; func_able_gain_num=4; func_able_dnr=1; func_able_acc=1;}
+    else if( (msame(mEXT1024      )) ) {func_able_binn_num=0b0011; func_able_gain_num=1; func_able_dnr=1; func_able_acc=1;}
+    else if( (msame(mEXT1024RL    )) ) {func_able_binn_num=0b0011; func_able_gain_num=1; func_able_dnr=1; func_able_acc=1;} //$ 250703
+    else if( (msame(mEXT4343RD    )) ) {func_able_binn_num=0b0011; func_able_gain_num=1; func_able_dnr=0; func_able_acc=0;}
+    else if( (msame(mEXT3643R     )) ) {func_able_binn_num=0b0011; func_able_gain_num=1; func_able_dnr=0; func_able_acc=1;}
     else                               {func_able_binn_num=0b1111; func_able_gain_num=4; func_able_dnr=0;}
 }
 

@@ -168,15 +168,54 @@
     	69. 2026.05.21 13:47  //# 2605211347 UART 'rns' -> rns_display() read-only dump (brns/XML path intact)
     	70. 2026.05.21 16:32  //# 2605211632 execute_cmd_bwns: hdr pre/buf/post diag prints around flash_write_block
     	71. 2026.05.21 17:09  //# 2605211709 flash_init else: round UP NUC_INFO base to 64KB boundary (fix EXT3643R hdr alignment)
-    	72. 2026.05.28 17:41  //$ 260528 main.c : add func_init();
+    	72. 2026.05.29 12:17  //# 2605291217 fpga_info.h XGIGE_REGS: rm stray XPAR token + BSP rename compat (M1_AXI_GEV / SYSTEM_CPU_IRQ_0/1 aliases)
+    	72. 2026.06.01 11:50  //# 2606011150 release version up
+    	72. 2026.06.01 16:00  //# 260601 4->16 framebuf min size
+    	73. 2026.06.12 14:17  //# 2606121417 brns_bg: background chunked NUC load (BRNS_BG_LOAD), UART rns 2/3
+    	74. 2026.06.12 15:02  //# 2606121502 brns_bg_poll/progress: pct u32 overflow fix + FW_BUSY re-assert per chunk
+    	75. 2026.06.12 15:43  //# 2606121543 brns_bg_poll: adaptive chunk (conn 512/idle 4096) + chunk timing stats, rns3 dump
+    	76. 2026.06.12 16:04  //# 2606121604 brns_bg: drop FW_BUSY during bg load (XML_BUSY blocks image output)
+    	77. 2026.06.12 16:20  //# 2606121620 brns_bg/execute_cmd_gain: GAIN_CAL off during load, restore at finish
+    	78. 2026.06.12 16:41  //# 2606121641 UART_CMD_rns: fix arg dispatch (num=argc, value=data[0]; rns 2/3 were dead)
+    	79. 2026.06.12 17:20  //# 2606121720 brns_bg_poll: +GEV SPI busy yield (XML download), -chunk timing stats
+    	80. 2026.06.12 17:40  //# 2606121740 brns_bg_suspend/resume via gige_event (app connect), spi busy detect msg
+    	81. 2026.06.15 10:27  //# 2606151027 brns_bg_poll: detect flash use via gige_spi_addr change (busy-bit never set)
+    	82. 2026.06.15 11:21  //# 2606151121 get_calib_init/check_offset_after_eth: defer offset grab until ethernet up (OFFSET_AFTER_ETH)
+    	83. 2026.06.15 11:46  //# 2606151146 check_offset_after_eth: grab w/ OUT_EN+acq context (fix Image Average=0)
+    	84. 2026.06.15 14:09  //# 2606151409 DBG_offeth/[ACQ] trace prints: locate post-connect transmission hang
+    	85. 2026.06.15 14:21  //# 2606151421 int_init: explicit fb_tx_dot_en=0/fb_err_msg_en=1 (.sbss NOLOAD garbage -> dots on after boot)
+    	86. 2026.06.15 16:10  //# 2606151610 brns_bg_reset: explicit boot init of brns_bg statics (bss-clear independent)
+    	87. 2026.06.15 16:30  //# 2606151630 DBG [DOTDBG]/[DOTWATCH]: trace fb_tx_dot_en value+changes (fdot-on root cause)
+    	88. 2026.06.15 16:49  //# 2606151649 main: zero .bss/.sbss at boot (BSS_MANUAL_CLEAR) - fix NOLOAD garbage
+    	89. 2026.06.16 11:24  //# 2606161124 main: LAP boot + LAPW while-loop profiler (DBG_LAP, FREERUN_CNT 0x0454; LAPW >=10ms; LAPW_AGG summarizes brns_bg_poll every 100)
+    	90. 2026.06.16 12:14  //# 2606161214 main: gate brns_bg_poll LAPW_AGG with brns_bg_active() - fix idle-poll x100 flood/hang after load done
+    	91. 2026.06.16 12:24  //# 2606161224 LAPW_AGG: +cumulative total (tot s) + reset param (reset on load-start rising edge); brns_bg_poll shows total load time
+    	92. 2026.06.17 11:06  //# 2606171106 user_read XML_IFS: AFE3256 branch -> return func_ifs_index (was stale ROIC_MAT[0]); 'get xml ifs' now matches set value
+    	93. 2026.06.17 14:55  //$ 2606171455 load_fpga_model: add def_sfp_port flag (EXT3643R only) for main check_sfp_stat gate
+    	94. 2026.06.17 16:53  //$ 2606171653 framebuf.h/user.h/fpga_info.h: CPU4DDR BSP compat (FB/VIDEO/GEV/IRQ aliases)
+    	95. 2026.06.17 18:40  //$ 2606171840 check_offset_after_tmr: timer-based (20s) replaces ETH-trigger; rename func_offset_after_eth -> _tmr
+    	96. 2026.06.18 14:41  //$ 2606181441 user_read: XML_BRNS_BG_PCT (0xA390) -> brns_bg_progress() for UI progress bar
+    	97. 2026.07.01 14:00  //$ 2607014200 OFFSET_AFTER_TMR_MS //$ 2607011220 18 sec-> 30 cause 1st offset gate dancha
+    	98. 2026.07.02 10:50  //$ 2607021050 roic_3256_settingprofile: shs->NTFT window + signed budget (DS Eq.21-27), 3643R init 15/15/75/70 (shs>oe)
+    	99. 2026.07.02 19:00  //# 2607021900 brns_bg_poll: FLA re-seek settle (fix black dots at chunk boundaries)
+    	100. 2026.07.06 15:00 //# 2607061500 gate dancha at booting
+    	101. 2026.07.06 15:33 //$ 2607061533 check_offset_after_tmr: EXT3643R 40s, others 18s (runtime)
+    	102. 2026.07.06 16:09 //$ 2607061609 UART_CMD_wtp: block when OUT_EN active
+    	103. 2026.07.07 12:25 //$ 2607071225 execute_cmd_wns: flash vs DDR verify after save (diagnose save/load path)
+    	104. 2026.07.07 19:00 //$ 2607071900 cds init chage cause odd img at 0.6pc
+    	105. 2026.07.07 16:00 //$ 260707 add xml roic temp
+    	106. 2026.08.04 14:30 //$ 260804 wtp bcal
+    	107. 2026.08.20 11:00 //$ 260820 test for CDS 16us
+    	108. 2026.08.26 11:00 //$ 260826 EXT4343RD AFE2256
 
 *****************************************************************************/
-u8  GIGE_DVER   [16] = "SW2.01.04      "; // 2604242200 bcalfw added
-u8  FW_DATE     [20] = "2026.05.28 17:41";
+u8  GIGE_DVER   [16] = "SW2.01.05      ";
+u8  FW_DATE     [20] = "2026.08.26 16:00";
 
 #define BOOT_ROM_CHECK 0 //###!!! boot time reduce only for BETA
 /****************************************************************************
 timing profile => system_config
+roic_settimingprofile roic_3256_settingprofile
 menu-xilinx-launch shall
     make clean; make xml; make; make prog; make run;
     make clean; make xml; make;
@@ -313,6 +352,24 @@ const u8  GIGE_MANUF[32]    = "DRTECH\0";
 // ---- Main program -----------------------------------------------------------
 //
 #define DBG_main 0
+
+//$ 2606161124 LAP boot profiler state (see fpga_info.h LAP macros, DBG_LAP gate)
+u32 _lap_prev  = 0;   // boot LAP chain
+u32 _lapw_prev = 0;   // while-loop LAPW chain (>=10ms only)
+
+//# 2606151649 BSS_MANUAL_CLEAR: zero .bss/.sbss at boot.
+//             1 = clear (fix: this boot flow leaves NOLOAD .bss/.sbss as RAM
+//                 garbage -> zero-init globals corrupt: fdot ON, brns hang)
+//             0 = previous behavior (rely on crt0; revert if it causes trouble)
+#ifndef BSS_MANUAL_CLEAR
+#define BSS_MANUAL_CLEAR 1
+#endif
+#if BSS_MANUAL_CLEAR
+// linker-provided section bounds (lscript.ld). .bss/.sbss are NOLOAD.
+extern char __bss_start[],  __bss_end[];
+extern char __sbss_start[], __sbss_end[];
+#endif
+
 //#ifndef ROMDOWNLOADER
 int main(void)
 {
@@ -323,10 +380,23 @@ int main(void)
     microblaze_invalidate_dcache();
     microblaze_enable_dcache();
 
+    //# 2606151649 zero .bss/.sbss (crt0 in this boot flow leaves them as garbage).
+    //  MUST run before any C global is used. Volatile byte loop (no memset dep,
+    //  not optimized away). Toggle with BSS_MANUAL_CLEAR to revert.
+#if BSS_MANUAL_CLEAR
+    {
+        volatile char *p;
+        for (p = __sbss_start; p < __sbss_end; p++)  *p = 0;
+        for (p = __bss_start;  p < __bss_end;  p++)  *p = 0;
+    }
+#endif
+
     // Set EEPROM access mode
     // - I2C_ACC_NONE   = no EEPROM device available, use emulated EEPROM
     // - I2C_ACC_COMMON = use physical EEPROM (eeprom.c is not needed)
     eeprom_access_mode = I2C_ACC_COMMON;
+
+    LAP_INIT(); //$ 2606161124 boot profiler: mark start (before gige_init)
 
     // Initialize (X)GigE core
 //    gige_init(0, XPAR_M1_AXI_GEV_BASEADDR, DEV_MODE_TX, XPAR_CPU_M_AXI_DP_FREQ_HZ,
@@ -338,6 +408,68 @@ int main(void)
     gige_set_link_config_cap(LINK_CONFIG_CAP_SL);       // Physical link configuration capabilities
     gige_set_link_config(LINK_CONFIG_SL);               // Current physical link configuration
     gige_set_sceba(0, MAP_SCEBA);                       // Set stream channel extended bootstrap address
+    LAP("gige_init+set"); //$ 2606161124
+
+    //======================================================================
+    // Phase 2: Model detect + ROIC config (no PHY/framebuf dependency)
+    //======================================================================
+    load_fpga_model(); //# 231023 no_model_def
+    execute_func_cmd(); //# 231023 fps max set
+    LAP("model+func_cmd"); //$ 2607101934
+
+    execute_cmd_grab(0);
+    execute_cmd_psel(func_test_pattern);
+    execute_cmd_pmode(func_sync_source);
+    execute_cmd_smode(func_shutter_mode);   // preventing bcal fail during init 211101mbh
+    //$ 2607101207 Register ADDR_FRAME_TIME watch + enable ALL-mode to trace every REG() change at boot
+    dbg_watch_addr[0] = ADDR_FRAME_TIME;
+    dbg_watch_prev[0] = 0xDEADBEEF;
+    dbg_watch_flags = DBG_WATCH_FLAG_ALL;
+    REG(ADDR_FRAME_TIME) = 0; // 211101
+    LAP("grab+roic_cfg"); //$ 2607101934
+
+    //======================================================================
+    // Phase 3: Flash + HW init (minimum path to bcalfw)
+    //======================================================================
+    flash_enter4b(); //###################################### no works ################
+    LAP("flash_enter4b"); //$ 2606161124
+    if(DBG_main)func_printf("#[DBG_main] load_flash\r\n");
+    load_flash();
+    LAP("load_flash"); //$ 2606161124
+    if(DBG_main)func_printf("#[DBG_main] fpga_init\r\n");
+    fpga_init(); //# position after load_flash; //# added reg_init 230824
+    LAP("fpga_init"); //$ 2606161124
+
+    //======================================================================
+    // Phase 4: Timing setup + bcalfw (ROIC start ASAP)
+    //======================================================================
+    func_init(); //# 2x2 binning init set reg 0x34 #260527
+    LAP("func_init"); //$ 2606161124
+    //$ 2607101207 Print frame rate state after func_init to diagnose 5fps->15fps issue
+    func_printf("[DBG_FRATE] frate=%d/1000 FRAME_TIME=0x%08lx gewt=%lu\r\n",
+        (int)(func_frate * 1000), (unsigned long)FREG(ADDR_FRAME_TIME), (unsigned long)func_gewt);
+
+    //$ 2607101934 Boot-time bcalfw: run before any deferred init
+    if (func_tempbcal == 1) {
+        bw_align_fw_run_all(0);
+    }
+    bcal_once = 1;
+    //$ 2607101934 Restore ROIC timing after bcalfw (init zeroes SHUTTER/EXP/TRIG)
+    execute_cmd_smode(func_shutter_mode);
+    execute_cmd_gewt(func_gewt);
+    execute_cmd_frate(0);
+    execute_cmd_grab(1);
+    REG(ADDR_OUT_EN) = 1;
+    LAP("boot_bcalfw"); //$ 2607101934
+
+    //# to stabilize image on boot only 3643r #260713
+    if(func_shutter_mode == 0 && mEXT3643R_series) {
+    	execute_cmd_wddr(1,0);
+    }
+
+    //======================================================================
+    // Phase 5: Deferred init (ROIC already running)
+    //======================================================================
  //#######################################################################
     // Initialize Marvell NBase-T PHY
 //    ret = m88x33xx_init(RXAUI);
@@ -347,12 +479,11 @@ int main(void)
     func_printf("Ethernet m88x33xx_inity set...");
     m88x33xx_inity(RXAUI); //# 231208
     g_port_sel = 0; //# 260421 default PHY port = Marvell
+    //# 2608201543 The firmware upload above clears the C-unit temperature sensor enable
+    //# that temp_init()/phy_temp_init() set earlier in fpga_init(), so re-arm it here.
+    phy_temp_init();
     func_printf("Done\r\n");
-    //#######################################################################
-    load_fpga_model(); //# 231023 no_model_def
-//    execute_func_cmd(); //# 231023 fps max set //# 231128 dont need it in load_fpga_model
-    // GIGE_DVER FPGA 버전 읽어서 중간 값으로 표시하도록 변경해야함
-    load_fw_ver();
+    LAP("m88x33xx_inity"); //$ 2606161124
     //#######################################################################
 
     // Initialize framebuffer and set GEV version
@@ -377,40 +508,41 @@ int main(void)
         framebuf_control |= FRAMEBUF_C_EXTSTAT;         // Enable extended GVSP status codes
         func_printf("[UU] Running in GEV 2.x mode\r\n");
     }
+    LAP("framebuf_init"); //$ 2606161124
 
-    load_fpga_model(); //# 231023 no_model_def
-    execute_func_cmd(); //# 231023 fps max set
-    int_init(); //# 260515 
-    // Print device information to std_out
-    //    gige_print_header();
-    // Endless main program loop
-    //##########################################################################################
-    // GIGE_DVER FPGA 버전 읽어서 중간 값으로 표시하도록 변경해야함
+#if BRNS_BG_LOAD
+    brns_bg_reset(); //# 2606151610 force brns_bg statics to known state (bss-clear independent)
+#endif
+    int_init(); //# 260515
+    LAP("int_init"); //$ 2606161124
+    //# 2606151630 DBG: print dot-flag state right after int_init (which sets it 0).
+    func_printf("\r\n[DOTDBG] after int_init: fb_tx_dot_en=%d fb_err_msg_en=%d (&=0x%08x)\r\n",
+                (int)fb_tx_dot_en, (int)fb_err_msg_en, (unsigned)(&fb_tx_dot_en));
+
     load_fw_ver();
 
     framebuf_control |= FRAMEBUF_C_EXTSTAT;
-//    func_printf("[UU] Running in GEV 2.1 mode\r\n");
     REG(ADDR_LED_CTRL) = LED_CTRL_BLINK_0P5S; // boot led blinking 1/2sec 221018 mbh
     gige_print_header();
-    execute_cmd_grab(0);
+    LAP("gige_print_header"); //$ 2606161124
 
-    execute_cmd_psel(func_test_pattern); // dskim - 21.03.19 - "wtp" 명령어 이후 수행될 경우 v 이미지 일부 반전되는 현상 발생
-    execute_cmd_pmode(func_sync_source); // dskim - 21.03.19 - "wtp" 명령어 이후 수행될 경우 v 이미지 일부 반전되는 현상 발생
-    execute_cmd_smode(func_shutter_mode);   // preventing bcal fail during init 211101mbh
-    REG(ADDR_FRAME_TIME) = 0; // 211101
-    flash_enter4b(); //###################################### no works ################
-    if(DBG_main)func_printf("#[DBG_main] load_flash\r\n");
-    load_flash();
-    if(DBG_main)func_printf("#[DBG_main] fpga_init\r\n");
-    fpga_init(); //# position after load_flash; //# added reg_init 230824
-    if(DBG_main)func_printf("#[DBG_main] func_init\r\n");
-    func_init(); //$ 260528
     if(DBG_main)func_printf("#[DBG_main] user_init\r\n");
     user_init(); //#
+    LAP("user_init"); //$ 2606161124
+
+    //$ 2607101934 NUC load after brns_bg_reset; restore grab+OUT_EN since get_calib_init clears them
+    if (func_rns_valid) {
+        get_calib_init();
+        execute_cmd_grab(1);  //$ 2607101934 get_calib_init restores orig grab(0), force back to 1
+        REG(ADDR_OUT_EN) = 1; //$ 2607101934 get_calib_init sets OUT_EN=0 at exit
+    }
+    LAP("calib_init"); //$ 2607101934
+
 //    if(DBG_main)func_printf("#[DBG_main] update_hwload\r\n");
 //    update_hwload(); //# 231222
 //    disp_cmd_rtime();
     execute_cmd_op_boot_count();
+    LAP("boot_count"); //$ 2606161124
 //  execute_cmd_flash_check();
     //# 2605142006 Gated by BOOT_ROM_CHECK_FPGA/_FW. Both 0 -> skip whole call.
 #if BOOT_ROM_CHECK
@@ -433,29 +565,82 @@ int main(void)
     if(DBG_main)func_printf("#[DBG_main] func_width=%d\r\n",REG(ADDR_WIDTH));
     if(DBG_main)func_printf("#[DBG_main] func_height=%d\r\n",REG(ADDR_HEIGHT));
 
+    //$ 2607161112 main: apply boot IFS index before main loop so ROIC 0x6D is set at startup (EXT3643R only).
+    //$ Boot path roic_3256_init() only assigns func_ifs_index (default 2 or flash value) and never calls
+    //$ execute_cmd_ifs(), so the 0x6D linear-fit write (2607151649) was skipped until a UART/GEV ifs cmd.
+    //$ Re-applying the settled index here routes it through the full apply routine incl. ROIC 0x6D.
+    if (mEXT3643R_series) execute_cmd_ifs(func_ifs_index);
+
     while (1)
     {
+        //# 2606151630 DBG: catch the moment fb_tx_dot_en changes (who turns dots on).
+        //  Prints once per change with the new value -> pinpoints the writer/timing.
+//        {
+//            static u8 _dotprev = 0xFF;
+//            if (fb_tx_dot_en != _dotprev) {
+//                func_printf("\r\n[DOTWATCH] fb_tx_dot_en %d->%d\r\n",
+//                            (int)_dotprev, (int)fb_tx_dot_en);
+//                _dotprev = fb_tx_dot_en;
+//            }
+//        }
+        LAPW_INIT(); //$ 2606161124 anchor per-iteration LAPW chain (>=10ms prints)
         gige_callback(0);           // Networking callback function
+        LAPW("gige_callback"); //$ 2606161124
         user_callback();            // User callback
+        LAPW("user_callback"); //$ 2606161124
 
         // gige_callback(0);
         // user_callback();
         uart_command();
+        LAPW("uart_command"); //$ 2606161124
         genicam_command();
+        LAPW("genicam_command"); //$ 2606161124
+        //# 2606121417 main: brns background chunk loader poll (BRNS_BG_LOAD=1 only)
+#if BRNS_BG_LOAD
+        brns_bg_poll();             // one chunk (~4ms) per iteration while loading
+        //$ 2606161214 only profile while a bg load is active; idle polls (~2us)
+        //  must NOT print -> previously flooded x100 lines forever after load done
+        //  (UART flood -> hang). When idle, just re-anchor the LAPW chain.
+        //$ 2606161224 reset cumulative total on rising edge of active (load start)
+        {
+            static u8 _brns_act_prev = 0;
+            u8 _brns_act = brns_bg_active();
+            if (_brns_act) LAPW_AGG("brns_bg_poll", 100, (!_brns_act_prev));
+            else           _lapw_prev = FREERUN_NOW();
+            _brns_act_prev = _brns_act;
+        }
+#endif
+//        check_offset_after_eth();   //# 2606151121 deferred boot offset grab once ethernet up
+//        LAPW("check_offset_after_eth"); //$ 2606161124
+        check_offset_after_tmr();   //$ 2606171840 deferred boot offset grab after OFFSET_AFTER_TMR_MS
+        LAPW("check_offset_after_tmr"); //$ 2606171840
+        check_offset_repeat();      //$ 2607151427 periodic pre-ethernet offset re-grab (every 10s, <=1min)
+        LAPW("check_offset_repeat"); //$ 2607151427
         set_ddr_ch_en(); //# 2605081700 main-loop owner of ADDR_DDR_CH_EN: rewrite every loop from feature flags, log on change only
+        LAPW("set_ddr_ch_en"); //$ 2606161124
         update_defect();
+        LAPW("update_defect"); //$ 2606161124
 //        if(DBG_main)func_printf("[DBG_main] update_data &&&&&&&&&&&&&&&&&&&&&&\r\n");
         update_data(); //# bit align
+        LAPW("update_data"); //$ 2606161124
 //        update_sleep(); //temp #v2 231127
         update_fwtrig();
+        LAPW("update_fwtrig"); //$ 2606161124
         update_acc(); //# for test 220329mbh
-        check_sfp_stat(); // 2604221600 SFP/RXAUI auto-switch polling
+        LAPW("update_acc"); //$ 2606161124
 //        if(DBG_main)func_printf("[DBG_main] update_hwload &&&&&&&&&&&&&&&&&&&&&\r\n");
 //        update_hwload();
 //        if(DBG_main)func_printf("#[DBG_main] update_hwload\r\n");
 //        update_hwload(); //# 231226
-/*  2604221800 Moved to execute_cmd_port(0) in func_cmd.c (cold-boot order + IP wait + init)
-        if (once == 4 )
+
+if(def_sfp_port){
+        check_sfp_stat(); // 2604221600 SFP/RXAUI auto-switch polling
+        LAPW("check_sfp_stat"); //$ 2606161124
+}
+else {
+		check_lan_stat();
+//  2604221800 Moved to execute_cmd_port(0) in func_cmd.c (cold-boot order + IP wait + init)
+/*        if (once == 4 )
         {
 //             m88x33xx_inity(RXAUI); //# 220628mbh
 //             disp_cmd_rtime();
@@ -485,8 +670,6 @@ int main(void)
 //                 m88x33xx_initx(RXAUI);
             }
         }
-//        else if (once == 10000)
-//        else if (once == 5000)
         else if (once == 100)
         {
            if (XREG(XGIGE_ADDR_IP))
@@ -511,69 +694,9 @@ int main(void)
         {
             once++; //220118mbh
 
-        }
-*/
-/*
-// ================================================================== DEBUG ====
-        if (!XUartLite_IsReceiveEmpty(XPAR_UARTLITE_0_BASEADDR))
-            switch (XUartLite_RecvByte(XPAR_UARTLITE_0_BASEADDR))
-            {
-//-------------- Framebuffer test ------------------------ start ---------------
-                case 'f':
-                case 'F':
-                        xil_printf("@@@@ FRAMEBUFFER REGISTERS\r\n");
-                        framebuf_printregs();
-                        xil_printf("\r\n");
-                        break;
-                case 'i':
-                case 'I':
-                        xil_printf("@@@@ INIT FRAMEBUFFER\r\n");
-                        xil_printf("\r\n");
-                        framebuf_control |= FRAMEBUF_C_INIT;
-                        break;
-                case 'c':
-                case 'C':
-                        xil_printf("@@@@ CLEAR STATISTICS\r\n");
-                        xil_printf("\r\n");
-                        framebuf_control |= FRAMEBUF_C_CLRSTAT;
-                        break;
-//-------------- Framebuffer test ------------------------ end -----------------
-//-------------- Autentication/License ------------------- start ---------------
-                case 'a':
-                case 'A':
-                        xil_printf("@@@@ GIGE AUTH STATUS\r\n");
-                        xil_printf("GigE Auth Status = 0x%02X\r\n",gige_get_auth_status());
-                        break;
-                case 'l':
-                case 'L':
-                        xil_printf("@@@@ GIGE LIC CHECKSUM\r\n");
-                        xil_printf("GigE Lic Checksum = 0x%02X\r\n",gige_get_license_checksum());
-                        break;
-//-------------- Autentication/License ------------------- end -----------------
-//-------------- ETH PHY test ---------------------------- start ---------------
-                case 'x':
-                        // Print Copper Specific Status Register 1 0x8008
-                        // Speed, Copper Link, Duplex ... information
-                        xil_printf("mdio_read(0, 0x8008) = 0x%04X\r\n" ,mdio_read(3, 0x8008));
-                        break;
-                case 'd':
-                case 'D':
-                        xil_printf("@@@@ PHY DEBUG (select option number)\r\n");
-                        while (XUartLite_IsReceiveEmpty(XPAR_UARTLITE_0_BASEADDR)) {};
-                        m88x33xx_debug((XUartLite_RecvByte(XPAR_UARTLITE_0_BASEADDR) - '0'));
-                        xil_printf("\r\n");
-                        break;
-                case 'r':
-                case 'R':
-                        xil_printf("@@@@ PHY REVISION\r\n");
-                        m88x33xx_revision();
-                        xil_printf("\r\n");
-                        break;
-//-------------- ETH PHY test ---------------------------- end -----------------
-            }
-// ================================================================== DEBUG ====
- */
-    }
+        }*/
+	}//#def_sfp_port
+} //#while
 
     // Never reached exit
     microblaze_disable_dcache();
@@ -581,7 +704,7 @@ int main(void)
     microblaze_disable_icache();
     microblaze_invalidate_icache();
     return 0;
-}
+}//# main
 //#else
 //int main(void) // ROM downloader. Added checker_rom(); and without some functions.
 //{

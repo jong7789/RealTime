@@ -7,13 +7,20 @@ library UNISIM;
     use UNISIM.VCOMPONENTS.ALL;
     use WORK.TOP_HEADER.ALL;
 
+--# 2608191217 Single I2C master, now serving two physical 2-wire buses:
+--#   slaves 0..3 = temperature ICs (NCT175/DS1731, addr prefix "1001") on TEMP_SCL/TEMP_SDA
+--#   slave  4    = SFP module DDM  (SFF-8472 A2h = 0x51, prefix "1010") on SFP_SCL/SFP_SDA
+--# Only one bus is driven at a time (selected by si2c_scnt); the idle bus is held Hi-Z.
+--# SFP_NUM=0 removes the SFP bus entirely, leaving the original 4-slave behavior untouched.
 entity I2C_CTRL is
     generic (
         SLAVE_NUM   : integer;
+        SFP_NUM     : integer := 0; --# 2608191217 1 = last slave (index 4) is the SFP DDM device
         SLAVE_ADDR0 : std_logic_vector(2 downto 0);
         SLAVE_ADDR1 : std_logic_vector(2 downto 0);
         SLAVE_ADDR2 : std_logic_vector(2 downto 0);
-        SLAVE_ADDR3 : std_logic_vector(2 downto 0)
+        SLAVE_ADDR3 : std_logic_vector(2 downto 0);
+        SLAVE_ADDR4 : std_logic_vector(2 downto 0) := "001" --# 2608191217 SFP A2h -> 0x51
     );
     port (
         iui_clk         : in    std_logic;
@@ -25,21 +32,43 @@ entity I2C_CTRL is
         ireg_i2c_wdata  : in    std_logic_vector(31 downto 0);
         ireg_i2c_ren    : in    std_logic;
         ireg_i2c_rsize  : in    std_logic_vector(3 downto 0);
+        --# 2608191217 SFP slave control, both carried by ADDR_I2C_MODE (0x0140)
+        ireg_i2c_sfp_en  : in   std_logic;                    --# MODE[1]    : include slave 4 in the sweep
+        ireg_i2c_sfp_ptr : in   std_logic_vector(7 downto 0); --# MODE[15:8] : byte pointer sent to slave 4
         oreg_i2c_rdata0 : out   std_logic_vector(31 downto 0);
         oreg_i2c_rdata1 : out   std_logic_vector(31 downto 0);
         oreg_i2c_rdata2 : out   std_logic_vector(31 downto 0);
         oreg_i2c_rdata3 : out   std_logic_vector(31 downto 0);
+        oreg_i2c_rdata4 : out   std_logic_vector(31 downto 0); --# 2608191217 SFP slave result
         oreg_i2c_done   : out   std_logic;
 
         oi2c_scl        : out   std_logic;
-        ioi2c_sda       : inout std_logic
+        ioi2c_sda       : inout std_logic;
+        --# 2608191217 SFP 2-wire bus, null array when SFP_NUM=0
+        oi2c_sfp_scl    : out   std_logic_vector(SFP_NUM - 1 downto 0);
+        ioi2c_sfp_sda   : inout std_logic_vector(SFP_NUM - 1 downto 0)
     );
 end I2C_CTRL;
 
 architecture Behavioral of I2C_CTRL is
 
+    --# 2608191932 SCL timing. Was: 11-bit counter (185MHz/2048 = 90.3kHz) with SCL high
+    --# over counts 1280..1791, while SDA was captured at count 1024 - i.e. 1.38us BEFORE
+    --# SCL even rose, with SCL still low. That left only 1280 counts (6.92us) for the
+    --# pulled-up SDA line to settle after the previous SCL fall, and released '1' bits
+    --# were occasionally read as '0' (NCT175 41.9C seen as 9.4C: bits 13 and 7 both 1->0).
+    --# Now: 12-bit counter (185MHz/4096 = 45.2kHz), same high-phase ratio (0.625..0.875),
+    --# and SDA sampled at the CENTRE of the SCL high pulse -> 3584 counts (19.4us) of
+    --# settling, 2.8x the old margin. Still within the SFF-8472 100kHz limit.
+    constant SCL_CNT_BITS : integer := 12;
+    constant SCL_HI_START : integer := 2560; -- SCL rises  (0.625 * 4096)
+    constant SCL_HI_END   : integer := 3584; -- SCL falls  (0.875 * 4096)
+    constant SCL_SMP_CNT  : integer := 3072; -- SDA sample point, centre of the high pulse
+
     signal sclk     : std_logic;
-    signal sclk_cnt : std_logic_vector(11 - 1 downto 0);
+--  signal sclk_cnt : std_logic_vector(11 - 1 downto 0);
+    signal sclk_cnt : std_logic_vector(SCL_CNT_BITS - 1 downto 0); --# 2608191932
+    signal sclk_smp : std_logic; --# 2608191932 one iui_clk strobe at SCL_SMP_CNT
 
     signal si2c_clk  : std_logic;
     signal si2c_rstn : std_logic;
@@ -74,6 +103,19 @@ architecture Behavioral of I2C_CTRL is
     signal si2c_rdata1 : std_logic_vector(31 downto 0);
     signal si2c_rdata2 : std_logic_vector(31 downto 0);
     signal si2c_rdata3 : std_logic_vector(31 downto 0);
+    signal si2c_rdata4 : std_logic_vector(31 downto 0); --# 2608191217 SFP slave result
+
+    --# 2608191217 SFP slave (index SLAVE_NUM-1 when SFP_NUM=1) control and bus routing
+    signal si2c_sfp_en     : std_logic;
+    signal si2c_sfp_ptr    : std_logic_vector(7 downto 0);
+    signal si2c_bus_sfp    : std_logic;                     -- current slave sits on the SFP bus
+    signal si2c_last_slave : integer range 0 to 7;          -- sweep wrap point (SFP slave optional)
+    signal si2c_wdata_eff  : std_logic_vector(31 downto 0); -- wdata with SFP pointer substituted
+    signal si2c_scl_temp   : std_logic;
+    signal si2c_scl_sfp    : std_logic;
+    signal si2c_t_temp     : std_logic;
+    signal si2c_t_sfp      : std_logic;
+    signal si2c_sfp_iobuf_o : std_logic;
 
     signal si2c_bcnt   : integer range 0 to 7;
     signal si2c_wcnt   : integer range 0 to 7;
@@ -164,16 +206,33 @@ begin
                 if iui_rstn = '0' then
                     sclk     <= '0';
                     sclk_cnt <= (others => '0');
+                    sclk_smp <= '0'; --# 2608191932
                 else
                     -- iui_clk = 185MHz
-                    -- sclk = 185M/2048 = 90KHz
-                    sclk_cnt <= sclk_cnt + '1'; -- 12b, 0 to 4096
+--                  -- sclk = 185M/2048 = 90KHz
+                    --# 2608191932 sclk = 185M/4096 = 45KHz
+                    sclk_cnt <= sclk_cnt + '1'; -- 12b, 0 to 4095
 
                     -- # cutted clk
-                    if    sclk_cnt = 1024 + 256 then
+--                  if    sclk_cnt = 1024 + 256 then
+--                      sclk1 <= '1';
+--                  elsif sclk_cnt = 1024 + 256 + 512 then
+--                      sclk1 <= '0';
+--                  end if;
+                    --# 2608191932 same high-phase ratio (0.625..0.875), doubled period
+                    if    sclk_cnt = SCL_HI_START then
                         sclk1 <= '1';
-                    elsif sclk_cnt = 1024 + 256 + 512 then
+                    elsif sclk_cnt = SCL_HI_END then
                         sclk1 <= '0';
+                    end if;
+
+                    --# 2608191932 SDA sample strobe at the centre of the SCL high pulse.
+                    --# It is also the point furthest from both sclk edges (0 and 2048), so
+                    --# the sclk-domain signals read by the capture process are stable there.
+                    if sclk_cnt = SCL_SMP_CNT then
+                        sclk_smp <= '1';
+                    else
+                        sclk_smp <= '0';
                     end if;
 
                     sclk    <= sclk_cnt(sclk_cnt'left);
@@ -188,6 +247,9 @@ begin
     SIM : if(SIMULATION = "ON") generate
         swait_time <= conv_std_logic_vector(32, 32);
         si2c_clk   <= iui_clk;
+        --# 2608191932 si2c_clk = iui_clk here, so hold the sample strobe asserted:
+        --# the capture process then behaves exactly as the old si2c_clk-edge version.
+        sclk_smp   <= '1';
     end generate;
 
     si2c_rstn <= iui_rstn;
@@ -203,6 +265,7 @@ begin
                 si2c_rdata1 <= (others => '0');
                 si2c_rdata2 <= (others => '0');
                 si2c_rdata3 <= (others => '0');
+                si2c_rdata4 <= (others => '0'); --# 2608191217
 
                 si2c_done   <= '0';
                 si2c_ctrl   <= (others => '0');
@@ -255,11 +318,14 @@ begin
                         si2c_rcnt   <= conv_integer(si2c_rsize) - 1;
                         si2c_rw_end <= '0';
 
+                        --# 2608191217 Slave 4 is the SFP DDM device: prefix "1010" (0x50/0x51),
+                        --# slaves 0..3 keep the temperature-IC prefix "1001" (0x48-0x4F)
                         case (si2c_scnt) is
                             when 0      => si2c_ctrl <= "1001" & SLAVE_ADDR0 & '0';
                             when 1      => si2c_ctrl <= "1001" & SLAVE_ADDR1 & '0';
                             when 2      => si2c_ctrl <= "1001" & SLAVE_ADDR2 & '0';
                             when 3      => si2c_ctrl <= "1001" & SLAVE_ADDR3 & '0';
+                            when 4      => si2c_ctrl <= "1010" & SLAVE_ADDR4 & '0';
                             when others => NULL;
                         end case;
 
@@ -303,7 +369,8 @@ begin
                         end if;
 
                         si2c_scl_en <= '1';
-                        si2c_sda_i  <= si2c_wdata((si2c_wcnt * 8) + si2c_bcnt);
+                        --# 2608191217 si2c_wdata_eff substitutes the SFP byte pointer on slave 4
+                        si2c_sda_i  <= si2c_wdata_eff((si2c_wcnt * 8) + si2c_bcnt);
 
                     when s_RDATA =>
                         if si2c_bcnt = 0 then
@@ -377,7 +444,8 @@ begin
                             swait_cnt <= (others => '0');
 
                             if si2c_mode = '0' then
-                                if si2c_scnt = SLAVE_NUM - 1 then
+                                --# 2608191217 wrap on si2c_last_slave (drops slave 4 when SFP is off)
+                                if si2c_scnt = si2c_last_slave then
                                     debugnum  <= x"17";
                                     state_i2c <= s_IDLE;
                                     si2c_scnt <= 0;
@@ -391,22 +459,41 @@ begin
                             else
                                 debugnum  <= x"19";
                                 state_i2c <= s_IDLE;
-                                if si2c_rw = '1' then
-                                    -- if(si2c_scnt = SLAVE_NUM - 1) then
+--                                if si2c_rw = '1' then
+--                                    -- if(si2c_scnt = SLAVE_NUM - 1) then
+--                                    --     si2c_scnt       <= 0;
+--                                    --     si2c_rdata1     <= si2c_rdata;
+--                                    if si2c_scnt = 3 then
                                     --     si2c_scnt       <= 0;
+--                                        si2c_rdata3 <= si2c_rdata;
+--                                    elsif si2c_scnt = 2 then
+--                                        si2c_scnt   <= si2c_scnt + 1;
+--                                        si2c_rdata2 <= si2c_rdata;
+--                                    elsif si2c_scnt = 1 then
+--                                        si2c_scnt   <= si2c_scnt + 1;
                                     --     si2c_rdata1     <= si2c_rdata;
-                                    if si2c_scnt = 3 then
+--                                    else
+--                                        si2c_scnt   <= si2c_scnt + 1;
+--                                        si2c_rdata0 <= si2c_rdata;
+--                                    end if;
+--                                end if;
+                                --# 2608191217 Auto-mode slave sweep now honors si2c_last_slave (was hardcoded 0..3).
+                                --# SFP_NUM=0 -> last_slave stays 3, so the original NCT175 behavior is unchanged.
+                                --# SFP_NUM=1 + sfp_en -> slave 4 (SFP A2h 0x51) joins the round-robin.
+                                if si2c_rw = '1' then
+                                    case (si2c_scnt) is
+                                        when 0      => si2c_rdata0 <= si2c_rdata;
+                                        when 1      => si2c_rdata1 <= si2c_rdata;
+                                        when 2      => si2c_rdata2 <= si2c_rdata;
+                                        when 3      => si2c_rdata3 <= si2c_rdata;
+                                        when 4      => si2c_rdata4 <= si2c_rdata;
+                                        when others => NULL;
+                                    end case;
+
+                                    if si2c_scnt = si2c_last_slave then
                                         si2c_scnt   <= 0;
-                                        si2c_rdata3 <= si2c_rdata;
-                                    elsif si2c_scnt = 2 then
-                                        si2c_scnt   <= si2c_scnt + 1;
-                                        si2c_rdata2 <= si2c_rdata;
-                                    elsif si2c_scnt = 1 then
-                                        si2c_scnt   <= si2c_scnt + 1;
-                                        si2c_rdata1 <= si2c_rdata;
                                     else
                                         si2c_scnt   <= si2c_scnt + 1;
-                                        si2c_rdata0 <= si2c_rdata;
                                     end if;
                                 end if;
                             end if;
@@ -431,14 +518,33 @@ begin
         end if;
     end process;
 
-    --# I2C read data capture process (rising edge)
-    process (si2c_clk)
+--    --# I2C read data capture process (rising edge)
+--    process (si2c_clk)
+--    begin
+--        if si2c_clk'event and si2c_clk = '1' then
+--            if si2c_rstn = '0' then
+--                si2c_rdata <= (others => '0');
+--            else
+--                if state_i2c_1d = s_RDATA then
+--                    si2c_rdata((si2c_rcnt_1d * 8) + si2c_bcnt_1d) <= si2c_sda_o;
+--                end if;
+--            end if;
+--        end if;
+--    end process;
+    --# 2608191932 I2C read data capture, now on iui_clk gated by sclk_smp.
+    --# The old version sampled on the si2c_clk rising edge = count 1024, which is 256
+    --# counts BEFORE SCL rises - SDA was read while SCL was still low, cutting the
+    --# pulled-up line's settling budget. sclk_smp fires at the centre of the SCL high
+    --# pulse instead. state_i2c_1d / si2c_rcnt_1d / si2c_bcnt_1d belong to the sclk
+    --# domain but sclk is a synchronous divide of iui_clk and its edges sit 1024 counts
+    --# away from SCL_SMP_CNT, so they are stable when sampled here.
+    process (iui_clk)
     begin
-        if si2c_clk'event and si2c_clk = '1' then
+        if iui_clk'event and iui_clk = '1' then
             if si2c_rstn = '0' then
                 si2c_rdata <= (others => '0');
             else
-                if state_i2c_1d = s_RDATA then
+                if sclk_smp = '1' and state_i2c_1d = s_RDATA then
                     si2c_rdata((si2c_rcnt_1d * 8) + si2c_bcnt_1d) <= si2c_sda_o;
                 end if;
             end if;
@@ -453,26 +559,66 @@ begin
                     '0';
 
     si2c_iobuf_i <= si2c_sda_i;
-    si2c_sda_o   <= si2c_iobuf_o;
+
+    --# 2608191217 Two-bus routing. si2c_scnt only changes inside s_WAIT (both buses idle),
+    --# so the select is stable for a whole START..STOP transaction.
+    --# The inactive bus is forced Hi-Z (T='1') so it is never driven by the other bus's traffic.
+    si2c_bus_sfp <= '1' when (SFP_NUM > 0 and si2c_scnt = SLAVE_NUM - 1) else '0';
+
+    --# 2608191217 Sweep wrap point: slave 4 only joins when the SFP bus exists and FW enabled it
+    si2c_last_slave <= SLAVE_NUM - 1 when (SFP_NUM > 0 and si2c_sfp_en = '1') else
+                       SLAVE_NUM - 1 - SFP_NUM;
+
+    --# 2608191217 Slave 4 sends the SFP byte pointer (MODE[15:8]) instead of the temp-IC command
+    si2c_wdata_eff <= (x"000000" & si2c_sfp_ptr) when si2c_bus_sfp = '1' else si2c_wdata;
+
+    si2c_scl_temp <= '1' when si2c_bus_sfp = '1' else si2c_scl;
+    si2c_scl_sfp  <= '1' when si2c_bus_sfp = '0' else si2c_scl;
+    si2c_t_temp   <= '1' when si2c_bus_sfp = '1' else si2c_iobuf_t;
+    si2c_t_sfp    <= '1' when si2c_bus_sfp = '0' else si2c_iobuf_t;
+
+    si2c_sda_o    <= si2c_sfp_iobuf_o when si2c_bus_sfp = '1' else si2c_iobuf_o;
 
     SDA_IOBUF : IOBUF
         port map (
             I  => si2c_iobuf_i,
             IO => ioi2c_sda,
             O  => si2c_iobuf_o,
-            T  => si2c_iobuf_t
+            T  => si2c_t_temp
         );
 
     U0_OBUF : OBUF
         port map (
-            I => si2c_scl,
+            I => si2c_scl_temp,
             O => oi2c_scl
         );
+
+    --# 2608191217 SFP bus pads, instantiated only when the model has an SFP cage
+    GEN_SFP_BUS : if (SFP_NUM > 0) generate
+        SFP_SDA_IOBUF : IOBUF
+            port map (
+                I  => si2c_iobuf_i,
+                IO => ioi2c_sfp_sda(0),
+                O  => si2c_sfp_iobuf_o,
+                T  => si2c_t_sfp
+            );
+
+        U1_OBUF : OBUF
+            port map (
+                I => si2c_scl_sfp,
+                O => oi2c_sfp_scl(0)
+            );
+    end generate GEN_SFP_BUS;
+
+    GEN_NO_SFP_BUS : if (SFP_NUM = 0) generate
+        si2c_sfp_iobuf_o <= '1'; -- open-drain idle, never selected because si2c_bus_sfp = '0'
+    end generate GEN_NO_SFP_BUS;
 
     oreg_i2c_rdata0 <= si2c_rdata0;
     oreg_i2c_rdata1 <= si2c_rdata1;
     oreg_i2c_rdata2 <= si2c_rdata2;
     oreg_i2c_rdata3 <= si2c_rdata3;
+    oreg_i2c_rdata4 <= si2c_rdata4;
     oreg_i2c_done   <= si2c_done;
 
     --# I2C input register and delay chain process (falling edge)
@@ -486,6 +632,8 @@ begin
                 si2c_wdata   <= (others => '0');
                 si2c_wsize   <= (others => '0');
                 si2c_rsize   <= (others => '0');
+                si2c_sfp_en  <= '0';            --# 2608191217
+                si2c_sfp_ptr <= (others => '0'); --# 2608191217
 
                 state_i2c_1d <= s_IDLE;
                 si2c_bcnt_1d <= 7;
@@ -507,6 +655,9 @@ begin
                     si2c_wdata <= ireg_i2c_wdata;
                     si2c_wsize <= ireg_i2c_wsize;
                     si2c_rsize <= ireg_i2c_rsize;
+                    --# 2608191217 latch SFP slave control alongside the other mode fields
+                    si2c_sfp_en  <= ireg_i2c_sfp_en;
+                    si2c_sfp_ptr <= ireg_i2c_sfp_ptr;
                 end if;
 
                 state_i2c_1d <= state_i2c;

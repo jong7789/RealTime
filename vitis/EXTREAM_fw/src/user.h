@@ -185,6 +185,7 @@
 #define XML_LOAD_HW_CALIB		0xA268
 
 //#define reserve		0xA26C
+#define XML_RDDR_CMD		0xA26C  //$ 2607131936 deferred rddr via token (avoids gige_callback re-entry)
 
 #define XML_HW_VER0		0xA270
 #define XML_HW_VER1		0xA274
@@ -208,6 +209,13 @@
 #define	XML_ABLE_BINN_NUM       0xA380
 #define	XML_ABLE_GAIN_NUM       0xA384
 #define	XML_ABLE_DNR            0xA388
+#define XML_ABLE_ACC			0xA38C
+
+//$ 2606181441 BRNS background load progress (UI polling 0..100)
+#define XML_BRNS_BG_PCT         0xA390
+
+//$ 2607141553 opwr_en manual override (bit[31]=override_en, bit[10:0]=opwr_en pins)
+#define XML_PWR_CTRL            0xA394
 // ---- Macros and constants ---------------------------------------------------
 
 // Special GEV memory areas address map
@@ -223,7 +231,22 @@
 // ---- Video processor interface ----------------------------------------------
 
 // Video processor base address
+//#define VIDEO_REGS          XPAR_M2_AXI_VIDEO_BASEADDR
+// BSP compat: new BSP(_CPU_I_) vs old(short name)
+//#ifdef XPAR__CPU_I_M2_AXI_VIDEO_BASEADDR
+////$ 2606011642 BSP rename compat: new _CPU_I_ BSP detected
+//#define VIDEO_REGS          XPAR__CPU_I_M2_AXI_VIDEO_BASEADDR
+//#else
+//#define VIDEO_REGS          XPAR_M2_AXI_VIDEO_BASEADDR
+//#endif
+//$ 2606171653 BSP rename compat: prefer _CPU4DDR_I_ then _CPU_I_ then short
+#ifdef XPAR__CPU4DDR_I_M2_AXI_VIDEO_BASEADDR
+#define VIDEO_REGS          XPAR__CPU4DDR_I_M2_AXI_VIDEO_BASEADDR
+#elif defined(XPAR__CPU_I_M2_AXI_VIDEO_BASEADDR)
+#define VIDEO_REGS          XPAR__CPU_I_M2_AXI_VIDEO_BASEADDR
+#else
 #define VIDEO_REGS          XPAR_M2_AXI_VIDEO_BASEADDR
+#endif
 
 // Offsets of the registers
 #define video_gcsr          (*(volatile u32 *)(VIDEO_REGS + 0x0000))

@@ -27,8 +27,17 @@
 Profile_HandleDef profile;
 u32 func_userset_cmd    = 0;
 u32 func_calib_cmd        = 0;
+u32 func_rddr_token       = 0; //$ 2607131936 deferred rddr token (DOSE number, 0=idle)
+u32 func_ddrchen_last_written = 0xFFFFFFFF; //$ 2607141159 set_ddr_ch_en cache (was static)
 u32 func_flash_cmd        = 0;
 u32 func_calib_map        = 0;
+//u32 func_offset_after_eth = 0;	//# 2606151121 1 = grab offset once ethernet is up
+u32 func_offset_after_tmr    = 0;	//$ 2606171840 1 = pending deferred offset grab
+u32 func_offset_after_tmr_t0 = 0;	//$ 2606171840 FREERUN snapshot at arm time
+u32 func_offset_after_tmr_cnt = OFFSET_AFTER_TMR_MS_DEFAULT * 100000u; //$ 2607061533 runtime threshold (set per model in get_calib_init)
+u32 func_offset_repeat      = 0;    //$ 2607151427 1 = periodic pre-ethernet re-grab active
+u32 func_offset_repeat_last = 0;    //$ 2607151427 FREERUN at last re-grab
+u32 func_offset_repeat_n    = 0;    //$ 2607151427 re-grabs done this window
 u32 func_addr_table        = 0;
 u8 func_reg_addr[12]    = {0, };
 u8 func_reg_data[12]    = {0, };
@@ -39,6 +48,18 @@ float func_ds1731_temp[DS1731_NUM]     = {0, };
 float func_roic_temp     = 0;
 float func_fpga_temp     = 0;
 u32 func_phy_temp         = 0;
+//# 2608201543 0 = Marvell temp sensor not answering (disabled by a PHY re-init)
+u32 func_phy_valid        = 0;
+//# 2608191733 uncorrected die readings, kept so rtemp can show before/after side by side
+float func_fpga_temp_raw  = 0;
+float func_phy_temp_raw   = 0;
+float func_sfp_temp_raw   = 0;
+//# 2608191842 "rtempraw <0|1>": 1 = XML reports the uncorrected die readings for
+//# FPGA/PHY/SFP instead of the ic_to_set_temp() values. Diagnostic aid, not persisted.
+u32 func_temp_raw_mode    = 0;
+//# 2608191217 SFP module DDM temperature; func_sfp_valid=0 means no module / data not ready
+float func_sfp_temp      = 0;
+u32   func_sfp_valid     = 0;
 //u32 func_rns_valid        = 0;    // 0.xx.07
 u32 func_rns_valid        = 1;    // 0.xx.07 //# 241217 delay5sec do at init
 u32 keep0x5c =0;
@@ -128,6 +149,12 @@ void dbg_watch_check(u32 access_addr, const char *fname, int line) {
     //# ALL mode: sample every Nth access globally; same dual-trigger pattern
     //  applied per-sample via per-addr cache.
     if (dbg_watch_flags & DBG_WATCH_FLAG_ALL) {
+        //$ 2607101207 Skip flash regs (0x240/244/248) to reduce ALL-mode noise during boot
+        if (access_addr == ADDR_FLA_CTRL || \
+        	access_addr == ADDR_FLA_ADDR || \
+			access_addr == ADDR_FLA_DATA || \
+        	access_addr == ADDR_SFP_STAT || \
+        	access_addr == ADDR_I2C_RDATA4) return; //# 2608191217 free-running DDM poll, same noise reason as SFP_STAT
         static u32 _all_n = 0;
         if ((++_all_n % DBG_WATCH_ALL_DIV) == 0) {
             u32 v = FREG(access_addr);
@@ -704,21 +731,35 @@ void set_ddr_ch_en(void) {
 //    if (++_th < CHEN_POLL_DIV) return;
 //    _th = 0;
 
-    static u32 last_written = 0xFFFFFFFF;                               //# 2605131450 sentinel forces first write
+    //static u32 func_ddrchen_last_written = 0xFFFFFFFF;                               //# 2605131450 sentinel forces first write
+    //$ 2607141159 Expose cache so wddr can invalidate after direct REG write
 //    u32 regv = DDR_CH_EN_DEFAULT;                                       // 0x11 base (W_ROIC | R_ROIC)
 //    if (func_offset_cal) regv |= DDR_CH_EN_R_OFFSET;                    // +0x40
 //    if (func_gain_cal)   regv |= DDR_CH_EN_R_NUC;                       // +0x20
 //    if (func_d2m)        regv |= (DDR_CH_EN_W_OFFSET | DDR_CH_EN_R_D2M);// +0x84
     //# 2605131508 disconnect branch: force all channels OFF on GEV link down
     //# 2605131659 OR with gcal_stat so calib path also forces channels OFF
+//    u32 regv;                                                        //$ 2607151209 moved below (add boot-settle override)
+//    if (func_ddrchen_gigedisconn_stat || func_ddrchen_gcal_stat) {   //$ 2607151209 disconn must not force OFF during boot settle
+    //$ 2607151209 set_ddr_ch_en: boot-settle override. While the deferred boot
+    //$ offset timer (func_offset_after_tmr) is armed, keep the ROIC->DDR pipeline
+    //$ running even if the GEV link is down, so DDR/sensor settle before the offset
+    //$ grab. Fixes high offset when ethernet connects after the timer fires.
+    //$ gcal_stat still forces all channels OFF (real gain calib needs them down).
+//    u32 disconn_force = func_ddrchen_gigedisconn_stat && !func_offset_after_tmr; //$ 2607151427 extend to repeat window
+    //$ 2607151427 keep pipeline on during the periodic pre-ethernet re-grab window
+    //$ too, else each re-grab is a cold grab (high offset) between intervals.
+    u32 disconn_force = func_ddrchen_gigedisconn_stat && !(func_offset_after_tmr || func_offset_repeat);
     u32 regv;
-    if (func_ddrchen_gigedisconn_stat || func_ddrchen_gcal_stat) {
+    if (disconn_force || func_ddrchen_gcal_stat) {
         regv = DDR_CH_ALL_OFF;
     } else {
         regv = DDR_CH_EN_DEFAULT;                                       // 0x11 base (W_ROIC | R_ROIC)
         if (func_offset_cal) regv |= DDR_CH_EN_R_OFFSET;                // +0x40
         if (func_gain_cal)   regv |= DDR_CH_EN_R_NUC;                   // +0x20
         if (func_d2m)        regv |= (DDR_CH_EN_W_OFFSET | DDR_CH_EN_R_D2M);// +0x84
+        //# 2606121417 set_ddr_ch_en: mask R_NUC while brns_bg loading (partial NUC in DDR)
+        if (func_ddrchen_brns_stat) regv &= ~DDR_CH_EN_R_NUC;
     }
 //    REG(ADDR_DDR_CH_EN) = regv;
 //    if (regv != last_printed) {
@@ -729,12 +770,14 @@ void set_ddr_ch_en(void) {
     //# 2605131450 Write REG + log only when regv changed since last applied value.
     //# 2605131508 disc column added (gige disconnect state)
     //# 2605131659 Renamed disc->disc_stat, added gcal_stat column
-    if (regv != last_written) {
+    //# 2606121417 brns_stat column added (background NUC load state)
+    if (regv != func_ddrchen_last_written) {
         REG(ADDR_DDR_CH_EN) = regv;
-        func_printf("[DBG] set_ddr_ch_en: 0x%02x (offset_cal=%d gain_cal=%d d2m=%d disc_stat=%d gcal_stat=%d)\r\n",
+        func_printf("[DBG] set_ddr_ch_en: 0x%02x (offset_cal=%d gain_cal=%d d2m=%d disc_stat=%d gcal_stat=%d brns_stat=%d)\r\n",
                     regv, func_offset_cal, func_gain_cal, func_d2m,
-                    func_ddrchen_gigedisconn_stat, func_ddrchen_gcal_stat);
-        last_written = regv;
+                    func_ddrchen_gigedisconn_stat, func_ddrchen_gcal_stat,
+                    func_ddrchen_brns_stat);
+        func_ddrchen_last_written = regv;
     }
 }
 
@@ -774,7 +817,8 @@ void roic_3256_init(void){
     execute_cmd_wroic(0x0B,  0x0000);
 
     //$ Default Register Settings (55 Page)
-    execute_cmd_wroic(0x80,  0x080D);                  // 8 : TDEF detection / D : Integrate Up
+//    execute_cmd_wroic(0x80,  0x080D);                  // 8 : TDEF detection / D : Integrate Up
+    execute_cmd_wroic(0x80,  ROIC80_NORMAL);           //$ 2607241132 roic_3256_init: TDEF via TDEF_EN switch
     execute_cmd_wroic(0x94,  0x0001);                  // ISOPANEL mode (default : 0)
     execute_cmd_wroic(0x91,  0x0019);
     execute_cmd_wroic(0x09,  0x0202);
@@ -805,7 +849,9 @@ void roic_3256_init(void){
     func_ifs_index = 2; 							   //$ 260403 1.25pC => index : 2 (16 step)
 
     //$ Integration Mode Selection (Integrate up)
-    execute_cmd_wroic(0x80,  0x080D);
+//    execute_cmd_wroic(0x80,  0x080D); //# en_tdef(shrt detction off) jummjummLine at a-gain 0 #260722
+//    execute_cmd_wroic(0x80,  0x000D); //# tdef off 260722
+    execute_cmd_wroic(0x80,  ROIC80_NORMAL); //$ 2607241132 roic_3256_init: EN_TDEF via TDEF_EN (off suppresses a-gain0 dotted-line)
     execute_cmd_wroic(0xCF,  0x0000);
     execute_cmd_wroic(0xE9,  0x0000);
     execute_cmd_wroic(0xD2,  0x0000);
@@ -827,14 +873,22 @@ void roic_3256_init(void){
 
     //$ 260422 TFT Charge Injection
     if(mEXT3643R_series)//# 260522
-        execute_cmd_wroic(0x0D,  0x0);
+//        execute_cmd_wroic(0x0D,  0x0);
+		execute_cmd_wroic(0x0D,  0x04E8); //# 260702
     else
     	execute_cmd_wroic(0x0D,  0x04E8);
     // execute_cmd_wroic(0x86,  0x8401); low noise
     execute_cmd_wroic(0x86,  0x8001); // normal power
 //    execute_cmd_wroic(0x86,  0x8201); // low power
-    execute_cmd_wroic(0x87,  0x0300);
-    execute_cmd_wroic(0x6D,  0x0010);               //$ Internal DAC Ctrl
+//    execute_cmd_wroic(0x87,  0x0300);
+//    execute_cmd_wroic(0x6D,  0x0020);               //$ Internal DAC Ctrl
+    execute_cmd_wroic(0x87,  0x0965); //$ 260615 COMP1 : DAC_CODE , COMP2 : VREF
+
+    if(mEXT3643R_series)//# 260522
+//    	execute_cmd_wroic(0x6D,  0x00F8); //# dark bypass range by A-Gain shrank after OE position adjustment. #2607301120
+    	execute_cmd_wroic(0x6D,  0x00F0); //# zero data #2607301700
+    else
+    	execute_cmd_wroic(0x6D,  0x00F4); //# DAC
 
     //$ User settings - STR 0 (107 page)
     execute_cmd_wroic(0xAD,  0x1800);
@@ -919,7 +973,9 @@ void roic_3256_settingprofile(Profile_Def *profile){
    u32 N_irst		= (T_irst		* mclk + 9999) / 10000;
    u32 N_shr_lpf1	= (T_shr_lpf1	* mclk + 9999) / 10000;
    u32 N_lpf1_min	= (T_lpf_min	* mclk + 9999) / 10000;
-   u32 N_shs_lpf2	= (T_shs_lpf2	* mclk + 9999) / 10000;
+// u32 N_shs_lpf2	= (T_shs_lpf2	* mclk + 9999) / 10000;
+   //$ 2607021050 roic_3256_settingprofile: 'shs' now sets the SHS/TFT window (NTFT), not SHS-LPF2
+   u32 N_shs_lpf2_min	= (((func_roicstr <= 512) ? 1200 : 2500) * mclk + 9999) / 10000; // Table 8-1/8-2 min
    u32 N_lpf2_min	= (T_lpf_min	* mclk + 9999) / 10000;
    u32 N_tdef		= (T_tdef		* mclk + 9999) / 10000;
    u32 N_gate		= (T_gate		* mclk + 9999) / 10000;	// not in roic datasheet
@@ -928,12 +984,32 @@ void roic_3256_settingprofile(Profile_Def *profile){
     u32 N_sig1		= (T_sig1		* mclk + 9999) / 10000;
     u32 N_sig2		= (T_sig2		* mclk + 9999) / 10000;
 
-    u32 N_TFT      	= 256 - (N_irst + N_shr_lpf1 + N_lpf1_min + N_lpf2_min ) - 4;
-    u32 N_extra    	= 256 - (N_irst + N_shr_lpf1 + fmax(N_shs_lpf2,N_TFT)) - 4;
-    u32 N_lpf1     	= fmax(floor(N_extra/2),N_lpf1_min);
-    u32 N_lpf2     	= fmax((int)N_extra-(int)N_lpf1,N_lpf2_min);
-    u32 N_shr      	= N_shr_lpf1 + N_lpf1;
-    u32 N_shs      	= N_shs_lpf2 + N_lpf2;
+//    u32 N_TFT      	= 256 - (N_irst + N_shr_lpf1 + N_lpf1_min + N_lpf2_min ) - 4;
+//    u32 N_extra    	= 256 - (N_irst + N_shr_lpf1 + fmax(N_shs_lpf2,N_TFT)) - 4;
+//    u32 N_lpf1     	= fmax(floor(N_extra/2),N_lpf1_min);
+//    u32 N_lpf2     	= fmax((int)N_extra-(int)N_lpf1,N_lpf2_min);
+//    u32 N_shr      	= N_shr_lpf1 + N_lpf1;
+//    u32 N_shs      	= N_shs_lpf2 + N_lpf2;
+    //$ 2607021050 DS Eq.21-27: shs->NTFT (SHS/TFT window), LPF takes leftover; signed to avoid u32 underflow
+    //$ NTFT is developer-set integration window, clamped to NTFT-max and floored at SHS-LPF2-min; must exceed oe gate.
+    u32 N_TFT_want	= (T_shs_lpf2 * mclk) / 10000;                                   // NTFT = floor(tTFT/tstep) from 'shs'
+    int N_TFT_max	= 256 - (int)(N_irst + N_shr_lpf1 + N_lpf1_min + N_lpf2_min) - 4; // Eq.22 NTFT-max (signed)
+    int N_TFT_i		= (int)N_TFT_want;
+    if (N_TFT_i > N_TFT_max)            N_TFT_i = N_TFT_max;                          // Eq.23 clamp to max
+    if (N_TFT_i < (int)N_shs_lpf2_min)  N_TFT_i = (int)N_shs_lpf2_min;               // floor at SHS-LPF2 min
+    u32 N_TFT		= (u32)N_TFT_i;                                                   // = SHS_LPF2_REG (0x3D)
+    if (N_TFT < N_gate)                                                              // basic op: shs window must exceed oe gate
+        func_printf("\r\n# WTP: shs window %d < oe gate %d (raise shs / lower rst,shr,mclk) #\r\n", (int)N_TFT, (int)N_gate);
+    int N_extra_s	= 256 - (int)(N_irst + N_shr_lpf1 + N_TFT) - 4;                  // Eq.21 (signed)
+    if (N_extra_s < (int)(N_lpf1_min + N_lpf2_min)) {                                // budget overflow (rst/shr too big)
+        func_printf("\r\n# WTP budget overflow: reduce rst/shr (extra=%d) #\r\n", N_extra_s);
+        N_extra_s = (int)(N_lpf1_min + N_lpf2_min);
+    }
+    u32 N_extra	= (u32)N_extra_s;
+    u32 N_lpf1	= fmax(floor(N_extra/2), N_lpf1_min);                                // Eq.24
+    u32 N_lpf2	= fmax((int)N_extra - (int)N_lpf1, N_lpf2_min);                      // Eq.25
+    u32 N_shr	= N_shr_lpf1 + N_lpf1;                                               // Eq.26
+    u32 N_shs	= N_TFT + N_lpf2;                                                    // Eq.27
 
     //$ 260422 TFT Charge Injection
     u32 SHS_RISE = N_irst + N_shr_lpf1 + N_lpf1 + 3;
@@ -962,7 +1038,8 @@ void roic_3256_settingprofile(Profile_Def *profile){
     execute_cmd_wroic(0x3A, N_irst);
     execute_cmd_wroic(0x3B, N_shr_lpf1);
     execute_cmd_wroic(0x3E, N_lpf1);
-    execute_cmd_wroic(0x3D, fmax(N_shs_lpf2, N_TFT));
+//    execute_cmd_wroic(0x3D, fmax(N_shs_lpf2, N_TFT));
+    execute_cmd_wroic(0x3D, N_TFT); //$ 2607021050 N_TFT already = max(SHS-LPF2-min, NTFT)
     execute_cmd_wroic(0x3C, N_tdef+N_lpf2);
     execute_cmd_wroic(0x1E, (N_sig1 << 8 | N_sig0));
     execute_cmd_wroic(0x1F, N_sig2);
@@ -988,7 +1065,7 @@ void roic_3256_settingprofile(Profile_Def *profile){
     /*DEB*/ if (DBG_3256) func_printf("T_step     =%.3f(ns)       \r\n", T_step);
     /*DEB*/ if (DBG_3256) func_printf("N_irst     =%3d, %3d.%03dus \r\n", N_irst    , (N_irst     * 10000/mclk) /1000, (N_irst     * 10000/mclk)    %1000);
     /*DEB*/ if (DBG_3256) func_printf("N_shr_lpf1 =%3d, %3d.%03dus \r\n", N_shr_lpf1, (N_shr_lpf1 * 10000/mclk) /1000, (N_shr_lpf1 * 10000/mclk)    %1000);
-    /*DEB*/ if (DBG_3256) func_printf("N_shs_lpf2 =%3d, %3d.%03dus \r\n", N_shs_lpf2, (N_shs_lpf2 * 10000/mclk) /1000, (N_shs_lpf2 * 10000/mclk)    %1000);
+    /*DEB*/ if (DBG_3256) func_printf("N_TFT_want =%3d, %3d.%03dus \r\n", N_TFT_want, (N_TFT_want * 10000/mclk) /1000, (N_TFT_want * 10000/mclk)    %1000); //$ 2607021050 shs->NTFT
     /*DEB*/ if (DBG_3256) func_printf("N_TFT      =%3d, %3d.%03dus \r\n", N_TFT     , (N_TFT      * 10000/mclk) /1000, (N_TFT      * 10000/mclk)    %1000);
     /*DEB*/ if (DBG_3256) func_printf("N_extra    =%3d, %3d.%03dus \r\n", N_extra   , (N_extra    * 10000/mclk) /1000, (N_extra    * 10000/mclk)    %1000);
     /*DEB*/ if (DBG_3256) func_printf("N_lpf1     =%3d, %3d.%03dus \r\n", N_lpf1    , (N_lpf1     * 10000/mclk) /1000, (N_lpf1     * 10000/mclk)    %1000);
@@ -1042,7 +1119,9 @@ void roic_3256_settingprofile(Profile_Def *profile){
     // 2604250800 In FW bcal mode, skip auto bcal1 trigger - update_image() will
     //            run bcalfw once at boot via temp branch. Prevents double bcal.
     #if !BOOT_BCAL_USE_FW
-        func_bcal1_token = 1;
+    func_bcal1_token = 1;
+    #else //$ 260804 wtp bcal
+        if (bcal_once) func_bcal1_token = 1;
     #endif
 }
 
@@ -1313,19 +1392,29 @@ void roic_settimingprofile(Profile_Def *profile) {
     //# 240110 use charge injection
     u32 TDEF_R   = SHS_R;
     u32 TDEF_F   = SHS_F;
-    u32 DF_SM0_R = SHS_R;
-    u32 DF_SM0_F = SHS_F;
-    if (msame(mEXT1024)|| msame(mEXT1024RL)) DF_SM0_F = 220; //$ 250703
-    u32 DF_SM1_R = SHS_R;
-    u32 DF_SM1_F = SHS_F;
-    u32 DF_SM2_R = SHS_R;
-    u32 DF_SM2_F = SHS_F;
-    u32 DF_SM3_R = SHS_R;
-    u32 DF_SM3_F = SHS_F;
-    u32 DF_SM4_R = SHS_R;
-    u32 DF_SM4_F = SHS_F;
-    u32 DF_SM5_R = SHS_R;
-    u32 DF_SM5_F = SHS_F;
+
+    //# 3643R dfsm_f 255->242 for charge injection tune
+    u32 DFSM_R, DFSM_F;
+    DFSM_R = SHS_R;
+    if (msame(mEXT1024)|| msame(mEXT1024RL))
+    	DFSM_F = 220; //DF_SM0_F = 220; //$ 250703
+    else if (msame(mEXT3643R)) //# 26082416
+    	DFSM_F = 242;
+    else
+    	DFSM_F = SHS_F;
+
+    u32 DF_SM0_R = DFSM_R;
+    u32 DF_SM0_F = DFSM_F;
+    u32 DF_SM1_R = DFSM_R;
+    u32 DF_SM1_F = DFSM_F;
+    u32 DF_SM2_R = DFSM_R;
+    u32 DF_SM2_F = DFSM_F;
+    u32 DF_SM3_R = DFSM_R;
+    u32 DF_SM3_F = DFSM_F;
+    u32 DF_SM4_R = DFSM_R;
+    u32 DF_SM4_F = DFSM_F;
+    u32 DF_SM5_R = DFSM_R;
+    u32 DF_SM5_F = DFSM_F;
 
     /*DEB*/ if (DBG_WTP) func_printf("[DBG_WTP] MCLK_MHz =%dMhz \r\n", (u32)MCLK_MHz);
     /*DEB*/ if (DBG_WTP) func_printf("[DBG_WTP] (float)tmclk =%d(ns) \r\n", (u32)tmclk);
@@ -1474,6 +1563,11 @@ else if (msame(mEXT2430RI  )){ //$ 250430 EXT2430RI Data 0
     execute_cmd_wroic(0x18, 0x0001);                    // ESSENTIAL BIT3
     execute_cmd_wroic(0x5D, 0x0210);					// COMP1 0.122pF
 	}
+else if (msame(mEXT3643R)){ //# a-si
+    execute_cmd_wroic(0x12, 0x4000);                    // ESSENTIAL BIT2
+    execute_cmd_wroic(0x18, 0x0001);                    // ESSENTIAL BIT3
+    execute_cmd_wroic(0x5D, 0x0208);                    // 2f0-> 208 over saturation 240131
+	}
 else{
     execute_cmd_wroic(0x12, 0x4000);                    // ESSENTIAL BIT2
     execute_cmd_wroic(0x18, 0x0001);                    // ESSENTIAL BIT3
@@ -1552,7 +1646,7 @@ static    u32 roicstr = 0; //# static for using fps calculation.
 
 
     msdelay(200); // mbh210721
-    func_printf("\t### roic_settimingprofile Done\r\n"); //$ 250219
+    func_printf("\t### roic_2256 settimingprofile Done\r\n"); //$ 250219
     execute_cmd_wroic(0x10,    0); // Sync & Deskew Test Pattern return #250926
 //    func_grabbcal = 1; // call bcal with temperature setting.
     // 2604250800 skip auto bcal1 trigger in FW bcal mode (prevents double bcal at boot)
@@ -1569,6 +1663,7 @@ void temp_init(void) {
         func_printf("\tError\r\n");
         return;
     }
+    sfp_temp_init(); //# 2608191217 arm SFP DDM slave; after ds1731_init, which owns I2C_MODE[0]
     phy_temp_init();
     xadc_init();
 
@@ -1622,14 +1717,31 @@ u32 ds1731_init(void) {
     msdelay(100);
 
     REG(ADDR_I2C_RSIZE)     = 2;                // 0x134
-    REG(ADDR_I2C_MODE)         = 1;                // 0x140
+//  REG(ADDR_I2C_MODE)         = 1;                // 0x140
+    //# 2608191217 I2C_MODE also carries the SFP slave fields now, so re-arm them with the
+    //# auto-sweep bit. RSIZE=2 above suits both the temp ICs and SFP A2h[96..97].
+    REG(ADDR_I2C_MODE) = I2C_MODE_AUTO_BIT |
+                         (def_sfp_port ? (I2C_MODE_SFP_EN_BIT |
+                                          (SFP_DDM_PTR_TEMP << I2C_MODE_SFP_PTR_SFT)) : 0);
+
+    //# 2608201720 The auto sweep only starts on the MODE write above, so reading straight
+    //# away returned the reset value 0x0000 and this priming call was wasted (it took the
+    //# "sensor absent" path). One full 5-slave sweep is ~13ms at 45kHz; wait it out so the
+    //# boot-time value is real and the first XML poll does not see 0.
+//    msdelay(100);
+    //# 2608211132 100ms was not enough: config 0x0C selects 12-bit resolution, whose
+    //# conversion needs up to 750ms, and only ~400ms have passed since Start Convert (0x51).
+    //# Reading earlier returns the pre-conversion register state (observed 0xC400 = -60C).
+    msdelay(800);
 
     read_ds1731_temp();
     return 0;
 }
 
 void phy_temp_init(void) {
-    mdio_write(31, 0xF08A, 0x4500);            // Temperature Sensor Init
+//    mdio_write(31, 0xF08A, 0x4500);            // Temperature Sensor Init
+    //# 2608191721 same register, now via the named constant (readback confirmed 0x45xx on HW)
+    mdio_write(31, PHY_TEMP_REG_CTRL, 0x4500); // Temperature Sensor Init
 }
 
 void xadc_init(void) {
@@ -2095,6 +2207,11 @@ int bw_align_fw_run_one_ch(u8 ch, bcal_fw_full_result_t *res, u8 verbose) {
     return res->overall_status;
 }
 
+//$ 2606021620 Global snapshot storage (read by execute_cmd_bcalfw_rdata in func_cmd.c)
+bcalfw_snap_t  bcalfw_snap[BCALFW_SNAP_MAX];
+u32            bcalfw_snap_cnt     = 0;
+u32            bcalfw_snap_wait_us = 0;
+
 // 2604251000 Single sweep+report pass at the currently set bcalfw_wait_us.
 //             Used directly by run_all (single mode) and twice when
 //             BCAL_FW_DOUBLE_PASS=1 (FAST then SLOW comparison).
@@ -2150,6 +2267,22 @@ static void bcalfw_one_pass(u8 verbose) {
         for (int t = 0; t < 32; t++) {
             sum[ch].stable_map[t] = s.stable_map[t];
         }
+    }
+
+    //$ 2606021620 Save result for diag read-back before printing report
+    bcalfw_snap_cnt     = (ROIC_NUM <= BCALFW_SNAP_MAX) ? ROIC_NUM : BCALFW_SNAP_MAX;
+    bcalfw_snap_wait_us = bcalfw_wait_us;
+    for (u32 ch = 0; ch < bcalfw_snap_cnt; ch++) {
+        bcalfw_snap[ch].s_mid    = sum[ch].s_mid;
+        bcalfw_snap[ch].s_width  = sum[ch].s_width;
+        bcalfw_snap[ch].s_start  = sum[ch].s_start;
+        bcalfw_snap[ch].s_end    = sum[ch].s_end;
+        bcalfw_snap[ch].s_status = sum[ch].s_status;
+        bcalfw_snap[ch].w_bs     = sum[ch].w_bs;
+        bcalfw_snap[ch].w_par    = sum[ch].w_par;
+        bcalfw_snap[ch].w_status = sum[ch].w_status;
+        for (int t = 0; t < 32; t++)
+            bcalfw_snap[ch].stable_map[t] = sum[ch].stable_map[t];
     }
 
     func_printf("===== bcalfw report (wait_us=%lu) =====\r\n",
@@ -2284,6 +2417,7 @@ void get_userset_data(u32 table, u32 value, u8 step) {
 void genicam_command(void) {
     execute_user_cmd();
     execute_calib_cmd();
+    execute_rddr_cmd();  //$ 2607131936 deferred rddr from XML
     execute_flash_cmd();
 }
 
@@ -2491,6 +2625,30 @@ int once88m=0;
 //             to keep wall-clock debounce duration unchanged (500*1 -> 5*100).
 #define SFP_POLL_DIV  100
 #define SFP_STAB_CNT  5             // # of consecutive stable POLLS before commit (poll cadence = SFP_POLL_DIV iters)
+//$ 2606111729 Gate SFP polling to EXT3643R; add check_lan_stat for LAN-only
+/* Deferred full Marvell PHY init for LAN-only models (non-EXT3643R).
+ * Replaces the old once==100 approach in main.c (commented out 2604221800).
+ * Calls m88x33xx_init(RXAUI) once after IP is assigned.
+ * Why: m88x33xx_inity() at boot only uploads PHY firmware; full config requires init(). */
+void check_lan_stat(void) {
+    static u8 done = 0;
+    if (done) return;
+    if (!XREG(XGIGE_ADDR_IP)) return;
+    done = 1;
+    //$ 2606171024 check_lan_stat: force IP=192.168.250.145
+    /* boots get static IP directly from libgige bootstrap. */
+    execute_cmd_ip(192,168,250,145);
+    func_printf("[LAN_STAT] Ethernet m88x33xx_init set...\r\n");
+    int ret = m88x33xx_init(RXAUI);
+    if (ret)
+        func_printf("m88x33xx_init FAILED with ERROR code %d\r\n", ret);
+    else
+        func_printf("Done\r\n");
+    //# 2608201543 A full PHY init clears the C-unit temperature sensor enable, so re-arm
+    //# it here instead of waiting for read_phy_temp() to notice and recover.
+    phy_temp_init();
+}
+
 void check_sfp_stat(void) {
     //# Throttle: skip 99 of every 100 calls. Initialize counter so the FIRST call
     //  passes through (so first_run logic below fires immediately on boot).
@@ -2503,42 +2661,29 @@ void check_sfp_stat(void) {
     static u32 pending   = 0;       // candidate being debounced
     static u32 cnt       = 0;       // consecutive-stable counter
 
-    //# 2605121219 Background retry for deferred m88x33xx_init when wait_app_ready timed out
-    //             at boot path. Internally throttled (~10Hz). No-op when not pending.
-    //(void)m88x33xx_retry_init_if_pending();
+ if ( (g_port_sel==0) && (once88m==0) && (XREG(XGIGE_ADDR_IP)) )
+ {
+     func_printf("##### ONCE88m 0 #####[SFP_STAT] m88x33xx_initx(RXAUI)\r\n");
+     m88x33xx_initx(RXAUI);
+     phy_temp_init(); //# 2608201543 PHY init clears the temp sensor enable - re-arm
+     once88m = 1;
+ }
+ 
+ if ( (g_port_sel==0) && (once88m==1) && (XREG(XGIGE_ADDR_IP)==0) )
+ {
+     func_printf("##### ONCE88m 1 #####[SFP_STAT] m88x33xx_init(RXAUI)\r\n");
+     once88m = 2;
+ }
+ 
+ if ( (g_port_sel==0) && (once88m==2) && !(XREG(XGIGE_ADDR_IP)) )
+ {
+     func_printf("##### ONCE88m 2 #####[SFP_STAT] m88x33xx_init(RXAUI)\r\n");
+     execute_cmd_ip(192,168,250,145);
+     m88x33xx_init(RXAUI);
+     phy_temp_init(); //# 2608201543 PHY init clears the temp sensor enable - re-arm
+     once88m = 3;
+ }
 
-
-
-
-if ( (g_port_sel==0) && (once88m==0) && (XREG(XGIGE_ADDR_IP)) )
-{
-    func_printf("##### ONCE88m 0 #####[SFP_STAT] m88x33xx_initx(RXAUI)\r\n");
-    m88x33xx_initx(RXAUI);
-//  func_printf("##### ONCE88m #####[SFP_STAT] m88x33xx_init(RXAUI)\r\n");
-//  execute_cmd_ip(192,168,250,145);
-//  m88x33xx_init(RXAUI);
-    once88m = 1;
-}
-
-if ( (g_port_sel==0) && (once88m==1) && (XREG(XGIGE_ADDR_IP)==0) )
-{
-//  func_printf("##### ONCE88m #####[SFP_STAT] m88x33xx_initx(RXAUI)\r\n");
-//  m88x33xx_initx(RXAUI);
-    func_printf("##### ONCE88m 1 #####[SFP_STAT] m88x33xx_init(RXAUI)\r\n");
-//  execute_cmd_ip(192,168,250,145);
-//  m88x33xx_init(RXAUI);
-    once88m = 2;
-}
-
-if ( (g_port_sel==0) && (once88m==2) && !(XREG(XGIGE_ADDR_IP)) )
-{
-//  func_printf("##### ONCE88m #####[SFP_STAT] m88x33xx_initx(RXAUI)\r\n");
-//  m88x33xx_initx(RXAUI);
-    func_printf("##### ONCE88m 2 #####[SFP_STAT] m88x33xx_init(RXAUI)\r\n");
-    execute_cmd_ip(192,168,250,145);
-    m88x33xx_init(RXAUI);
-    once88m = 3;
-}
     u32 cur = REG(ADDR_SFP_STAT);
 
     // ---- Boot init: unconditionally force port 0 (RXAUI) ----
@@ -2701,7 +2846,12 @@ void update_bcal1(void) {
 #endif
     if(AFE3256_series)	execute_cmd_wroic(0x1A,keepx1A);
     else				execute_cmd_wroic(0x10,keepx10);
+    //$ 2606021620 Print bcalfw snapshot in FW mode, hw readback in HW FSM mode
+#if BOOT_BCAL_USE_FW
+    execute_cmd_bcalfw_rdata();
+#else
     execute_cmd_bcal_rdata();
+#endif
 }
 
 void execute_user_cmd(void) {
@@ -2739,6 +2889,109 @@ void execute_user_cmd(void) {
     func_busy = 0;
     func_busy_time = 0;
 }
+//$ 2606171840 check_offset_after_tmr: deferred boot offset grab (timer-based).
+//  Replaces ETH-triggered grab. get_calib_init arms func_offset_after_tmr +
+//  snapshots FREERUN; fires once elapsed >= OFFSET_AFTER_TMR_MS. Wrap-safe
+//  via u32 subtraction (FREERUN wraps ~42.9s so TMR_MS must stay < that).
+//  Same OUT_EN/acq/grab wrapper as the ETH version for boot-path parity.
+#define DBG_offtmr 0
+
+//$ 2607151427 boot_offset_grab_once: shared OUT_EN/acq/grab/wddr/restore sequence
+//$ used by both the one-shot timer (check_offset_after_tmr) and the periodic
+//$ pre-ethernet re-grab (check_offset_repeat). tag labels the caller in logs.
+static void boot_offset_grab_once(const char *tag) {
+    u32 grab       = func_grab_en;
+    u32 outen_save = REG(ADDR_OUT_EN) & 1;
+
+    if(DBG_offtmr)func_printf("\r\n[%s] enter outen_save=%u grab=%u gcsr=0x%08x ddrchen=0x%02x\r\n",
+                              tag, (unsigned)outen_save, (unsigned)grab,
+                              (unsigned)gige_gcsr, (unsigned)REG(ADDR_DDR_CH_EN));
+
+    REG(ADDR_OUT_EN) = 1;                        // enable image pipeline
+    gige_set_acquisition_status(0, 1);
+    execute_cmd_grab(1);
+
+    if (func_shutter_mode == 0) {               // global-shutter skips (boot parity)
+//        execute_cmd_wddr(1, 6);    //# 26070615 gate dancha at booting
+        execute_cmd_wddr(1, user_avg_level);    // average real pixels into DOSE0
+        func_calib_cmd = 0;                     // prevent double getting offset
+    }
+    if(DBG_offtmr)func_printf("[%s] wddr done\r\n", tag);
+
+    execute_cmd_grab(grab);
+    REG(ADDR_OUT_EN) = outen_save;              // restore prior OUT_EN
+    gige_set_acquisition_status(0, outen_save);
+    if(DBG_offtmr)func_printf("[%s] exit OUT_EN=%u gcsr=0x%08x\r\n",
+                              tag, (unsigned)outen_save, (unsigned)gige_gcsr);
+}
+
+void check_offset_after_tmr(void) {
+#if OFFSET_AFTER_TMR
+    if (!func_offset_after_tmr) return;
+    u32 _elapsed = (u32)(FREERUN_NOW() - func_offset_after_tmr_t0);  // wrap-safe
+    if (_elapsed < func_offset_after_tmr_cnt) return; //$ 2607061533 runtime model-dependent threshold
+    func_offset_after_tmr = 0;                       // one-shot
+
+    if(DBG_offtmr)func_printf("\r\n[OFFTMR] fired elapsed=%lu.%03lu ms\r\n",
+                              (unsigned long)(_elapsed / 100000),
+                              (unsigned long)((_elapsed / 100) % 1000));
+    func_printf("\r\n[OFFSET] timer fired: grab offset (deferred)\r\n");
+    boot_offset_grab_once("OFFTMR");
+
+    //$ 2607151427 arm periodic pre-ethernet re-grab: keep refreshing offset every
+    //$ OFFSET_REPEAT_INTERVAL_MS until ethernet connects or the window elapses.
+#if OFFSET_REPEAT_EN
+    if (!func_ether_conn) {
+        func_offset_repeat      = 1;
+        func_offset_repeat_last = FREERUN_NOW();
+        func_offset_repeat_n    = 0;
+        if(DBG_offtmr)func_printf("[OFFREP] armed interval=%ums window=%ums max=%u\r\n",
+                                  (unsigned)OFFSET_REPEAT_INTERVAL_MS,
+                                  (unsigned)OFFSET_REPEAT_WINDOW_MS,
+                                  (unsigned)(OFFSET_REPEAT_WINDOW_MS / OFFSET_REPEAT_INTERVAL_MS));
+    }
+#endif
+#endif
+}
+
+//$ 2607151427 check_offset_repeat: periodic offset re-grab before ethernet is up.
+//$ Fires every OFFSET_REPEAT_INTERVAL_MS, up to WINDOW/INTERVAL times, stopping as
+//$ soon as func_ether_conn=1. Count-based window keeps a >42.9s total wrap-safe;
+//$ each interval diff is < 42.9s (FREERUN wrap period).
+void check_offset_repeat(void) {
+#if OFFSET_REPEAT_EN
+    if (!func_offset_repeat) return;
+    if (func_ether_conn) {                       // ethernet up -> stop, normal gating resumes
+        func_offset_repeat = 0;
+        if(DBG_offtmr)func_printf("[OFFREP] stop: ethernet connected (n=%u)\r\n",
+                                  (unsigned)func_offset_repeat_n);
+        return;
+    }
+    u32 max_n = OFFSET_REPEAT_WINDOW_MS / OFFSET_REPEAT_INTERVAL_MS;
+    if (func_offset_repeat_n >= max_n) {         // window exhausted
+        func_offset_repeat = 0;
+        if(DBG_offtmr)func_printf("[OFFREP] stop: window done (n=%u)\r\n", (unsigned)max_n);
+        return;
+    }
+    u32 since = (u32)(FREERUN_NOW() - func_offset_repeat_last);   // < interval, wrap-safe
+    if (since < OFFSET_REPEAT_INTERVAL_MS * 100000u) return;
+    func_offset_repeat_last = FREERUN_NOW();
+    func_offset_repeat_n++;
+    func_printf("\r\n[OFFSET] repeat grab %u/%u (pre-ethernet)\r\n",
+                (unsigned)func_offset_repeat_n, (unsigned)max_n);
+    boot_offset_grab_once("OFFREP");
+#endif
+}
+
+//$ 2607131936 Deferred rddr: UART/XML sets func_rddr_token, while(1) executes here
+//  Avoids gige_callback re-entry (get_ddr_frame_avg calls gige_callback internally)
+void execute_rddr_cmd(void) {
+    if (func_rddr_token == 0) return;
+    u32 cmd = func_rddr_token;
+    func_rddr_token = 0;
+    execute_cmd_rddr(cmd, 0);
+}
+
 void execute_calib_cmd(void) {
     if(func_calib_cmd == 0)            return;
 
@@ -2949,6 +3202,16 @@ void update_roic_info(void) {
 void read_roic_temp(void) {
 	u32 data;
 
+	//# 2608201531 The ROIC internal temperature sensor exists on AFE3256 only, and only
+	//# EXT4343RD / EXT3643R use that part (ROIC_BY_MODEL in TOP_HEADER.vhd) - every other
+	//# model is AFE2256. Bail out BEFORE any SPI write: on AFE2256 the registers below
+	//# (0x03/0x70/0x71/0xE4) mean something else, so writing them would disturb the ROIC
+	//# configuration, and 0x78 would not be a temperature reading either.
+	if (!AFE3256_series) {
+		func_roic_temp = 0;
+		return;
+	}
+
 	//$ Enable Temp. Sensor
 	execute_cmd_wroic(0x03, 0x0006);
 	execute_cmd_wroic(0x70, 0x0032);
@@ -2961,7 +3224,9 @@ void read_roic_temp(void) {
 	msdelay(1);
 
 	data = execute_cmd_rroic(0x78) & 0x01FF;
-	func_printf("ROIC Temp = %d\r\n",data);
+//	func_printf("ROIC Temp = %d\r\n",data);
+	//# 2608201531 raw register 0x78 code, gated so rtemp output stays formatted
+	if (DBG_ROICTEMP) func_printf("ROIC Temp = %d\r\n",data);
 	func_roic_temp = (0.97 * (data -(512 * floor(data/256)))+108)/2.45;
 
 	//$ Disable Temp. Sensor
@@ -2972,23 +3237,38 @@ void read_roic_temp(void) {
 	execute_cmd_wroic(0xE4, 0x0000);
 }
 
-u32 temp_arr [2][2][DS1731_NUM] = {0, }; //temperature arry 211112 mbh
+//u32 temp_arr [2][2][DS1731_NUM] = {0, }; //temperature arry 211112 mbh
+//# 2608191920 dropped: the old two-sample history is superseded by the filter inside
+//# read_ds1731_temp(); nothing else in the project referenced it.
 void read_ds1731_temp(void) {
     u32 i = 0;
     u32 addr = 0, data = 0;
-    u8 icsel =0;
+//    u8 icsel =0; //# 2608191920 unused since temp_arr history was replaced by the filter
+    //# 2608191920 plausibility-filter state (see BD_TEMP_* in fpga_info.h)
+    static float bd_last[DS1731_NUM];   // last accepted reading
+    static float bd_pend[DS1731_NUM];   // candidate outlier awaiting confirmation
+    static u8    bd_have[DS1731_NUM];   // 1 once a good sample was seen
+    static u8    bd_pend_n[DS1731_NUM];
+    static u8    bd_rej[DS1731_NUM];    //# 2608201518 consecutive rejections (resync watchdog)
+    u16   bd_word;
+    float bd_new;
 
 //     toggle command for NCT175(new)
-    if (REG(ADDR_I2C_WDATA)==0)
-    {
-        REG(ADDR_I2C_WDATA) = 0xAA; // ds1731 read temperature command
-        icsel = 0;
-    }
-    else
-    {
-        REG(ADDR_I2C_WDATA) = 0x0; // nct175 read 0 address
-        icsel = 1;
-    }
+//    //# 2608191920 Toggle kept for DS1731/NCT175 compatibility: half the reads use the
+//    //# pointer the installed IC does not have, and the filter below discards those.
+//    if (REG(ADDR_I2C_WDATA)==0)
+//    {
+//        REG(ADDR_I2C_WDATA) = 0xAA; // ds1731 read temperature command
+//    }
+//    else
+//    {
+//        REG(ADDR_I2C_WDATA) = 0x0; // nct175 read 0 address
+//    }
+    //# 2608201518 Toggle removed. Alternating 0xAA/0x00 meant every other read used a
+    //# pointer the installed IC does not implement (0x00 is undefined on DS1731), and the
+    //# resulting garbage is what showed up as 9.3C. Pointer is now fixed to the part
+    //# selected by BD_TEMP_IC_DS1731 in fpga_info.h.
+    REG(ADDR_I2C_WDATA) = BD_TEMP_PTR;
 
     for (i = 0; i < DS1731_NUM; i++) 
     {
@@ -3000,35 +3280,276 @@ void read_ds1731_temp(void) {
           case 3 : addr = ADDR_I2C_RDATA3; break;
         }
         data = REG(addr);
-        temp_arr[icsel][0][i] = temp_arr[icsel][1][i]; // 0:old <= 1:new
-        temp_arr[icsel][1][i] = data;                  // 1:new <= in data
+//        temp_arr[icsel][0][i] = temp_arr[icsel][1][i]; // 0:old <= 1:new
+//        temp_arr[icsel][1][i] = data;                  // 1:new <= in data
         // func_printf(" read reg b = 0x%4x \r\n", data);
 
-        if ( temp_arr[icsel][0][i] != temp_arr[icsel][1][i] && \
-             temp_arr[icsel][0][i] != 0)
-        {
-            func_ds1731_temp[i] = (float)data/(1<<8); // calc changed simple 211112
-            //func_printf(" [%d][0][%d]0x%4x, [%d][0][%d]0x%4x \r\n" ,icsel,i,temp_arr[icsel][0][i], icsel,i,temp_arr[icsel][1][i]);
+//        if ( temp_arr[icsel][0][i] != temp_arr[icsel][1][i] && \
+//             temp_arr[icsel][0][i] != 0)
+//        {
+//            func_ds1731_temp[i] = (float)data/(1<<8); // calc changed simple 211112
+//        }
+        //# 2608191920 Old guard did the opposite of what it should: it passed outliers
+        //# (a value differing from the previous one) and blocked steady readings. Replaced
+        //# with a plausibility filter - see BD_TEMP_* in fpga_info.h. Sign extension added
+        //# so sub-zero readings no longer wrap to ~+255C.
+        bd_word = (u16)(data & 0xFFFF);
 
-//            temp_int     = (data >> 8)     & 0x7F;
-//            temp_dec[0] = (data >> 7)    & 0x1;
-//            temp_dec[1] = (data >> 6)    & 0x1;
-//            temp_dec[2] = (data >> 5)    & 0x1;
-//            temp_dec[3] = (data >> 4)    & 0x1;
-//            func_ds1731_temp[i] = ((float)temp_int + (float)(temp_dec[0] * 0.5) + (float)(temp_dec[1] * 0.25) + (float)(temp_dec[2] * 0.125) + (float)(temp_dec[3] * 0.0625));
+        if (bd_word == BD_TEMP_ABSENT_LO || bd_word == BD_TEMP_ABSENT_HI) {
+            bd_have[i] = 0;                 // sensor not answering; keep last shown value
+            continue;
+        }
+
+        bd_new = (float)((int16_t)bd_word) / 256.0f;
+
+        //# 2608211132 Absolute range gate, checked BEFORE any adoption path so it also
+        //# covers the first sample (where the step filter has no reference yet). Catches
+        //# the DS1731 pre-first-conversion state: config 0xAC/0x0C selects 12-bit, whose
+        //# conversion takes up to 750ms, while ds1731_init() reaches the priming read about
+        //# 400ms after Start Convert (0x51). Treated like "absent": keep the last value.
+        if (bd_new < BD_TEMP_MIN_C || bd_new > BD_TEMP_MAX_C) {
+            continue;
+        }
+
+//        if (!bd_have[i]) {
+//            //# 2608201518 The first sample is no longer trusted blindly. Accepting it
+//            //# outright let a single boot-time glitch become bd_last, after which every
+//            //# correct reading looked like an outlier and was rejected forever - the
+//            //# sensor stayed pinned at the wrong value. Require BD_TEMP_CONFIRM_N
+//            //# agreeing samples before the first value is adopted.
+//            if (bd_pend_n[i] && fabs_f(bd_new - bd_pend[i]) <= BD_TEMP_STEP_MAX_C) {
+//                if (++bd_pend_n[i] >= BD_TEMP_CONFIRM_N) {
+//                    func_ds1731_temp[i] = bd_new;
+//                    bd_last[i]          = bd_new;
+//                    bd_have[i]          = 1;
+//                    bd_pend_n[i]        = 0;
+//                }
+//            }
+//            else {
+//                bd_pend[i]   = bd_new;
+//                bd_pend_n[i] = 1;
+//            }
+//        }
+        //# 2608201720 Back to accepting the first sample immediately. Waiting for
+        //# BD_TEMP_CONFIRM_N agreeing samples left func_ds1731_temp[] at its 0 init value
+        //# for the first two or three polls, so rtemp showed 0.0 C and XML_TEMP_BD0 handed
+        //# the host a 0 on its first read. The mis-latch case that the wait guarded against
+        //# is already covered twice over: the 0xAA/0x00 pointer toggle that produced bogus
+        //# samples is gone, and the BD_TEMP_RESYNC_N watchdog below re-arms a bad reference
+        //# within 8 polls.
+        if (!bd_have[i]) {
+            func_ds1731_temp[i] = bd_new;
+            bd_last[i]          = bd_new;
+            bd_have[i]          = 1;
+            bd_pend_n[i]        = 0;
+            bd_rej[i]           = 0;
+        }
+        else if (fabs_f(bd_new - bd_last[i]) <= BD_TEMP_STEP_MAX_C) {
+            func_ds1731_temp[i] = bd_new;   // plausible step - accept
+            bd_last[i]          = bd_new;
+            bd_pend_n[i]        = 0;
+            bd_rej[i]           = 0;        //# 2608201518
+        }
+        else if (bd_pend_n[i] && fabs_f(bd_new - bd_pend[i]) <= BD_TEMP_STEP_MAX_C) {
+            //# outlier repeated and agrees with itself -> a real fast change, accept it
+            if (++bd_pend_n[i] >= BD_TEMP_CONFIRM_N) {
+                func_ds1731_temp[i] = bd_new;
+                bd_last[i]          = bd_new;
+                bd_pend_n[i]        = 0;
+                bd_rej[i]           = 0;    //# 2608201518
+            }
+        }
+        else {
+            bd_pend[i]   = bd_new;          // first sighting of an outlier - hold it back
+            bd_pend_n[i] = 1;
+
+            //# 2608201518 Watchdog: if readings keep failing the plausibility test, the
+            //# reference itself (bd_last) is probably the bad one - a boot glitch that got
+            //# latched. Re-arm so the first-acceptance path picks a fresh reference instead
+            //# of rejecting correct data indefinitely.
+            if (++bd_rej[i] >= BD_TEMP_RESYNC_N) {
+                bd_have[i]   = 0;
+                bd_pend_n[i] = 0;
+                bd_rej[i]    = 0;
+            }
         }
     }
 }
 
+/*# 2608191217 read_sfp_temp: decode the SFP DDM sample from I2C slave 4 (ADDR_I2C_RDATA4).
+ * With RSIZE=2 the block delivers A2h[96..97] as [15:0], MSB first = big-endian int16.
+ * Sign extension is mandatory (SFF-8472 5.2); 0xFFFF/0x0000 means no module or bus idle. */
+void read_sfp_temp(void) {
+    u32     data;
+    int16_t traw;
+
+    if (!def_sfp_port) { func_sfp_valid = 0; return; }
+
+    data = REG(ADDR_I2C_RDATA4) & 0xFFFF;
+    traw = (int16_t)data;
+
+    // No module: SDA floats high (0xFFFF) / bus never ran (0x0000)
+    if (data == 0xFFFF || data == 0x0000) {
+        func_sfp_valid = 0;
+        return;
+    }
+
+//    func_sfp_temp  = (float)traw / 256.0f;
+//    func_sfp_temp  = ((float)traw / 256.0f) - (float)TEMP_EMPIRICAL_OFS;
+    //# 2608191733 Same set-temperature mapping as FPGA/PHY. This is what fixes a module
+    //# plugged in cold: at 26C module temp the correction is ~2C, not a flat 10C.
+    func_sfp_temp_raw = (float)traw / 256.0f;
+    func_sfp_temp     = ic_to_set_temp(func_sfp_temp_raw);
+    func_sfp_valid    = 1;
+}
+
+/*# 2608191217 sfp_temp_init: enable I2C slave 4 and point it at A2h byte 96, both fields
+ * living inside ADDR_I2C_MODE. Read-modify-write so the existing auto-sweep bit is preserved;
+ * ds1731_init() runs first and owns bit0, WSIZE and RSIZE (RSIZE=2 suits both device types). */
+u32 sfp_temp_init(void) {
+    u32 mode;
+
+    if (!def_sfp_port) return 0;
+
+    mode  = REG(ADDR_I2C_MODE);
+    mode &= ~(0xFFu << I2C_MODE_SFP_PTR_SFT);
+    mode |= I2C_MODE_SFP_EN_BIT | (SFP_DDM_PTR_TEMP << I2C_MODE_SFP_PTR_SFT);
+    REG(ADDR_I2C_MODE) = mode;
+
+    // SFF-8472 t_data: diagnostics valid within 1000ms of power-up
+    msdelay(100);
+    read_sfp_temp();
+    return 0;
+}
+
+/*# 2608191920 fabs_f: local float abs, avoids pulling libm into the MicroBlaze image */
+float fabs_f(float v) {
+    return (v < 0.0f) ? -v : v;
+        }
+
+/*# 2608191733 round_away: round to nearest, away from zero (no libm dependency) */
+float round_away(float v) {
+    return (v >= 0.0f) ? (float)(int32_t)(v + 0.5f) : (float)(int32_t)(v - 0.5f);
+    }
+
+/*# 2608191733 ic_to_set_temp: map an IC die reading to the enclosure temperature the user
+ * cares about. Identity at/below TEMP_ANCHOR_C (no self-heating to remove), linear above
+ * it, matching the old fixed offset at TEMP_REF_IC_C. Continuous and monotonic. */
+float ic_to_set_temp(float t_ic) {
+    float span = TEMP_REF_IC_C - TEMP_ANCHOR_C;
+
+    if (t_ic <= TEMP_ANCHOR_C || span <= 0.0f) return t_ic;
+
+    return TEMP_ANCHOR_C + (t_ic - TEMP_ANCHOR_C) * ((span - TEMP_REF_OFS_C) / span);
+}
+
+/*# 2608191647 read_phy_temp: Marvell MDIO temperature ONLY - back to its original meaning.
+ * The SFP substitution moved into xml_phy_temp() so that UART rtemp can print PHY and SFP
+ * as two independent sensors; previously both lines showed the same SFP value.
+ *# 2608191706 Read DATA reg 0xF08C (was CTRL 0xF08A - wrong reg, hence the old 20C fudge);
+ * offset now 75 (Marvell spec) then ic_to_set_temp(), matching the FPGA and SFP paths. */
 void read_phy_temp(void) {
 //    func_phy_temp = ((mdio_read(31, 0xF08A) & 0xFF) - 75);
-    func_phy_temp = ((mdio_read(31, 0xF08A) & 0xFF) - 95);
+//    func_phy_temp = ((mdio_read(31, 0xF08A) & 0xFF) - 95);
+    //# 2608191721 PHY_TEMP_REG_CTRL is written by phy_temp_init(); reading it back was only
+    //# for the F08A/F08C diagnostic, so that extra MDIO cycle is gone.
+    // (s16) cast per mtdReadTemperature(); result can be negative, printed with %d
+    //# 2608191733 keep the uncorrected die value, then map it to set temperature
+//    func_phy_temp_raw = (float)(((int16_t)(mdio_read(31, PHY_TEMP_REG_DATA) & 0xFF))
+//                                - PHY_TEMP_OFS_STD);
+//
+//    func_phy_temp = (u32)(int32_t)round_away(ic_to_set_temp(func_phy_temp_raw));
+    //# 2608201543 Validate the reading and re-arm the sensor when it is off.
+    //# phy_temp_init() enables the C-unit sensor at boot, but m88x33xx_inity()/_init()
+    //# run later (firmware upload, then full config once an IP is assigned) and clear it.
+    //# Symptom: after a UTP link came up the PHY read 0x00 -> "-75.0 C" (0 - 75).
+    //# 0x00 and 0xFF are outside any real die temperature, so they are used as sentinels.
+    {
+        u16 praw = (u16)(mdio_read(31, PHY_TEMP_REG_DATA) & 0xFF);
+
+        if (praw == 0x00 || praw == 0xFF) {
+            func_phy_valid = 0;
+            phy_temp_init();     // re-enable; next poll returns a real value
+            return;              // keep the previous value rather than showing -75C
+        }
+
+        func_phy_temp_raw = (float)(((int16_t)praw) - PHY_TEMP_OFS_STD);
+        func_phy_temp     = (u32)(int32_t)round_away(ic_to_set_temp(func_phy_temp_raw));
+        func_phy_valid    = 1;
+    }
+}
+
+/*# 2608191647 xml_phy_temp: value reported by XML_TEMP_PHY only (not by UART rtemp).
+ * SFP link up (g_port_sel=1) -> SFP DDM temp, because the Marvell PHY is bypassed and
+ * its MDIO bus is tri-stated in SFP mode; 0 if the module cannot be read. Otherwise the
+ * Marvell reading. Integer degC to match the XML node type. */
+u32 xml_phy_temp(void) {
+    u32 ret;
+
+    if (def_sfp_port && g_port_sel == 1) {
+        read_sfp_temp();
+        if (func_sfp_valid) {
+            //# 2608191842 "rtempraw 1" reports the module reading before ic_to_set_temp()
+            float t = func_temp_raw_mode ? func_sfp_temp_raw : func_sfp_temp;
+            ret = (u32)(int32_t)round_away(t);
+            //# 2608191856 XML trace: PHY node is carrying the SFP module reading here
+            if (DBG_XMLTEMP) {
+                func_printf("[XMLTEMP] PHY<-SFP  mode=%s  set=", XMLTEMP_MODE_STR);
+                float_printf(func_sfp_temp, 1);     func_printf(" raw=");
+                float_printf(func_sfp_temp_raw, 1); func_printf(" -> sent %d\r\n", (int)ret);
+            }
+            return ret;
+        }
+        if (DBG_XMLTEMP) func_printf("[XMLTEMP] PHY<-SFP  no module -> sent 0\r\n");
+        return 0;
+    }
+
+    read_phy_temp();
+    //# 2608201543 sensor off / not answering: send 0 rather than the -75C sentinel,
+    //# matching the SFP-absent path above. read_phy_temp() already re-armed it.
+    if (!func_phy_valid) {
+        if (DBG_XMLTEMP) func_printf("[XMLTEMP] PHY      sensor off -> sent 0\r\n");
+        return 0;
+    }
+    //# 2608191842 raw mode returns the Marvell die reading (func_phy_temp already rounded)
+    ret = func_temp_raw_mode ? (u32)(int32_t)round_away(func_phy_temp_raw)
+                             : func_phy_temp;
+    //# 2608191856 XML trace
+    if (DBG_XMLTEMP) {
+        func_printf("[XMLTEMP] PHY      mode=%s  set=%d raw=", XMLTEMP_MODE_STR,
+                    (int)func_phy_temp);
+        float_printf(func_phy_temp_raw, 1); func_printf(" -> sent %d\r\n", (int)ret);
+    }
+    return ret;
+}
+
+/*# 2608191842 xml_fpga_temp: XML_TEMP_FPGA value as a float bit pattern (the XML node is
+ * a float, unlike TEMP_PHY). Honours "rtempraw" so FPGA/PHY/SFP switch together. */
+u32 xml_fpga_temp(void) {
+    u32 *p;
+
+    read_fpga_temp();
+    p = func_temp_raw_mode ? (u32*)&func_fpga_temp_raw : (u32*)&func_fpga_temp;
+
+    //# 2608191856 XML trace. Value goes out as a float bit pattern, so print the float.
+    if (DBG_XMLTEMP) {
+        func_printf("[XMLTEMP] FPGA     mode=%s  set=", XMLTEMP_MODE_STR);
+        float_printf(func_fpga_temp, 1);     func_printf(" raw=");
+        float_printf(func_fpga_temp_raw, 1); func_printf(" -> sent ");
+        float_printf(func_temp_raw_mode ? func_fpga_temp_raw : func_fpga_temp, 1);
+        func_printf("\r\n");
+    }
+    return (*p);
 }
 
 void read_fpga_temp(void) {
     u32 data = (REG(ADDR_DEVICE_TEMP) >> 4) & 0xFFF;
 //    func_fpga_temp = (data * 503.975 / 4096.0) - 273.15;
-    func_fpga_temp = (data * 503.975 / 4096.0) - 283.15;
+//    func_fpga_temp = (data * 503.975 / 4096.0) - 283.15;
+//    func_fpga_temp = (data * 503.975 / 4096.0) - 273.15 - TEMP_EMPIRICAL_OFS;
+    //# 2608191733 XADC die temperature, then the shared set-temperature mapping
+    func_fpga_temp_raw = (float)((data * 503.975 / 4096.0) - 273.15);
+    func_fpga_temp     = ic_to_set_temp(func_fpga_temp_raw);
 }
 
 // TI_ROIC
@@ -3347,14 +3868,33 @@ void system_config(void) {
    profile.d2.filter = FILTER_4;
    profile.d2.m_clock = FPGA_TFT_MAIN_CLK;
     }
+//    else if((msame(mEXT4343RD))) //$ 251121 //$ 260408 add EXT3643R
+//    {
+//    profile.init.mclk = MCLK_300;
+//    profile.init.cmdstr = CMDSTR_256;
+//    profile.init.tirst = TIRST_1000;
+//    profile.init.tshr_lpf1 = LPF1_1200;
+//    profile.init.tshs_lpf2 = LPF2_2500;
+//    profile.init.tgate = TGATE_2500;
+//    profile.init.filter = FILTER_5;
+//    profile.init.m_clock = FPGA_TFT_MAIN_CLK;
+//    profile.d2.mclk = MCLK_200;
+//    profile.d2.cmdstr = CMDSTR_1024;
+//    profile.d2.tirst = TIRST_350;
+//    profile.d2.tshr_lpf1 = LPF1_1750;
+//    profile.d2.tshs_lpf2 = LPF2_1750;
+//    profile.d2.tgate = TGATE_1100;
+//    profile.d2.filter = FILTER_4;
+//    profile.d2.m_clock = FPGA_TFT_MAIN_CLK;
+//    }
     else if((msame(mEXT4343RD))) //$ 251121 //$ 260408 add EXT3643R
     {
-    profile.init.mclk = MCLK_300;
+    profile.init.mclk = MCLK_200;
     profile.init.cmdstr = CMDSTR_256;
-    profile.init.tirst = TIRST_1000;
-    profile.init.tshr_lpf1 = LPF1_1200;
-    profile.init.tshs_lpf2 = LPF2_2000;
-    profile.init.tgate = TGATE_1000;
+    profile.init.tirst = TIRST_2000;
+    profile.init.tshr_lpf1 = LPF1_2000;
+    profile.init.tshs_lpf2 = LPF2_8000;
+    profile.init.tgate = TGATE_3000;
     profile.init.filter = FILTER_5;
     profile.init.m_clock = FPGA_TFT_MAIN_CLK;
     profile.d2.mclk = MCLK_200;
@@ -3386,11 +3926,16 @@ void system_config(void) {
 //  profile.d2.filter = FILTER_4;
 //  profile.d2.m_clock = FPGA_TFT_MAIN_CLK;
 //# 4343
+    /*
     profile.init.mclk = MCLK_180;
     profile.init.cmdstr = CMDSTR_256;
-    profile.init.tirst = TIRST_3000; 		//$ 241024 cross talk
-    profile.init.tshr_lpf1 = LPF1_3000; 	//$ 241024 cross talk
-    profile.init.tshs_lpf2 = LPF2_10000; 	//$ 241024 cross talk
+//    profile.init.tirst = TIRST_3000; 		//$ 241024 cross talk
+//    profile.init.tshr_lpf1 = LPF1_3000; 	//$ 241024 cross talk
+//    profile.init.tshs_lpf2 = LPF2_10000; 	//$ 241024 cross talk
+    //$ 2607021050 3643R@18MHz STR0: rst/shr reduced so SHS/TFT window(shs) exceeds oe gate (shs>oe)
+    profile.init.tirst = TIRST_1500; 		//$ 2607021050 shs>oe feasibility
+    profile.init.tshr_lpf1 = LPF1_1500; 	//$ 2607021050 shs>oe feasibility
+    profile.init.tshs_lpf2 = LPF2_7500; 	//$ 2607021050 shs(7.5us) > oe(7us)
     profile.init.tgate = TGATE_7000;
     profile.init.filter = FILTER_5;
     profile.init.m_clock = FPGA_TFT_MAIN_CLK;
@@ -3402,6 +3947,66 @@ void system_config(void) {
     profile.d2.tgate = TGATE_1100;
     profile.d2.filter = FILTER_4;
     profile.d2.m_clock = FPGA_TFT_MAIN_CLK;
+    */
+/*
+////# 15 FPS
+    profile.init.mclk = MCLK_180;
+    profile.init.cmdstr = CMDSTR_256;
+//    profile.init.tirst     = TIRST_1000; //# 1000 vibrated at dark
+    profile.init.tirst     = TIRST_1500; //# 260722
+    profile.init.tshr_lpf1 = LPF1_1000;  //# 1500-> 1000 cause pipe crosstalk #260716
+    profile.init.tshs_lpf2 = LPF2_7500;
+//    profile.init.tgate     = TGATE_6000; //# saturation make cross-talk
+    profile.init.tgate     = TGATE_5000; //# 260722
+    profile.init.filter = FILTER_5;
+    profile.init.m_clock = FPGA_TFT_MAIN_CLK;
+    profile.d2.mclk = MCLK_200;
+    profile.d2.cmdstr = CMDSTR_1024;
+    profile.d2.tirst = TIRST_350;
+    profile.d2.tshr_lpf1 = LPF1_1750;
+    profile.d2.tshs_lpf2 = LPF2_1750;
+    profile.d2.tgate = TGATE_1100;
+    profile.d2.filter = FILTER_4;
+    profile.d2.m_clock = FPGA_TFT_MAIN_CLK;
+*/
+
+// /*
+    ////$ 260729 10FPS
+        profile.init.mclk      = MCLK_120; //# 1H=21us
+        profile.init.cmdstr    = CMDSTR_256;
+        profile.init.tirst     = TIRST_2000;
+        profile.init.tshr_lpf1 = LPF1_4000;
+        profile.init.tshs_lpf2 = LPF2_12000;
+        profile.init.tgate     = TGATE_10000;
+        profile.init.filter    = FILTER_5;
+        profile.init.m_clock   = FPGA_TFT_MAIN_CLK;
+        profile.d2.mclk      = MCLK_200;
+        profile.d2.cmdstr    = CMDSTR_1024;
+        profile.d2.tirst     = TIRST_350;
+        profile.d2.tshr_lpf1 = LPF1_1750;
+        profile.d2.tshs_lpf2 = LPF2_1750;
+        profile.d2.tgate     = TGATE_1100;
+        profile.d2.filter    = FILTER_4;
+        profile.d2.m_clock   = FPGA_TFT_MAIN_CLK;
+// */
+
+    //$ 2607071900 cds init chage cause odd img at 0.6pc
+//        profile.init.mclk = MCLK_180;
+//        profile.init.cmdstr = CMDSTR_256;
+//        profile.init.tirst = TIRST_3000;   //# 260713 2000->3000
+//        profile.init.tshr_lpf1 = LPF1_3000;
+//        profile.init.tshs_lpf2 = LPF2_6000;
+//        profile.init.tgate = TGATE_3000;    //#
+//        profile.init.filter = FILTER_5;
+//        profile.init.m_clock = FPGA_TFT_MAIN_CLK;
+//        profile.d2.mclk = MCLK_200;
+//        profile.d2.cmdstr = CMDSTR_1024;
+//        profile.d2.tirst = TIRST_350;
+//        profile.d2.tshr_lpf1 = LPF1_1750;
+//        profile.d2.tshs_lpf2 = LPF2_1750;
+//        profile.d2.tgate = TGATE_1100;
+//        profile.d2.filter = FILTER_4;
+//        profile.d2.m_clock = FPGA_TFT_MAIN_CLK;
 //# a-si
 //      profile.init.mclk = MCLK_125;
 //      profile.init.cmdstr = CMDSTR_256; //# CMDSTR_512;
@@ -4105,5 +4710,6 @@ void get_able_func(void){ //# 230926
 
             func_printf("# func_able_gain_num=%d\r\n",func_able_gain_num);
             func_printf("# func_able_dnr_num=%d\r\n" ,func_able_dnr);
+            func_printf("# func_able_acc=%d\r\n"     ,func_able_acc);
 			return;
 }

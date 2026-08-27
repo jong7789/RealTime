@@ -86,9 +86,26 @@ architecture behavioral of ti_data_align is
         );
     end component;
 
+    --# 2608241851 Block RAM line buffer (GEN_DPRAM_BRAM='1'): write 16bx512 / read 64bx128,
+    --# Simple Dual Port, independent clocks, no output register -> read latency 1 clk
+    component BRAM_16x512_64x128 is
+        port (
+            clka  : in  std_logic;
+            ena   : in  std_logic;
+            wea   : in  std_logic_vector(0 downto 0);
+            addra : in  std_logic_vector(8 downto 0);
+            dina  : in  std_logic_vector(15 downto 0);
+            clkb  : in  std_logic;
+            enb   : in  std_logic;
+            addrb : in  std_logic_vector(6 downto 0);
+            doutb : out std_logic_vector(63 downto 0)
+        );
+    end component;
+
     type taddra_tmp is array (0 to ROIC_NUM(GNR_MODEL) - 1) of std_logic_vector(7 downto 0);
     type taddra     is array (0 to ROIC_NUM(GNR_MODEL) - 1) of std_logic_vector(5 downto 0);
     type taddra7    is array (0 to ROIC_NUM(GNR_MODEL) - 1) of std_logic_vector(6 downto 0);
+    type taddra9    is array (0 to ROIC_NUM(GNR_MODEL) - 1) of std_logic_vector(8 downto 0); --# 2608241851
     type tdoutb     is array (0 to ROIC_NUM(GNR_MODEL) - 1) of std_logic_vector(63 downto 0);
 
 --    type tstate_dpram_data_align is (
@@ -150,6 +167,13 @@ architecture behavioral of ti_data_align is
     signal sdoutb2_even : tdoutb;
     signal sdoutb3_odd  : tdoutb;
     signal sdoutb3_even : tdoutb;
+
+    --# 2608241851 BRAM path signals (used only when GEN_DPRAM_BRAM='1')
+    signal sbram_wea    : std_logic_vector(ROIC_NUM(GNR_MODEL) - 1 downto 0);
+    signal sbram_addra  : taddra9;
+    signal sbram_dina   : tdata_par;
+    signal sbram_addrb  : std_logic_vector(6 downto 0);
+    signal sdoutb_bram  : tdoutb;
 
     signal swait_cnt      : std_logic_vector(15 downto 0);
     signal sdual_roic_cnt : integer range 0 to ROIC_DUAL_BY_MODEL(GNR_MODEL) - 1;
@@ -548,6 +572,9 @@ begin
     end generate toggle_data;
 
     AFE2256_DPRAM : if (ROIC_BY_MODEL(GNR_MODEL) = "AFE2256") generate
+
+      --# 2608241851 Distributed RAM path: 4 bank (interleave phase) x odd/even = 8 RAM/ch
+      GEN_LUTRAM : if (GEN_DPRAM_BRAM = '0') generate
         dpram_gen : for i in 0 to ROIC_NUM(GNR_MODEL) - 1 generate
             ODD0_DPRAM_16x64_64x16 : DPRAM_16x64_64x16
                 port map (
@@ -654,6 +681,57 @@ begin
                     doutb  => sdoutb3_even(i)
                 );
         end generate dpram_gen;
+      end generate GEN_LUTRAM;
+
+      --# 2608241851 Block RAM path: 1 BRAM/ch. Bank(saddra[7:6]) and lane(saddra[1:0]) are
+      --# folded into the flat write address, so bank decode / 4:1 packing / toggle are unused.
+      --# Write addr = pingpong & (saddra_tmp or its complement for dual ROIC)
+      --# Read  addr = pingpong & (bank xor ADC_REV) & entry  -- same word order as LUTRAM path
+      GEN_BRAM : if (GEN_DPRAM_BRAM = '1') generate
+
+        --# 2608241851 Register BRAM write inputs once (ADDRA/DINA setup margin on roic clk).
+        --# Write-side latency does not affect read latency, so this stage is free.
+        gen_bram_wr : for i in 0 to ROIC_NUM(GNR_MODEL) - 1 generate
+            process (iroic_clk_sel(i), iroic_rstn)
+            begin
+                if (iroic_rstn = '0') then
+                    sbram_wea(i)   <= '0';
+                    sbram_addra(i) <= (others => '0');
+                    sbram_dina(i)  <= (others => '0');
+                elsif (iroic_clk_sel(i)'event and iroic_clk_sel(i) = '1') then
+                    sbram_wea(i)  <= sena_tmp(i);
+                    sbram_dina(i) <= sdina_tmp(i);
+                    if (i < ROIC_NUM(GNR_MODEL) / ROIC_DUAL_BY_MODEL(GNR_MODEL)) then
+                        sbram_addra(i) <= stoggle_porta_2d(i) & saddra_tmp(i);
+                    else --# dual ROIC scans reversed: full 8-bit complement
+                        sbram_addra(i) <= stoggle_porta_2d(i) & (not saddra_tmp(i));
+                    end if;
+                end if;
+            end process;
+        end generate gen_bram_wr;
+
+        --# 2608241851 ADC_REV reverses the 64-pixel group order -> invert bank bits only
+        sbram_addrb <= stoggle_portb
+                     & (saddrb(5 downto 4) xor (ADC_REV & ADC_REV))
+--                     &  saddrb(3 downto 0);
+                     &  (not saddrb(3 downto 0)); --$ 260826 data rev
+        bram_gen : for i in 0 to ROIC_NUM(GNR_MODEL) - 1 generate
+            U0_BRAM_LINEBUF : BRAM_16x512_64x128
+                port map (
+                    clka  => iroic_clk_sel(i),
+                    ena   => sbram_wea(i),
+                    wea   => "1",
+                    addra => sbram_addra(i),
+                    dina  => sbram_dina(i),
+                    clkb  => iui_clk,
+                    enb   => '1',
+                    addrb => sbram_addrb,
+                    doutb => sdoutb_bram(i)
+                );
+        end generate bram_gen;
+
+      end generate GEN_BRAM;
+
     end generate AFE2256_DPRAM;
 
     --$ 260312 AFE3256 ADC 128Ch
@@ -968,7 +1046,10 @@ begin
                 sdata <= (others => '0');
             else
                 if (shsync_1d = '1') then
-                    if (stoggle_portb_1d = '0') then
+                    --# 2608241851 BRAM path: bank/odd-even folded into addrb -> channel mux only
+                    if (GEN_DPRAM_BRAM = '1') then
+                        sdata <= sdoutb_bram(sroic_cnt_1d);
+                    elsif (stoggle_portb_1d = '0') then
                         if (ADC_REV = '1') then
                             case (saddrb_1d(5 downto 4)) is
                                 when "00"   => sdata <= sdoutb3_odd(sroic_cnt_1d);

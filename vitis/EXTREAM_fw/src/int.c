@@ -124,6 +124,14 @@ void int_refresh_vectors(void)
 //
 void int_init(void)
 {
+    //# 2606151421 force ISR debug flags to a known state at boot. fb_tx_dot_en
+    //  is a zero-init global -> lands in .sbss (NOLOAD); it relies on crt0
+    //  zeroing. After adding new globals the .sbss layout shifted and the slot
+    //  held nonzero garbage -> '.' dots ON after boot with no fdot command.
+    //  Explicit init makes it deterministic regardless of .sbss clearing.
+    fb_tx_dot_en  = 0;      // per-frame TX dot OFF by default
+    fb_err_msg_en = 1;      // overflow error msg ON by default
+
     // Refresh interrupt vectors and register interrupt handler
     int_refresh_vectors();
     microblaze_register_handler((XInterruptHandler)int_handler, (void *)0);

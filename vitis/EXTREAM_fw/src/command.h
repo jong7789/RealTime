@@ -108,6 +108,7 @@ u8 UART_CMD_rus (u8 num, u32* data);
 //u8 UART_CMD_debug (u8 num, u32* data);  // dskim
 u8 UART_CMD_rus2  (u8 num, u32* data);  //# 2605201841 renamed from UART_CMD_debug
 u8 UART_CMD_rtemp (u8 num, u32* data);
+u8 UART_CMD_rtempraw (u8 num, u32* data); //# 2608191842
 u8 UART_CMD_rtime (u8 num, u32* data);
 u8 UART_CMD_reboot (u8 num, u32* data);
 
@@ -124,6 +125,7 @@ u8 UART_CMD_d2m (u8 num, u32* data);
 u8 UART_CMD_edge (u8 num, u32* data);
 u8 UART_CMD_dnr (u8 num, u32* data);
 u8 UART_CMD_acc (u8 num, u32* data);
+u8 UART_CMD_spc (u8 num, u32* data); //$ 2607241407 Short Pixel Cover ctrl command
 u8 UART_CMD_eao (u8 num, u32* data);
 u8 UART_CMD_trig (u8 num, u32* data);
 u8 UART_CMD_rom (u8 num, u32* data);
@@ -252,5 +254,6 @@ u8 UART_CMD_gigeinit  (u8 num, u32* data); //# 2605121447 GigE core init sequenc
 u8 UART_CMD_apm   (u8 num, u32* data); //# 2605062100 APM bandwidth on axi_crossbar_0_M00_AXI (R/W Gbps + %)
 u8 UART_CMD_ddrburst (u8 num, u32* data); //# 2605071529 DDR AXI burst limit (32/64/128/256, runtime register)
 u8 UART_CMD_watch (u8 num, u32* data); //# 2605130959 REG()-write watcher (multi-addr + ALL mode)
+u8 UART_CMD_pwr (u8 num, u32* data); //$ 2607141553 opwr_en manual override via ADDR_PWR_CTRL
 
 #endif /* SRC_UART_CMD_H_ */

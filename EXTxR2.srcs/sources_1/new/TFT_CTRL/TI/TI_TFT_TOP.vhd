@@ -53,6 +53,7 @@ entity TI_TFT_TOP is
 
         -- CPU Register
         ireg_pwr_mode   : in    std_logic;
+        ireg_pwr_ctrl   : in    std_logic_vector(31 downto 0); --$ 2607141553 opwr_en override
         ireg_grab_en    : in    std_logic;
         ireg_gate_en    : in    std_logic_vector(7 downto 0);
         ireg_img_mode   : in    std_logic_vector(2 downto 0);
@@ -206,6 +207,7 @@ architecture behavioral of ti_tft_top is
             imain_rstn : in std_logic;
 
             ireg_pwr_mode   : in std_logic;
+            ireg_pwr_ctrl   : in std_logic_vector(31 downto 0); --$ 2607141553
             ireg_erase_en   : in std_logic;
             ireg_erase_time : in std_logic_vector(31 downto 0);
 
@@ -601,6 +603,7 @@ begin
             imain_rstn => smain_rstn,
 
             ireg_pwr_mode   => ireg_pwr_mode,
+            ireg_pwr_ctrl   => ireg_pwr_ctrl,  --$ 2607141553
             ireg_erase_en   => ireg_erase_en,
             ireg_erase_time => ireg_erase_time,
 

@@ -163,6 +163,10 @@ entity REG_TOP is
         ireg_i2c_rdata1     : in  std_logic_vector(31 downto 0);
         ireg_i2c_rdata2     : in  std_logic_vector(31 downto 0);
         ireg_i2c_rdata3     : in  std_logic_vector(31 downto 0);
+        --# 2608191217 5th slave (SFP DDM) result + I2C_MODE[1]/[15:8] decoded control fields
+        ireg_i2c_rdata4     : in  std_logic_vector(31 downto 0);
+        oreg_i2c_sfp_en     : out std_logic;
+        oreg_i2c_sfp_ptr    : out std_logic_vector(7 downto 0);
         ireg_i2c_done       : in  std_logic;
         oreg_temp_en        : out std_logic;
         ireg_device_temp    : in  std_logic_vector(15 downto 0);
@@ -252,6 +256,7 @@ entity REG_TOP is
         oreg_BlurOffset    : out std_logic_vector(15 downto 0);
         oreg_AccCtrl       : out std_logic_vector(15 downto 0);
         iReg_AccStat       : in  std_logic_vector(15 downto 0);
+        oreg_spc_ctrl      : out std_logic_vector(15 downto 0); --$ 2607241407 Short Pixel Cover ctrl (0x04A8)
         oreg_ExtTrigEn      : out std_logic;
         oreg_ExtRst_MODE    : out std_logic_vector(7 downto 0);
         oreg_ExtRst_DetTime : out std_logic_vector(31 downto 0);
@@ -281,7 +286,9 @@ entity REG_TOP is
         oreg_EqTopVal : out std_logic_vector(16 - 1 downto 0);
         oreg_debug    : out std_logic_vector(15 downto 0);
         --# 2604221500 SFP/RXAUI status input (bit0=sfp_phy_sel, bit1=sfp_rst_done, bit2=sfp_signal_detect)
-        ireg_sfp_stat : in  std_logic_vector(31 downto 0)
+        ireg_sfp_stat : in  std_logic_vector(31 downto 0);
+        --$ 2607141553 opwr_en override: bit[31]=override_en, bit[10:0]=opwr_en pins
+        oreg_pwr_ctrl : out std_logic_vector(31 downto 0)
     );
 end entity reg_top;
 
@@ -436,6 +443,10 @@ architecture behavioral of reg_top is
     signal sreg_i2c_rdata2 : std_logic_vector(31 downto 0);
     signal sreg_i2c_rdata3 : std_logic_vector(31 downto 0);
     signal sreg_i2c_done   : std_logic;
+    --# 2608191217 SFP fields carried inside ADDR_I2C_MODE, plus the 5th slave readback
+    signal sreg_i2c_sfp_en  : std_logic;
+    signal sreg_i2c_sfp_ptr : std_logic_vector(7 downto 0);
+    signal sreg_i2c_rdata4  : std_logic_vector(31 downto 0);
 
     signal sreg_temp_en     : std_logic;
     signal sreg_device_temp : std_logic_vector(15 downto 0);
@@ -520,6 +531,7 @@ architecture behavioral of reg_top is
     signal sreg_bcal_fw_ctrl   : std_logic_vector(31 downto 0);
     signal sreg_bcal_fw_rsv    : std_logic_vector(31 downto 0);
     signal sreg_ddr_burst      : std_logic_vector(1 downto 0);  --# 2605071529 default 64-beat (mode 01)
+    signal sreg_pwr_ctrl       : std_logic_vector(31 downto 0); --$ 2607141553 opwr_en override register
     signal sreg_bcal_fw_par    : std_logic_vector(31 downto 0);
     signal sreg_bcal_fw_status : std_logic_vector(31 downto 0);
 
@@ -533,6 +545,7 @@ architecture behavioral of reg_top is
     signal sreg_BlurOffset  : std_logic_vector(15 downto 0);
     signal sReg_AccCtrl     : std_logic_vector(15 downto 0);
     signal sReg_AccStat     : std_logic_vector(15 downto 0);
+    signal sReg_spc_ctrl    : std_logic_vector(15 downto 0); --$ 2607241407 Short Pixel Cover ctrl (0x04A8)
 
     signal sreg_ExtTrigEn : std_logic;
 
@@ -622,6 +635,11 @@ architecture behavioral of reg_top is
     signal sreg_i2c_rdata3_1d     : std_logic_vector(31 downto 0);
     signal sreg_i2c_rdata3_2d     : std_logic_vector(31 downto 0);
     signal sreg_i2c_rdata3_3d     : std_logic_vector(31 downto 0);
+    --# 2608191217 SFP DDM I2C readback CDC pipeline (same 3-stage scheme as sreg_i2c_rdata*)
+    signal sreg_i2c_rdata4_1d     : std_logic_vector(31 downto 0);
+    signal sreg_i2c_rdata4_2d     : std_logic_vector(31 downto 0);
+    signal sreg_i2c_rdata4_3d     : std_logic_vector(31 downto 0);
+
     signal sreg_i2c_done_1d       : std_logic;
     signal sreg_i2c_done_2d       : std_logic;
     signal sreg_i2c_done_3d       : std_logic;
@@ -842,6 +860,8 @@ begin
                 sreg_i2c_rdata2     <= (others => '0');
                 sreg_i2c_rdata3     <= (others => '0');
                 sreg_i2c_done       <= '0';
+                --# 2608191217 SFP DDM I2C readback reset
+                sreg_i2c_rdata4     <= (others => '0');
                 sreg_device_temp    <= (others => '0');
                 sreg_sd_rw_end      <= '0';
                 sreg_roic_temp      <= (others => (others => '0'));
@@ -868,6 +888,8 @@ begin
                 sreg_i2c_rdata2       <= sreg_i2c_rdata2_3d;
                 sreg_i2c_rdata3       <= sreg_i2c_rdata3_3d;
                 sreg_i2c_done         <= sreg_i2c_done_3d;
+                --# 2608191217 SFP DDM I2C readback commit
+                sreg_i2c_rdata4       <= sreg_i2c_rdata4_3d;
                 sreg_device_temp      <= sreg_device_temp_3d;
                 sreg_sd_rw_end        <= sreg_sd_rw_end_3d;
                 sreg_roic_rdata       <= sreg_roic_rdata_3d;
@@ -1064,6 +1086,11 @@ begin
                 sreg_i2c_ren   <= '0';
                 sreg_i2c_rsize <= (others => '0');
 
+                --# 2608191217 SFP slave defaults (I2C_MODE[1]/[15:8]): enabled, pointer at A2h byte 96.
+                --# Harmless on non-SFP models - SFP_NUM=0 keeps slave 4 out of the sweep regardless.
+                sreg_i2c_sfp_en  <= '1';
+                sreg_i2c_sfp_ptr <= x"60";
+
                 sreg_temp_en <= '0';
 
                 sreg_sd_wen  <= '0';
@@ -1097,6 +1124,7 @@ begin
                 sreg_bcal_fw_ctrl <= (others => '0');
                 sreg_bcal_fw_rsv  <= (others => '0');
                 sreg_ddr_burst    <= "11";  --# 260508 11=256 #2605071529 default mode 01 = 64 beats
+                sreg_pwr_ctrl     <= (others => '0'); --$ 2607141553 default: override disabled (bit31=0)
 
                 sreg_mpc_posoffset <= conv_std_logic_vector(400, 16);
 
@@ -1109,6 +1137,7 @@ begin
                 sreg_SobelCoeff2 <= (others => '0');
                 sreg_BlurOffset  <= (others => '0');
                 sReg_AccCtrl     <= (others => '0');
+                sReg_spc_ctrl    <= x"1131"; --$ 2607241741 SPC default: en=1, dark=512, restore=65534, satref=65534
 
                 sreg_ExtTrigEn <= '0';
 
@@ -1243,7 +1272,11 @@ begin
 --                      when ADDR_I2C_RDATA1       => sreg_i2c_rdata1      <= Read Only
 --                      when ADDR_I2C_RDATA2       => sreg_i2c_rdata2      <= Read Only
 --                      when ADDR_I2C_RDATA3       => sreg_i2c_rdata3      <= Read Only
+                        --# 2608191217 I2C_MODE now carries the SFP slave fields in the same register
                         when ADDR_I2C_MODE         => sreg_i2c_mode        <= iepc_wdata(0);
+                                                      sreg_i2c_sfp_en      <= iepc_wdata(1);
+                                                      sreg_i2c_sfp_ptr     <= iepc_wdata(15 downto 8);
+--                      when ADDR_I2C_RDATA4       => sreg_i2c_rdata4      <= Read Only
 --                      when ADDR_I2C_DONE         => sreg_i2c_done        <= Read Only
                         when ADDR_ROIC_SYNC_ACLK   => sreg_roic_sync_aclk  <= iepc_wdata(15 downto 0);
 --                      when ADDR_ROIC_A0_A1       => sreg_roic_a0_a1      <= iepc_wdata(15 downto 0);
@@ -1318,6 +1351,8 @@ begin
                         when ADDR_BCAL_FW_RSV      => sreg_bcal_fw_rsv     <= iepc_wdata(31 downto 0);
                         --# 2605071529 ddr burst mode write
                         when ADDR_DDR_BURST        => sreg_ddr_burst       <= iepc_wdata(1 downto 0);
+                        --$ 2607141553 opwr_en override write
+                        when ADDR_PWR_CTRL         => sreg_pwr_ctrl        <= iepc_wdata(31 downto 0);
                         when ADDR_MPC_POSOFFSET    => sreg_mpc_posoffset   <= iepc_wdata(15 downto 0);
                         when ADDR_D2M_EN           => sreg_d2m_en          <= iepc_wdata(0);
                         when ADDR_D2M_EXP_IN       => sreg_d2m_exp_in      <= iepc_wdata(0);
@@ -1332,6 +1367,7 @@ begin
                         when ADDR_DNR_SOBELCOEFF2  => sreg_SobelCoeff2     <= iepc_wdata(15 downto 0);
                         when ADDR_DNR_BLUROFFSET   => sreg_BlurOffset      <= iepc_wdata(15 downto 0);
                         when ADDR_ACC_CTRL         => sReg_AccCtrl         <= iepc_wdata(15 downto 0);
+                        when ADDR_SPC_CTRL         => sReg_spc_ctrl        <= iepc_wdata(15 downto 0); --$ 2607241407
                         when ADDR_EXT_TRIG_EN      => sreg_ExtTrigEn       <= iepc_wdata(0);
                         when ADDR_EXT_RST_MODE     => sreg_ExtRst_MODE     <= iepc_wdata(7 downto 0);
                         when ADDR_EXT_RST_DetTime  => sreg_ExtRst_DetTime  <= iepc_wdata(31 downto 0);
@@ -1491,8 +1527,12 @@ begin
                             when ADDR_I2C_RDATA1       => oepc_rdata(31 downto 0) <= sreg_i2c_rdata1;
                             when ADDR_I2C_RDATA2       => oepc_rdata(31 downto 0) <= sreg_i2c_rdata2;
                             when ADDR_I2C_RDATA3       => oepc_rdata(31 downto 0) <= sreg_i2c_rdata3;
+                            --# 2608191217 I2C_MODE readback packs the SFP fields back together
                             when ADDR_I2C_MODE         => oepc_rdata(0)           <= sreg_i2c_mode;
+                                                          oepc_rdata(1)           <= sreg_i2c_sfp_en;
+                                                          oepc_rdata(15 downto 8)  <= sreg_i2c_sfp_ptr;
                             when ADDR_I2C_DONE         => oepc_rdata(0)           <= sreg_i2c_done;
+                            when ADDR_I2C_RDATA4       => oepc_rdata(31 downto 0) <= sreg_i2c_rdata4; --# 2608191217
                             when ADDR_ROIC_SYNC_ACLK   => oepc_rdata(15 downto 0) <= sreg_roic_sync_aclk;
                             when ADDR_ROIC_FA          => oepc_rdata(15 downto 0) <= sreg_roic_fa;
                             when ADDR_ROIC_SYNC_DCLK   => oepc_rdata(15 downto 0) <= sreg_roic_sync_dclk;
@@ -1599,6 +1639,8 @@ begin
                             when ADDR_BCAL_FW_RSV      => oepc_rdata(31 downto 0) <= sreg_bcal_fw_rsv;
                             --# 2605071529 ddr burst mode read
                             when ADDR_DDR_BURST        => oepc_rdata(1 downto 0)  <= sreg_ddr_burst;
+                            --$ 2607141553 opwr_en override read
+                            when ADDR_PWR_CTRL         => oepc_rdata(31 downto 0) <= sreg_pwr_ctrl;
                             when ADDR_MPC_POSOFFSET    => oepc_rdata(15 downto 0) <= sreg_mpc_posoffset;
                             when ADDR_D2M_EN           => oepc_rdata(0)           <= sreg_d2m_en;
                             when ADDR_D2M_EXP_IN       => oepc_rdata(0)           <= sreg_d2m_exp_in;
@@ -1613,6 +1655,7 @@ begin
                             when ADDR_DNR_SOBELCOEFF2  => oepc_rdata(15 downto 0) <= sreg_SobelCoeff2;
                             when ADDR_DNR_BLUROFFSET   => oepc_rdata(15 downto 0) <= sreg_BlurOffset;
                             when ADDR_ACC_CTRL         => oepc_rdata(15 downto 0) <= sReg_AccCtrl;
+                            when ADDR_SPC_CTRL         => oepc_rdata(15 downto 0) <= sReg_spc_ctrl; --$ 2607241407
                             when ADDR_ACC_STAT         => oepc_rdata(15 downto 0) <= sReg_AccStat;
                             when ADDR_EXT_TRIG_EN      => oepc_rdata(0)           <= sreg_ExtTrigEn;
                             when ADDR_EXT_RST_MODE     => oepc_rdata(7 downto 0)  <= sreg_ExtRst_MODE;
@@ -1767,6 +1810,10 @@ begin
     oreg_i2c_ren   <= sreg_i2c_ren;
     oreg_i2c_rsize <= sreg_i2c_rsize;
 
+    --# 2608191217 SFP slave control decoded out of ADDR_I2C_MODE
+    oreg_i2c_sfp_en  <= sreg_i2c_sfp_en;
+    oreg_i2c_sfp_ptr <= sreg_i2c_sfp_ptr;
+
     oreg_temp_en <= sreg_temp_en;
 
     oreg_sd_wen  <= sreg_sd_wen;
@@ -1801,6 +1848,7 @@ begin
     oreg_bcal_fw_ctrl <= sreg_bcal_fw_ctrl;
     oreg_bcal_fw_rsv  <= sreg_bcal_fw_rsv;
     oreg_ddr_burst    <= sreg_ddr_burst;  --# 2605071529
+    oreg_pwr_ctrl     <= sreg_pwr_ctrl;  --$ 2607141553
 
     oreg_mpc_posoffset <= sreg_mpc_posoffset;
 
@@ -1813,6 +1861,7 @@ begin
     oreg_SobelCoeff2 <= sreg_SobelCoeff2;
     oreg_BlurOffset  <= sreg_BlurOffset;
     oreg_AccCtrl     <= sReg_AccCtrl;
+    oreg_spc_ctrl    <= sReg_spc_ctrl; --$ 2607241407
 
     oreg_ExtTrigEn      <= sreg_ExtTrigEn;
     oreg_ExtRst_MODE    <= sreg_ExtRst_MODE;
@@ -1900,6 +1949,10 @@ begin
                 sreg_i2c_done_1d       <= '0';
                 sreg_i2c_done_2d       <= '0';
                 sreg_i2c_done_3d       <= '0';
+                --# 2608191217 5th slave (SFP DDM) CDC reset
+                sreg_i2c_rdata4_1d     <= (others => '0');
+                sreg_i2c_rdata4_2d     <= (others => '0');
+                sreg_i2c_rdata4_3d     <= (others => '0');
                 sreg_device_temp_1d    <= (others => '0');
                 sreg_device_temp_2d    <= (others => '0');
                 sreg_device_temp_3d    <= (others => '0');
@@ -1992,6 +2045,10 @@ begin
                 sreg_i2c_done_1d         <= ireg_i2c_done;
                 sreg_i2c_done_2d         <= sreg_i2c_done_1d;
                 sreg_i2c_done_3d         <= sreg_i2c_done_2d;
+                --# 2608191217 5th slave (SFP DDM) CDC pipeline
+                sreg_i2c_rdata4_1d       <= ireg_i2c_rdata4;
+                sreg_i2c_rdata4_2d       <= sreg_i2c_rdata4_1d;
+                sreg_i2c_rdata4_3d       <= sreg_i2c_rdata4_2d;
                 sreg_device_temp_1d      <= ireg_device_temp;
                 sreg_device_temp_2d      <= sreg_device_temp_1d;
                 sreg_device_temp_3d      <= sreg_device_temp_2d;

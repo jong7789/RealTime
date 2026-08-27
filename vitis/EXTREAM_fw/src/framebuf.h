@@ -25,7 +25,22 @@
 // Framebuffer base address
                             // TODO: Define proper base address of the
                             //       framebuffer control registers here!
+//#define FRAMEBUF_REGS       XPAR_M0_AXI_FB_BASEADDR
+// BSP compat: new BSP(_CPU_I_) vs old(short name)
+//#ifdef XPAR__CPU_I_M0_AXI_FB_BASEADDR
+////$ 2606011642 BSP rename compat: new _CPU_I_ BSP detected
+//#define FRAMEBUF_REGS       XPAR__CPU_I_M0_AXI_FB_BASEADDR
+//#else
+//#define FRAMEBUF_REGS       XPAR_M0_AXI_FB_BASEADDR
+//#endif
+//$ 2606171653 BSP rename compat: prefer _CPU4DDR_I_ then _CPU_I_ then short
+#ifdef XPAR__CPU4DDR_I_M0_AXI_FB_BASEADDR
+#define FRAMEBUF_REGS       XPAR__CPU4DDR_I_M0_AXI_FB_BASEADDR
+#elif defined(XPAR__CPU_I_M0_AXI_FB_BASEADDR)
+#define FRAMEBUF_REGS       XPAR__CPU_I_M0_AXI_FB_BASEADDR
+#else
 #define FRAMEBUF_REGS       XPAR_M0_AXI_FB_BASEADDR
+#endif
 
 // ID registers
 #define framebuf_id         (*(volatile uint32_t *)(FRAMEBUF_REGS + 0x0000))

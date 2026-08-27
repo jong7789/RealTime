@@ -13,6 +13,8 @@
 
 extern u32 func_userset_cmd;
 extern u32 func_calib_cmd;
+extern u32 func_rddr_token;  //$ 2607131936 deferred rddr token (DOSE number, 0=idle)
+extern u32 func_ddrchen_last_written; //$ 2607141159 set_ddr_ch_en cache (invalidate with 0xFFFFFFFF)
 extern u32 func_flash_cmd;
 extern u32 func_calib_map;
 extern u32 func_addr_table;
@@ -25,9 +27,61 @@ extern float func_ds1731_temp[DS1731_NUM];
 extern float func_roic_temp;
 extern float func_fpga_temp;
 extern u32 func_phy_temp;
+extern u32 func_phy_valid; //# 2608201543 0 = Marvell temp sensor off / not answering
+//# 2608191733 uncorrected die readings + the IC->set temperature mapping
+extern float func_fpga_temp_raw;
+extern float func_phy_temp_raw;
+extern float func_sfp_temp_raw;
+extern u32   func_temp_raw_mode; //# 2608191842 1 = XML reports raw die temps ("rtempraw 1")
+//# 2608191856 label for the DBG_XMLTEMP traces (see fpga_info.h)
+#define XMLTEMP_MODE_STR (func_temp_raw_mode ? "raw" : "set")
+float ic_to_set_temp(float t_ic);
+float round_away(float v);
+float fabs_f(float v); //# 2608191920 local float abs (BD outlier filter)
+//# 2608191217 SFP module DDM temperature (SFF-8472 A2h 96-97)
+extern float func_sfp_temp;
+extern u32   func_sfp_valid;
 extern int once88m; //# 2605121743 one-shot flag for deferred m88x33xx_init in check_sfp_stat
 extern u32 func_rns_valid;		// 0.xx.07
 extern u32 bcal_once;			//$ 250305
+//# 2606151121 OFFSET_AFTER_ETH: defer boot offset grab until ethernet connected
+//             0 = legacy (immediate grab in get_calib_init, may be unstable)
+//             1 = grab offset only after func_ether_conn (sensor stabilized
+//                 during link/discovery; image is only viewed post-connect)
+//#ifndef OFFSET_AFTER_ETH
+//#define OFFSET_AFTER_ETH 0 //# 2606171733
+//#endif
+//extern u32 func_offset_after_eth;	//# 2606151121 pending deferred offset grab
+//void check_offset_after_eth(void);	//# 2606151121 main-loop watcher
+//$ 2606171840 OFFSET_AFTER_TMR: defer boot offset grab by a fixed delay.
+//  Replaces ETH-trigger -> sensor stabilizes during boot-fixed window, no
+//  ethernet dependency. Uses ADDR_FREERUN_CNT (100MHz, wraps ~42.9s) so
+//  TMR_MS must stay below 42_000.
+#ifndef OFFSET_AFTER_TMR
+#define OFFSET_AFTER_TMR    1            //$ 2606171840 1=enable timer-based deferred grab
+#endif
+//#define OFFSET_AFTER_TMR_MS  18000u                          //$ 2606171840 delay [ms] after arm
+//#define OFFSET_AFTER_TMR_MS  34000u                          //$ 2607011220 18 sec-> 24 cause 1st offset gate dancha
+#define OFFSET_AFTER_TMR_MS_DEFAULT  18000u                    //$ 2607061533 default for most models
+#define OFFSET_AFTER_TMR_MS_3643R    10000u                    //$ 2607061533 EXT3643R needs longer settle
+extern u32 func_offset_after_tmr_cnt; //$ 2607061533 runtime FREERUN threshold (model-dependent)
+extern u32 func_offset_after_tmr;     //$ 2606171840 1=pending deferred offset grab
+extern u32 func_offset_after_tmr_t0;  //$ 2606171840 FREERUN snapshot at arm time
+void check_offset_after_tmr(void);    //$ 2606171840 main-loop watcher (fires at t0+TMR_MS)
+
+//$ 2607151427 OFFSET_REPEAT: after the boot offset timer fires, keep re-grabbing
+//  offset every INTERVAL_MS until ethernet connects (func_ether_conn), up to
+//  WINDOW_MS total. Count-based window (WINDOW/INTERVAL) keeps a >42.9s total
+//  wrap-safe; each interval diff stays < 42.9s (FREERUN wrap period).
+#ifndef OFFSET_REPEAT_EN
+#define OFFSET_REPEAT_EN           1        //$ 2607151427 1=enable periodic re-grab, 0=disable
+#endif
+#define OFFSET_REPEAT_INTERVAL_MS  10000u   //$ 2607151427 re-grab period [ms] (keep < 42000)
+#define OFFSET_REPEAT_WINDOW_MS    90000u   //$ 2607151427 total window [ms]; max = WINDOW/INTERVAL
+extern u32 func_offset_repeat;              //$ 2607151427 1=periodic re-grab active
+extern u32 func_offset_repeat_last;         //$ 2607151427 FREERUN at last re-grab
+extern u32 func_offset_repeat_n;            //$ 2607151427 re-grabs done this window
+void check_offset_repeat(void);             //$ 2607151427 main-loop watcher (periodic pre-eth)
 
 extern Profile_HandleDef profile;		// dskim - 21.07.22
 
@@ -63,6 +117,7 @@ void roic_settimingprofile(Profile_Def *profile);	// dskim - 21.07.22
 void temp_init(void);
 u32 ds1731_init(void);
 void phy_temp_init(void);
+u32  sfp_temp_init(void); //# 2608191217 enable I2C slave 4 + set SFP byte pointer via ADDR_I2C_MODE
 void xadc_init(void);
 void bw_align(void);
 void bw_align_fpga(u32 *bcalmid);
@@ -139,6 +194,21 @@ int  bw_align_fw_bit_stable(u8 ch, bcal_fw_stable_result_t *res, u8 verbose);
 int  bw_align_fw_word_align(u8 ch, bcal_fw_word_result_t *res, u8 verbose);
 int  bw_align_fw_run_one_ch(u8 ch, bcal_fw_full_result_t *res, u8 verbose);
 void bw_align_fw_run_all(u8 verbose);
+
+//$ 2606021620 BCAL_FW_PAR_TARGET moved here so func_cmd.c can use it
+#define BCAL_FW_PAR_TARGET       0xFFF000u
+
+//$ 2606021620 Snapshot struct/globals for execute_cmd_bcalfw_rdata in func_cmd.c
+typedef struct {
+    int s_mid; int s_width; int s_start; int s_end; int s_status;
+    int w_bs;  u32 w_par;   int w_status;
+    u8  stable_map[32];
+} bcalfw_snap_t;
+#define BCALFW_SNAP_MAX  32
+extern bcalfw_snap_t  bcalfw_snap[BCALFW_SNAP_MAX];
+extern u32            bcalfw_snap_cnt;
+extern u32            bcalfw_snap_wait_us;
+
 void tft_set(void);
 void ext_trig_set(void);
 u32 set_str_data(u8 *data);
@@ -147,6 +217,7 @@ u32 set_userset_data(u32 table, u8 step);
 void get_userset_data(u32 table, u32 value, u8 step);
 void execute_user_cmd(void);
 void execute_calib_cmd(void);
+void execute_rddr_cmd(void);   //$ 2607131936 deferred rddr token handler
 void execute_flash_cmd(void);
 void genicam_command(void);
 void update_image(void);
@@ -160,6 +231,8 @@ void update_hwload(void);
 void checker_rom(void);
 void update_defect(void);
 void check_sfp_stat(void);   // 2604221600 SFP/RXAUI auto-switch polling
+//$ 2606111729 Gate SFP polling to EXT3643R; add check_lan_stat for LAN-only
+void check_lan_stat(void);   // deferred full Marvell PHY init for LAN-only models
 u32 atoi2(u8* arr);
 void get_register(void);
 void set_register(void);
@@ -169,6 +242,9 @@ void read_ds1731_temp(void);
 // TI_ROIC
 void read_roic_temp(void);
 void read_phy_temp(void);
+void read_sfp_temp(void); //# 2608191217 decode SFP DDM temperature from ADDR_I2C_RDATA4
+u32  xml_phy_temp(void);  //# 2608191647 XML_TEMP_PHY value: SFP temp on SFP link, else Marvell
+u32  xml_fpga_temp(void); //# 2608191842 XML_TEMP_FPGA value (float bits), honours rtempraw
 void read_fpga_temp(void);
 // TI_ROIC
 //u32 get_roic_data(u32 num);

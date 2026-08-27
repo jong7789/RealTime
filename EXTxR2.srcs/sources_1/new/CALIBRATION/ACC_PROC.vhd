@@ -65,7 +65,8 @@ architecture behavioral of acc_proc is
             i_Hsyn           : in  std_logic;
             i_Vsyn           : in  std_logic;
             i_Hcnt           : in  std_logic_vector(12 - 1 downto 0);
-            i_Vcnt           : in  std_logic_vector(12 - 1 downto 0);
+--            i_Vcnt           : in  std_logic_vector(12 - 1 downto 0);
+            i_Vcnt           : in  std_logic_vector(13 - 1 downto 0); --# 26052615
             i_Data           : in  std_logic_vector(16 - 1 downto 0);
             o_change         : out std_logic
         );
@@ -115,15 +116,16 @@ architecture behavioral of acc_proc is
         );
     end component;
 
-    component blk_42x64
+--    component blk_42x64
+    component blk_43x64
         port (
             clka  : in  std_logic;
             wea   : in  std_logic_vector(0 downto 0);
             addra : in  std_logic_vector(5 downto 0);
-            dina  : in  std_logic_vector(41 downto 0);
+            dina  : in  std_logic_vector(42 downto 0);
             clkb  : in  std_logic;
             addrb : in  std_logic_vector(5 downto 0);
-            doutb : out std_logic_vector(41 downto 0)
+            doutb : out std_logic_vector(42 downto 0)
         );
     end component;
 
@@ -191,14 +193,16 @@ architecture behavioral of acc_proc is
 
     signal d0LivHsyn : std_logic;
     signal d0LivVsyn : std_logic;
-    signal d0LivVcnt : std_logic_vector(12 - 1 downto 0);
+--    signal d0LivVcnt : std_logic_vector(12 - 1 downto 0); --# 26052615
+    signal d0LivVcnt : std_logic_vector(13 - 1 downto 0);
     signal d0LivHcnt : std_logic_vector(12 - 1 downto 0);
     signal d0LivData : std_logic_vector(16 - 1 downto 0);
     signal d0MmrData : std_logic_vector(16 - 1 downto 0);
 
     signal d1LivHsyn : std_logic;
     signal d1LivVsyn : std_logic;
-    signal d1LivVcnt : std_logic_vector(12 - 1 downto 0);
+--    signal d1LivVcnt : std_logic_vector(12 - 1 downto 0);
+    signal d1LivVcnt : std_logic_vector(13 - 1 downto 0);
     signal d1LivHcnt : std_logic_vector(12 - 1 downto 0);
     signal d1LivData : std_logic_vector(16 - 1 downto 0);
     signal d1MmrData : std_logic_vector(16 - 1 downto 0);
@@ -216,22 +220,26 @@ architecture behavioral of acc_proc is
     signal d39LivHsyn : std_logic;
     signal d39LivVsyn : std_logic;
     signal d39LivHcnt : std_logic_vector(12 - 1 downto 0);
-    signal d39LivVcnt : std_logic_vector(12 - 1 downto 0);
+--    signal d39LivVcnt : std_logic_vector(12 - 1 downto 0);
+    signal d39LivVcnt : std_logic_vector(13 - 1 downto 0);
     signal d39LivData : std_logic_vector(16 - 1 downto 0);
     signal d39AccData : std_logic_vector(16 - 1 downto 0);
 
     signal d40LivHsyn : std_logic;
     signal d40LivVsyn : std_logic;
     signal d40LivHcnt : std_logic_vector(12 - 1 downto 0);
-    signal d40LivVcnt : std_logic_vector(12 - 1 downto 0);
+--    signal d40LivVcnt : std_logic_vector(12 - 1 downto 0);
+    signal d40LivVcnt : std_logic_vector(13 - 1 downto 0);
     signal d40LivData : std_logic_vector(16 - 1 downto 0);
 
     signal d38DivValid : std_logic;
 
     signal LivDly_addra : std_logic_vector(6 - 1 downto 0)  := (others => '0');
-    signal LivDly_dina  : std_logic_vector(42 - 1 downto 0) := (others => '0');
+--    signal LivDly_dina  : std_logic_vector(42 - 1 downto 0) := (others => '0');
+    signal LivDly_dina  : std_logic_vector(43 - 1 downto 0) := (others => '0');--# 26052615
     signal LivDly_addrb : std_logic_vector(6 - 1 downto 0)  := (others => '0');
-    signal LivDly_doutb : std_logic_vector(42 - 1 downto 0) := (others => '0');
+--    signal LivDly_doutb : std_logic_vector(42 - 1 downto 0) := (others => '0');
+    signal LivDly_doutb : std_logic_vector(43 - 1 downto 0) := (others => '0'); --# 26052615
 
     signal AccEn_d0     : std_logic;
     signal AccEnChanged : std_logic;
@@ -501,7 +509,8 @@ begin
         end if;
     end process;
 
-    u_LiveDelay : blk_42x64
+--    u_LiveDelay : blk_42x64
+    u_LiveDelay : blk_43x64 --# 26052615
         port map (
             clka   => clk,
             wea(0) => '1',
@@ -519,10 +528,10 @@ begin
     begin
         if clk'event and clk = '1' then
             --# d39 <= d38
-            d39LivHsyn <= LivDly_doutb(16 + 12 + 12 + 1);
-            d39LivVsyn <= LivDly_doutb(16 + 12 + 12);
-            d39LivHcnt <= LivDly_doutb(16 + 12 + 12 - 1 downto 16 + 12);
-            d39LivVcnt <= LivDly_doutb(16 + 12 - 1 downto 16);
+            d39LivHsyn <= LivDly_doutb(16 + 13 + 12 + 1);
+            d39LivVsyn <= LivDly_doutb(16 + 13 + 12);
+            d39LivHcnt <= LivDly_doutb(16 + 13 + 12 - 1 downto 16 + 13);
+            d39LivVcnt <= LivDly_doutb(16 + 13 - 1 downto 16); --# 26052615
             d39LivData <= LivDly_doutb(16 - 1 downto 0);
             --# 220502 round process
             if d38DivData(16 - 1 downto 0) >= pageCntPlus(16 - 1 downto 1) then

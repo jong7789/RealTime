@@ -381,7 +381,7 @@ void disp_cmd_offset(void) {
 }
 
 void disp_cmd_defect(void) {
-	switch (func_defect_cal) {
+    switch (func_defect_cal) {
         case 0: func_printf("0 [OFF]\r\n");     break;
         case 1: func_printf("1 [ON]\r\n");      break;
     }
@@ -549,6 +549,32 @@ void disp_cmd_rtime(void) {
     for(i = 0; i < 16; i++)     RUNNING_TIME[i] = (u8)arr[i];
 }
 
+//# 2608191842 disp_cmd_rtempraw: report which temperature XML currently serves, and
+//# show both candidates so the effect of the switch is visible in one shot.
+void disp_cmd_rtempraw(void) {
+    execute_cmd_rtemp(); // refresh all sensors before printing
+
+    func_printf("XML temp source = %s\r\n",
+                func_temp_raw_mode ? "1 (raw die)" : "0 (set temp)");
+
+    func_printf("  FPGA  set ");   float_printf(func_fpga_temp, 1);
+    func_printf(" C / raw ");      float_printf(func_fpga_temp_raw, 1);   func_printf(" C\r\n");
+
+    func_printf("  PHY   set %d.0 C / raw ", (int)func_phy_temp);
+    float_printf(func_phy_temp_raw, 1);                                   func_printf(" C\r\n");
+
+    if (def_sfp_port) {
+        func_printf("  SFP   ");
+        if (func_sfp_valid) {
+            func_printf("set ");        float_printf(func_sfp_temp, 1);
+            func_printf(" C / raw ");   float_printf(func_sfp_temp_raw, 1);  func_printf(" C\r\n");
+        }
+        else {
+            func_printf("N/A (no module)\r\n");
+        }
+    }
+}
+
 void disp_cmd_rtemp(void) {
     u32 i;
 
@@ -574,15 +600,74 @@ void disp_cmd_rtemp(void) {
     }
     else {
         for (i = 0; i < DS1731_NUM; i++) {
-            func_printf("BD%2d   = ", i);   float_printf(func_ds1731_temp[i], 1);   func_printf(" C\r\n");
+            func_printf("BD%2d   = ", i);   float_printf(func_ds1731_temp[i], 1);   func_printf(" C");
+            //# 2608201518 Raw 16-bit word straight from the I2C readback register, so a
+            //# filtered/held value can be told apart from what the bus actually returned.
+            //# ptr shows which pointer byte the sweep is using (BD_TEMP_PTR).
+            if (DBG_BDRAW) {
+                u32 raw_addr = (i == 0) ? ADDR_I2C_RDATA0 :
+                               (i == 1) ? ADDR_I2C_RDATA1 :
+                               (i == 2) ? ADDR_I2C_RDATA2 : ADDR_I2C_RDATA3;
+                func_printf("   (raw 0x%04x, ptr 0x%02x)",
+                            (unsigned)(REG(raw_addr) & 0xFFFF), (unsigned)BD_TEMP_PTR);
+            }
+            func_printf("\r\n");
         }
         // TI_ROIC
 //      for (i = 0; i < ROIC_NUM; i++) {
 //          func_printf("ROIC%2d = ", i);   float_printf(func_roic_temp[i], 1);     func_printf(" C\r\n");
 //      }
+//        	func_printf("ROIC   = ");		float_printf(func_roic_temp, 1);	func_printf(" C\r\n");
+            //# 2608201531 ROIC has an internal temperature sensor on AFE3256 only
+            //# (EXT4343RD / EXT3643R); read_roic_temp() leaves func_roic_temp at 0 elsewhere.
+            if (AFE3256_series) {
         	func_printf("ROIC   = ");		float_printf(func_roic_temp, 1);	func_printf(" C\r\n");
-            func_printf("FPGA   = ");       float_printf(func_fpga_temp, 1);    func_printf(" C\r\n");
-            func_printf("PHY    = %d.0 C\r\n", func_phy_temp);
+            }
+            //# 2608191723 FPGA/PHY/SFP go through ic_to_set_temp(), so print corrected and
+            //# uncorrected side by side. The plain globals hold the CORRECTED value (that is
+            //# what XML reports); *_raw holds the die reading.
+            //# 2608191733 raw now comes from the *_raw globals - the correction is no longer
+            //# a constant, so it cannot be added back.
+            //# BD/ROIC have no correction and stay single-valued.
+            func_printf("FPGA   = ");       float_printf(func_fpga_temp, 1);
+            func_printf(" C   (raw ");      float_printf(func_fpga_temp_raw, 1);
+            func_printf(" C)\r\n");
+
+            //# 2608191647 PHY and SFP are two independent sensors here (XML_TEMP_PHY still
+            //# substitutes SFP for PHY, this listing does not). In SFP mode the Marvell MDIO
+            //# bus is tri-stated by the FPGA, so its reading is meaningless - say so.
+            func_printf("PHY    = ");
+            if (def_sfp_port && g_port_sel == 1) {
+                func_printf("N/A (MDIO off in SFP mode)\r\n");
+            }
+            //# 2608201543 sensor disabled by a PHY re-init - read_phy_temp() re-armed it,
+            //# so say so rather than printing the -75C sentinel
+            else if (!func_phy_valid) {
+                func_printf("N/A (temp sensor re-armed, retry)\r\n");
+            }
+            else {
+                func_printf("%d.0 C   (raw ", (int)func_phy_temp);
+                float_printf(func_phy_temp_raw, 1);
+                func_printf(" C)\r\n");
+            }
+
+            //# 2608191217 SFP line shown only on models with an SFP cage, 0.1C resolution
+            if (def_sfp_port) {
+                func_printf("SFP    = ");
+                if (func_sfp_valid) {
+                    float_printf(func_sfp_temp, 1);
+                    func_printf(" C   (raw ");
+                    float_printf(func_sfp_temp_raw, 1);
+                    func_printf(" C)\r\n");
+                }
+                else {
+                    //# 2608191604 Show the raw DDM word + link state so an invalid read can be
+                    // told apart: FFFF=no ACK/pull-up only, 0000=bus never ran, other=decode issue.
+                    func_printf("N/A (raw 0x%04x, port %s)\r\n",
+                                (unsigned)(REG(ADDR_I2C_RDATA4) & 0xFFFF),
+                                (g_port_sel == 1) ? "SFP" : "RXAUI");
+                }
+            }
     }
 }
 
@@ -1104,8 +1189,37 @@ void disp_cmd_dnr(void) {
     func_printf(" DNR ON/OFF=%d \r\n",REG(ADDR_DNR_CTRL)&2);
 }
 
+//$ 2607241407 disp_cmd_spc: help + decode ADDR_SPC_CTRL
+void disp_cmd_spc(void) {
+    u32 v = REG(ADDR_SPC_CTRL);
+    func_printf(" usage: spc                          -> show help and current value \r\n");
+    func_printf("        spc <on>                     -> toggle enable bit0 only, keep other fields (RMW) \r\n"); //$ 2607241741
+    func_printf("        spc <on> <dark> <rst> <sat>  -> dark:1/128/256/512/1024  rst/sat:65535/65534/65530/60000 \r\n");
+    func_printf(" example: spc 1 512 65534 65534   (default reg = 0x1131) \r\n"); //$ 2607241741
+    func_printf(" ADDR_SPC_CTRL(0x4A8) = 0x%04x \r\n", v);
+    func_printf("   enable   [0]     = %d \r\n", (v >> 0)  & 1);
+    func_printf("   dark_idx [7:4]   = %d \r\n", (v >> 4)  & 0xF);
+    func_printf("   rst_idx  [11:8]  = %d \r\n", (v >> 8)  & 0xF);
+    func_printf("   sat_idx  [15:12] = %d \r\n", (v >> 12) & 0xF);
+}
+
 void disp_cmd_acc(void) {
-    func_printf(" ACC ON/OFF=%d \r\n",REG(ADDR_ACC_CTRL)&1);
+    u32 v = REG(ADDR_ACC_CTRL);
+    func_printf(" usage: acc                 -> show this help and current value \r\n");
+    func_printf("        acc <on>            -> on=1 enable / on=0 disable (pagelimit=0) \r\n");
+    func_printf("        acc <on> <pagelim>  -> on=1 enable with page limit (1..255) \r\n");
+    func_printf(" example: acc 1 4           -> ACC ON, pagelimit=4 \r\n");
+    func_printf("          acc 0             -> ACC OFF \r\n");
+    func_printf(" ADDR_ACC_CTRL(0x400) = 0x%04x \r\n", v);
+    func_printf("   acc_on        [0] = %d \r\n", (v >> 0) & 1);
+    func_printf("   ddr_ch_en     [1] = %d \r\n", (v >> 1) & 1);
+    func_printf("   auto_rst      [2] = %d \r\n", (v >> 2) & 1);
+    func_printf("   osd_sel(0a/1d)[3] = %d \r\n", (v >> 3) & 1);
+    func_printf("   sense_ofs   [5:4] = %d \r\n", (v >> 4) & 3);
+    func_printf("   sense_per   [7:6] = %d \r\n", (v >> 6) & 3);
+    func_printf("   pagelimit  [15:8] = %d \r\n", (v >> 8) & 0xff);
+    func_printf(" func_image_acc=%d func_image_acc_value=%d func_image_acc_auto_reset=%d \r\n",
+                func_image_acc, func_image_acc_value, func_image_acc_auto_reset);
 }
 
 void disp_cmd_topv(void) {
