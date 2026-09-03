@@ -182,7 +182,7 @@ void load_fpga_model(void) {
     else
     	mEXT3643R_series = 0;
 
-    //$ 2606171455 load_fpga_model: enable SFP port handling on EXT3643R only (only model with SFP module)
+    //$ 2606171455 load_fpga_model: enable SFP port (only model with SFP module)
     if ((msame(mEXT3643R)) ||
     	(msame(mEXT4343RD)) )
     	def_sfp_port = 1;
@@ -241,7 +241,6 @@ void load_fpga_model(void) {
     else if(msame(mEXT3643R   ))
     {
         FPGA_TFT_MAIN_CLK =  18000000;
-//        FPGA_TFT_MAIN_CLK =  12000000; //# 18M->12 10FPS #260729
         FPGA_TFT_DATA_CLK = FPGA_TFT_MAIN_CLK * 12;
     }
     else
@@ -498,7 +497,6 @@ void load_frame_rate(void)
     else if( (msame(mEXT1024RL    )) )  MAX_FRATE =  6.0; //$ 250703
     else if( (msame(mEXT4343RD    )) )  MAX_FRATE = 50.0;
     else if( (msame(mEXT3643R     )) )  MAX_FRATE = 15.0;
-//    else if( (msame(mEXT3643R     )) )  MAX_FRATE = 10.0; //# 15FPS-> 10 260730
     else                                MAX_FRATE = 40.0;
  
 }

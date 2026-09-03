@@ -9,9 +9,16 @@ package TOP_HEADER is
 -- constant GNR_MODEL  : string := "EXT1616R";
 
 constant FPGA_VER  : std_logic_vector(19 downto 0) := x"2_01_13";
-constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0826_17";
+constant FPGA_DATE : std_logic_vector(31 downto 0):= x"26_0903_10";
 
--- # 2_01_13 26_0826_17 :  --# 4343RD DATA Reverse
+-- # 2_01_13 26_0903_10 :  --$ 260901 4343rd 4ddr sfp
+-- # 2_01_13 26_0902_19 :  --$ 260901 4343rd 2ddr frambuf burst 64 -> 128
+-- # 2_01_13 26_0902_18 :  --$ 260901 4343rd 2ddr frambuf burst 64
+-- # 2_01_13 26_0901_18 :  --$ 260901 4343rd 2ddr test
+-- # 2_01_13 26_0901_13 :  --$ 260901 4343rd xdc
+-- # 2_01_13 26_0827_17 :  --$ 260827 roic cds
+-- # 2_01_13 26_0827_11 :  --$ 260827 lane rev
+-- # 2_01_13 26_0826_17 :  --$ 260826 4343RD DATA Reverse
 -- # 2_01_13 26_0826_16 :  --# 4343RD SFP ROIC DOUT13 Test
 -- # 2_01_13 26_0826_10 :  --# 4343RD SFP AFE2256
 -- # 2_01_13 26_0825_11 :  --# 4343RD SFP SYSTEM BD V0.4
@@ -1364,7 +1371,7 @@ PACKAGE BODY TOP_HEADER is
             elsif(s = "EXT4343RCI_2") then val :=  20000;
             elsif(s = "EXT810R"     ) then val :=  20000;
             elsif(s = "EXT2430RD"   ) then val :=  20000;
-            elsif(s = "EXT4343RD"   ) then val :=  30000;
+            elsif(s = "EXT4343RD"   ) then val :=  20000;
             elsif(s = "EXT3643R"    ) then val :=  30000;
             end if;
         end if;
@@ -1398,7 +1405,7 @@ PACKAGE BODY TOP_HEADER is
             elsif(s = "EXT4343RCI_2") then val := 240000;
             elsif(s = "EXT810R"     ) then val := 240000;
             elsif(s = "EXT2430RD"   ) then val := 240000;
-            elsif(s = "EXT4343RD"   ) then val := 360000;
+            elsif(s = "EXT4343RD"   ) then val := 240000;
             elsif(s = "EXT3643R"    ) then val := 360000;
             end if;
         end if;
@@ -1453,6 +1460,7 @@ PACKAGE BODY TOP_HEADER is
         variable val : integer;
     begin
         if(s = "EXT4343RD"  ) then val := 4;
+--        if(s = "EXT4343RD"  ) then val := 2;
         else                       val := 2;
         end if;
         return (val);
@@ -1508,8 +1516,8 @@ PACKAGE BODY TOP_HEADER is
     function ROIC_CDS1(s:string) return integer is
         variable val:integer;
     begin
---$        val := (4000  * ROIC_MCLK_BY_MODEL(s)) / MHz;
-        val := (2000  * ROIC_MCLK_BY_MODEL(s)) / MHz;
+        val := (4000  * ROIC_MCLK_BY_MODEL(s)) / MHz;
+--$        val := (2000  * ROIC_MCLK_BY_MODEL(s)) / MHz;
         return (val);
     end;
 
@@ -1517,8 +1525,8 @@ PACKAGE BODY TOP_HEADER is
     function ROIC_CDS2(s:string) return integer is
         variable val:integer;
     begin
---$        val := (6500  * ROIC_MCLK_BY_MODEL(s)) / MHz;
-        val := (4000  * ROIC_MCLK_BY_MODEL(s)) / MHz;
+        val := (6500  * ROIC_MCLK_BY_MODEL(s)) / MHz;
+--$        val := (4000  * ROIC_MCLK_BY_MODEL(s)) / MHz;
         return (val);
     end;
 
@@ -1526,8 +1534,8 @@ PACKAGE BODY TOP_HEADER is
     function ROIC_INTRST(s:string) return integer is
         variable val:integer;
     begin
---$        val := (1500  * ROIC_MCLK_BY_MODEL(s)) / MHz;
-        val := (500  * ROIC_MCLK_BY_MODEL(s)) / MHz;
+        val := (1500  * ROIC_MCLK_BY_MODEL(s)) / MHz;
+--$        val := (500  * ROIC_MCLK_BY_MODEL(s)) / MHz;
         return (val);
     end;
 

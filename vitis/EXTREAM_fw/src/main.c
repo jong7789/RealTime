@@ -207,10 +207,11 @@
     	106. 2026.08.04 14:30 //$ 260804 wtp bcal
     	107. 2026.08.20 11:00 //$ 260820 test for CDS 16us
     	108. 2026.08.26 11:00 //$ 260826 EXT4343RD AFE2256
+    	109. 2026.09.01 17:00 //$ 260901 charge injection (DFSM_F = 220)
 
 *****************************************************************************/
 u8  GIGE_DVER   [16] = "SW2.01.05      ";
-u8  FW_DATE     [20] = "2026.08.26 16:00";
+u8  FW_DATE     [20] = "2026.09.03 10:30";
 
 #define BOOT_ROM_CHECK 0 //###!!! boot time reduce only for BETA
 /****************************************************************************
@@ -697,7 +698,6 @@ else {
         }*/
 	}//#def_sfp_port
 } //#while
-
     // Never reached exit
     microblaze_disable_dcache();
     microblaze_invalidate_dcache();

@@ -17,7 +17,7 @@
             "Bash(sudo:*)",
             "Bash(python:*)"
         ],
-        "defaultMode": "default"
+        "defaultMode": "acceptEdits"
     },
     "enabledPlugins": {
         "github@claude-plugins-official": true

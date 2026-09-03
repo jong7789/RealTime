@@ -293,11 +293,21 @@ int m88x33xx_init(phy_if_mode if_mode)
 //    	func_printf("\t MTD_OK 1\r\n");
 //        return error;
 //    }
+    //$ 260903
+    if (mtd_dev.fmtdReadMdio != m88x33xx_read_mdio ||
+        mtd_dev.fmtdWriteMdio != m88x33xx_write_mdio ||
+        mtd_port != 0)
+    {
+        func_printf("\r\n[m88x] mtd_dev CORRUPTED rd=%08x wr=%08x port=%d - abort init\r\n",
+                    (unsigned)(uintptr_t)mtd_dev.fmtdReadMdio,
+                    (unsigned)(uintptr_t)mtd_dev.fmtdWriteMdio,
+                    (int)mtd_port);
+        return 0x1002;
+    }
 
     retStatus = mtdDidPhyAppCodeStart(&mtd_dev,
                                       mtd_port,
                                       &appStarted);
-
     if (retStatus == MTD_FAIL)
     {
         return 0x1000;

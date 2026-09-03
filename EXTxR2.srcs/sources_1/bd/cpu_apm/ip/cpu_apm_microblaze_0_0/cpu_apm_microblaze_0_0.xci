@@ -89,8 +89,8 @@
         "C_DEBUG_EXTERNAL_TRACE": [ { "value": "0", "value_permission": "bd_and_user", "resolve_type": "user", "format": "long", "enabled": false, "usage": "all" } ],
         "C_DEBUG_TRACE_ASYNC_RESET": [ { "value": "0", "resolve_type": "user", "format": "long", "usage": "all" } ],
         "C_DEBUG_PROFILE_SIZE": [ { "value": "0", "resolve_type": "user", "format": "long", "enabled": false, "usage": "all" } ],
-        "C_INTERRUPT_IS_EDGE": [ { "value": "0", "value_permission": "bd", "resolve_type": "user", "format": "long", "usage": "all" } ],
-        "C_EDGE_IS_POSITIVE": [ { "value": "1", "value_permission": "bd", "resolve_type": "user", "format": "long", "usage": "all" } ],
+        "C_INTERRUPT_IS_EDGE": [ { "value": "0", "value_src": "propagated", "value_permission": "bd", "resolve_type": "user", "format": "long", "usage": "all" } ],
+        "C_EDGE_IS_POSITIVE": [ { "value": "1", "value_src": "propagated", "value_permission": "bd", "resolve_type": "user", "format": "long", "usage": "all" } ],
         "C_ASYNC_INTERRUPT": [ { "value": "1", "resolve_type": "user", "format": "long", "usage": "all" } ],
         "C_ASYNC_WAKEUP": [ { "value": "1", "resolve_type": "user", "format": "long", "usage": "all" } ],
         "C_RESET_MSR_IE": [ { "value": "0", "resolve_type": "user", "format": "long", "usage": "all" } ],
@@ -173,7 +173,7 @@
         "C_ADDR_TAG_BITS": [ { "value": "17", "resolve_type": "user", "format": "long", "usage": "all" } ],
         "C_CACHE_BYTE_SIZE": [ { "value": "8192", "value_src": "user", "resolve_type": "user", "format": "long", "usage": "all" } ],
         "C_ICACHE_LINE_LEN": [ { "value": "4", "resolve_type": "user", "format": "long", "usage": "all" } ],
-        "C_ICACHE_ALWAYS_USED": [ { "value": "1", "value_permission": "bd_and_user", "resolve_type": "user", "format": "long", "usage": "all" } ],
+        "C_ICACHE_ALWAYS_USED": [ { "value": "1", "value_src": "propagated", "value_permission": "bd_and_user", "resolve_type": "user", "format": "long", "usage": "all" } ],
         "C_ICACHE_VICTIMS": [ { "value": "0", "resolve_type": "user", "format": "long", "usage": "all" } ],
         "C_ICACHE_STREAMS": [ { "value": "0", "resolve_type": "user", "format": "long", "usage": "all" } ],
         "C_ICACHE_FORCE_TAG_LUTRAM": [ { "value": "0", "resolve_type": "user", "format": "long", "usage": "all" } ],
@@ -193,7 +193,7 @@
         "C_DCACHE_ADDR_TAG": [ { "value": "17", "resolve_type": "user", "format": "long", "usage": "all" } ],
         "C_DCACHE_BYTE_SIZE": [ { "value": "8192", "value_src": "user", "resolve_type": "user", "format": "long", "usage": "all" } ],
         "C_DCACHE_LINE_LEN": [ { "value": "4", "resolve_type": "user", "format": "long", "usage": "all" } ],
-        "C_DCACHE_ALWAYS_USED": [ { "value": "1", "value_permission": "bd_and_user", "resolve_type": "user", "format": "long", "usage": "all" } ],
+        "C_DCACHE_ALWAYS_USED": [ { "value": "1", "value_src": "propagated", "value_permission": "bd_and_user", "resolve_type": "user", "format": "long", "usage": "all" } ],
         "C_DCACHE_USE_WRITEBACK": [ { "value": "0", "resolve_type": "user", "format": "long", "usage": "all" } ],
         "C_DCACHE_VICTIMS": [ { "value": "0", "resolve_type": "user", "format": "long", "enabled": false, "usage": "all" } ],
         "C_DCACHE_FORCE_TAG_LUTRAM": [ { "value": "0", "resolve_type": "user", "format": "long", "usage": "all" } ],
@@ -905,6 +905,13 @@
               "access": "read-write"
             }
           }
+        }
+      }
+    },
+    "contents": {
+      "cpus": {
+        "microblaze": {
+          "address_space_refs": "Data"
         }
       }
     }

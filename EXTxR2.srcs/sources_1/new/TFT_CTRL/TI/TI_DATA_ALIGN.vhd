@@ -713,8 +713,8 @@ begin
         --# 2608241851 ADC_REV reverses the 64-pixel group order -> invert bank bits only
         sbram_addrb <= stoggle_portb
                      & (saddrb(5 downto 4) xor (ADC_REV & ADC_REV))
---                     &  saddrb(3 downto 0);
-                     &  (not saddrb(3 downto 0)); --$ 260826 data rev
+                     &  saddrb(3 downto 0);
+--                     &  (not saddrb(3 downto 0)); --$ 260826 data rev
         bram_gen : for i in 0 to ROIC_NUM(GNR_MODEL) - 1 generate
             U0_BRAM_LINEBUF : BRAM_16x512_64x128
                 port map (
@@ -1049,6 +1049,11 @@ begin
                     --# 2608241851 BRAM path: bank/odd-even folded into addrb -> channel mux only
                     if (GEN_DPRAM_BRAM = '1') then
                         sdata <= sdoutb_bram(sroic_cnt_1d);
+                        --$ 260826 lane rev
+--                        sdata <=  sdoutb_bram(sroic_cnt_1d)(15 downto 0)
+--                                & sdoutb_bram(sroic_cnt_1d)(31 downto 16)
+--                                & sdoutb_bram(sroic_cnt_1d)(47 downto 32)
+--                                & sdoutb_bram(sroic_cnt_1d)(63 downto 48);
                     elsif (stoggle_portb_1d = '0') then
                         if (ADC_REV = '1') then
                             case (saddrb_1d(5 downto 4)) is

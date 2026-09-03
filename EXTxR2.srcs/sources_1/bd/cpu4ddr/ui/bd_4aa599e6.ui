@@ -58,57 +58,57 @@ preplace netloc axi_epc_0_prh_be 1 6 1 NJ 100
 preplace netloc axi_epc_0_prh_cs_n 1 6 1 NJ 120
 preplace netloc axi_epc_0_prh_data_o 1 6 1 NJ 160
 preplace netloc axi_epc_0_prh_rnw 1 6 1 NJ 200
-preplace netloc clk_ref_i_0_1 1 0 6 NJ 1530 NJ 1530 NJ 1530 NJ 1530 NJ 1530 2220J
-preplace netloc clk_wiz_0_clk_out1 1 5 2 2220 550 2580
-preplace netloc clk_wiz_0_clk_out2 1 5 2 2210 380 2590
-preplace netloc clk_wiz_0_interrupt 1 0 7 -10 1540 NJ 1540 NJ 1540 NJ 1540 NJ 1540 2150J 1550 2570
+preplace netloc clk_ref_i_0_1 1 0 6 NJ 1530 NJ 1530 NJ 1530 NJ 1530 NJ 1530 2210J
+preplace netloc clk_wiz_0_clk_out1 1 5 2 2210 550 2580
+preplace netloc clk_wiz_0_clk_out2 1 5 2 2200 380 2590
+preplace netloc clk_wiz_0_interrupt 1 0 7 -10 1540 NJ 1540 NJ 1540 NJ 1540 NJ 1540 2140J 1550 2570
 preplace netloc clk_wiz_0_locked 1 6 1 NJ 730
 preplace netloc dcm_locked_0_1 1 0 5 NJ 1490 NJ 1490 NJ 1490 NJ 1490 1730J
 preplace netloc irq_fb_1 1 0 1 NJ 780
 preplace netloc irq_gige_1 1 0 1 NJ 760
 preplace netloc irq_mac_1 1 0 1 NJ 800
-preplace netloc mdm_1_debug_sys_rst 1 2 3 780 920 1340J 890 1740J
-preplace netloc microblaze_0_Clk 1 0 6 NJ 880 430 890 760 910 1350 880 1740 40 2200
+preplace netloc mdm_1_debug_sys_rst 1 2 3 770 920 1330J 890 1740J
+preplace netloc microblaze_0_Clk 1 0 6 NJ 880 420 890 750 910 1340 880 1740 40 2190
 preplace netloc microblaze_0_intr 1 1 1 N 790
 preplace netloc mig_7series_0_mmcm_locked 1 4 3 1770 1570 NJ 1570 2560
-preplace netloc mig_7series_0_ui_clk 1 3 4 1370 1500 1750 1560 NJ 1560 2580
+preplace netloc mig_7series_0_ui_clk 1 3 4 1360 1500 1750 1560 NJ 1560 2580
 preplace netloc mig_7series_0_ui_clk_sync_rst 1 4 3 1770 1190 NJ 1190 2560
-preplace netloc prh_data_i_0_1 1 0 7 NJ 610 NJ 610 NJ 610 1360J 700 1750J 630 2170J 350 2570
-preplace netloc prh_rdy_0_1 1 0 7 NJ 630 NJ 630 NJ 630 1350J 710 1760J 640 2180J 360 2560
-preplace netloc reset_1 1 0 6 NJ 1510 NJ 1510 NJ 1510 NJ 1510 NJ 1510 2210J
-preplace netloc rst_clk_wiz_1_100M_bus_struct_reset 1 3 4 1360 1580 NJ 1580 2190 1580 2590J
-preplace netloc rst_clk_wiz_1_100M_interconnect_aresetn 1 4 2 1770 650 2170
-preplace netloc rst_clk_wiz_1_100M_mb_reset 1 1 5 450 900 770 1070 1300J 1590 NJ 1590 2130
-preplace netloc rst_clk_wiz_1_100M_peripheral_aresetn 1 1 6 440 1080 NJ 1080 1330 690 1720 50 2150 280 2590
-preplace netloc rst_mig_7series_0_200M_peripheral_aresetn 1 3 4 1380 1290 1760 1390 2160 1590 2600J
+preplace netloc prh_data_i_0_1 1 0 7 NJ 610 NJ 610 NJ 610 1350J 700 1750J 630 2160J 350 2570
+preplace netloc prh_rdy_0_1 1 0 7 NJ 630 NJ 630 NJ 630 1340J 710 1760J 640 2170J 360 2560
+preplace netloc reset_1 1 0 6 NJ 1510 NJ 1510 NJ 1510 NJ 1510 NJ 1510 2200J
+preplace netloc rst_clk_wiz_1_100M_bus_struct_reset 1 3 4 1350 1580 NJ 1580 2180 1580 2590J
+preplace netloc rst_clk_wiz_1_100M_interconnect_aresetn 1 4 2 1770 650 2160
+preplace netloc rst_clk_wiz_1_100M_mb_reset 1 1 5 440 900 760 1070 1290J 1590 NJ 1590 2120
+preplace netloc rst_clk_wiz_1_100M_peripheral_aresetn 1 1 6 430 1080 NJ 1080 1320 690 1720 50 2140 280 2590
+preplace netloc rst_mig_7series_0_200M_peripheral_aresetn 1 3 4 1370 1290 1760 1390 2150 1590 2600J
 preplace netloc sdram_0_init_calib_complete 1 6 1 NJ 1480
-preplace netloc sys_clk_i_0_1 1 0 6 NJ 1550 NJ 1550 NJ 1550 NJ 1550 NJ 1550 2140J
-preplace netloc xlconstant_0_dout 1 5 1 2200J 1410n
+preplace netloc sys_clk_i_0_1 1 0 6 NJ 1550 NJ 1550 NJ 1550 NJ 1550 NJ 1550 2130J
+preplace netloc xlconstant_0_dout 1 5 1 2190J 1410n
 preplace netloc axi2_1 1 0 5 NJ 1090 NJ 1090 NJ 1090 NJ 1090 NJ
-preplace netloc axi_crossbar_0_M00_AXI 1 5 1 2220 1080n
+preplace netloc axi_crossbar_0_M00_AXI 1 5 1 2210 1080n
 preplace netloc axi_dwidth_converter_1_M_AXI 1 4 1 1720 990n
 preplace netloc axi_dwidth_converter_2_M_AXI 1 4 1 1720 1050n
 preplace netloc axi_dwidth_converter_3_M_AXI 1 4 1 1740 1070n
-preplace netloc microblaze_0_M_AXI_DC 1 3 1 1320 830n
-preplace netloc microblaze_0_M_AXI_IC 1 3 1 1310 850n
-preplace netloc microblaze_0_axi_dp 1 3 2 1310J 680 1730
-preplace netloc microblaze_0_axi_periph_M01_AXI 1 5 1 2190 270n
+preplace netloc microblaze_0_M_AXI_DC 1 3 1 1310 830n
+preplace netloc microblaze_0_M_AXI_IC 1 3 1 1300 850n
+preplace netloc microblaze_0_axi_dp 1 3 2 1300J 680 1730
+preplace netloc microblaze_0_axi_periph_M01_AXI 1 5 1 2180 270n
 preplace netloc microblaze_0_axi_periph_M02_AXI 1 5 2 NJ 290 NJ
 preplace netloc microblaze_0_axi_periph_M03_AXI 1 5 2 NJ 310 NJ
 preplace netloc microblaze_0_axi_periph_M04_AXI 1 5 2 NJ 330 NJ
-preplace netloc microblaze_0_axi_periph_M05_AXI 1 5 1 2160 350n
+preplace netloc microblaze_0_axi_periph_M05_AXI 1 5 1 2150 350n
 preplace netloc microblaze_0_axi_periph_M06_AXI 1 5 2 NJ 370 NJ
-preplace netloc microblaze_0_axi_periph_M07_AXI 1 5 1 2140 120n
-preplace netloc microblaze_0_debug 1 2 1 750 800n
+preplace netloc microblaze_0_axi_periph_M07_AXI 1 5 1 2130 120n
+preplace netloc microblaze_0_debug 1 2 1 740 800n
 preplace netloc microblaze_0_dlmb_1 1 3 1 N 770
 preplace netloc microblaze_0_ilmb_1 1 3 1 N 790
-preplace netloc microblaze_0_intc_axi 1 1 5 430 30 NJ 30 NJ 30 NJ 30 2130
+preplace netloc microblaze_0_intc_axi 1 1 5 420 30 NJ 30 NJ 30 NJ 30 2120
 preplace netloc microblaze_0_interrupt 1 2 1 N 780
 preplace netloc s0_axi_1 1 0 4 NJ 1350 NJ 1350 NJ 1350 NJ
 preplace netloc sdram_0_DDR3 1 6 1 NJ 1400
 preplace netloc uartlite_0_UART 1 6 1 NJ 450
 levelinfo -pg 1 -30 320 620 1060 1550 1950 2390 2620
-pagesize -pg 1 -db -bbox -sgen -200 -90 2820 1600
+pagesize -pg 1 -db -bbox -sgen -190 -90 2810 1600
 "
 }
 {

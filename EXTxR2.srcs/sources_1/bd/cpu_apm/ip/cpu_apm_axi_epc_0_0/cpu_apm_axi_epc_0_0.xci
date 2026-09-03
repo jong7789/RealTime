@@ -110,7 +110,7 @@
         "C_PRH_MAX_AWIDTH": [ { "value": "32", "resolve_type": "user", "format": "long", "usage": "all" } ],
         "C_NUM_PERIPHERALS": [ { "value": "1", "resolve_type": "user", "format": "long", "usage": "all" } ],
         "C_PRH_CLK_PERIOD_PS": [ { "value": "10000", "value_src": "user", "resolve_type": "user", "format": "long", "usage": "all" } ],
-        "C_S_AXI_CLK_PERIOD_PS": [ { "value": "10000", "value_permission": "bd", "resolve_type": "user", "format": "long", "usage": "all" } ],
+        "C_S_AXI_CLK_PERIOD_PS": [ { "value": "10000", "value_src": "propagated", "value_permission": "bd", "resolve_type": "user", "format": "long", "usage": "all" } ],
         "Component_Name": [ { "value": "cpu_apm_axi_epc_0_0", "resolve_type": "user", "usage": "all" } ]
       },
       "model_parameters": {

@@ -25,8 +25,8 @@ EXTREAM-R 시리즈 적외선 열화상 카메라용 FPGA 설계 프로젝트. S
 - docs/AFE3256_refernce.md : AFE3256 ROIC 요약 데이터시트
 
 ## Feature
-- EXT4343RD는 CPU4DDR / 10G / Dual ROIC 구조
-- EXT3643R만 SFP 모듈 사용
+- EXT4343RD는 CPU4DDR / 10G / Dual ROIC / AFE2256 구조
+- EXT3643R,EXT4343RD는 SFP 모듈 사용
 
 ## Build Commands
 

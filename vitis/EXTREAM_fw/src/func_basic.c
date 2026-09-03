@@ -1400,6 +1400,8 @@ void roic_settimingprofile(Profile_Def *profile) {
     	DFSM_F = 220; //DF_SM0_F = 220; //$ 250703
     else if (msame(mEXT3643R)) //# 26082416
     	DFSM_F = 242;
+    else if (msame(mEXT4343RD)) //$ 260901
+        DFSM_F = 220;
     else
     	DFSM_F = SHS_F;
 
@@ -1567,6 +1569,11 @@ else if (msame(mEXT3643R)){ //# a-si
     execute_cmd_wroic(0x12, 0x4000);                    // ESSENTIAL BIT2
     execute_cmd_wroic(0x18, 0x0001);                    // ESSENTIAL BIT3
     execute_cmd_wroic(0x5D, 0x0208);                    // 2f0-> 208 over saturation 240131
+	}
+else if (msame(mEXT4343RD)){
+    execute_cmd_wroic(0x12, 0x4000);                    // ESSENTIAL BIT2
+    execute_cmd_wroic(0x18, 0x0001);                    // ESSENTIAL BIT3
+    execute_cmd_wroic(0x5D, 0x0208);                    // Enable Charge dump
 	}
 else{
     execute_cmd_wroic(0x12, 0x4000);                    // ESSENTIAL BIT2
